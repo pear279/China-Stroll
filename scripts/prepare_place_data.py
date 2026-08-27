@@ -25,6 +25,16 @@ CATEGORY_CODES = {
 
 SEGMENT_TYPES = ["overview", "history", "highlight", "practical", "practical"]
 
+CONTENT_OVERRIDES = {
+    "tiananmen": {
+        "practical_notes": (
+            "天安门广场免费参观，进入前需按天安门地区管理委员会的最新要求"
+            "预约并接受安检。开放和清场时间可能随升旗、重大活动及管理安排"
+            "调整，出行前应查看官方公告。"
+        )
+    }
+}
+
 
 def column(columns: list[str], prefix: str) -> str:
     matches = [name for name in columns if name.startswith(prefix)]
@@ -89,25 +99,25 @@ def normalize(source: Path) -> tuple[list[dict], list[dict]]:
         if category not in CATEGORY_CODES:
             raise ValueError(f"Unknown category {category!r} for {place_id}")
 
-        places.append(
-            {
-                "id": place_id,
-                "category_code": CATEGORY_CODES[category],
-                "latitude": latitude,
-                "longitude": longitude,
-                "recommended_duration_minutes": int(row[names["duration"]]),
-                "locale": "zh-CN",
-                "name": row[names["name"]].strip(),
-                "aliases": split_list(row[names["aliases"]], r"[，,、；;/]+"),
-                "tags": split_list(row[names["tags"]], r"[，,、；;/]+"),
-                "short_intro": row[names["short_intro"]].strip(),
-                "history": row[names["history"]].strip(),
-                "highlights": split_list(row[names["highlights"]], r"[；;]+"),
-                "visitor_tips": row[names["visitor_tips"]].strip(),
-                "practical_notes": row[names["practical_notes"]].strip(),
-                "photo_spot_notes": row[names["photo_spot_notes"]].strip(),
-            }
-        )
+        place = {
+            "id": place_id,
+            "category_code": CATEGORY_CODES[category],
+            "latitude": latitude,
+            "longitude": longitude,
+            "recommended_duration_minutes": int(row[names["duration"]]),
+            "locale": "zh-CN",
+            "name": row[names["name"]].strip(),
+            "aliases": split_list(row[names["aliases"]], r"[，,、；;/]+"),
+            "tags": split_list(row[names["tags"]], r"[，,、；;/]+"),
+            "short_intro": row[names["short_intro"]].strip(),
+            "history": row[names["history"]].strip(),
+            "highlights": split_list(row[names["highlights"]], r"[；;]+"),
+            "visitor_tips": row[names["visitor_tips"]].strip(),
+            "practical_notes": row[names["practical_notes"]].strip(),
+            "photo_spot_notes": row[names["photo_spot_notes"]].strip(),
+        }
+        place.update(CONTENT_OVERRIDES.get(place_id, {}))
+        places.append(place)
 
         raw_segments = split_list(row[names["guide_segments"]], r"[｜|]+")
         if len(raw_segments) not in (4, 5):

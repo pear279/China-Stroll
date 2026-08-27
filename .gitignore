@@ -7,9 +7,11 @@
 # 原始内容资料暂不进入公开仓库
 /data/*.xlsx
 /data/*.csv
+/data/50景点图片附件/
 
 # 本地生成和临时文件
 /data/processed/
+/.firecrawl/
 /tmp/
 /dist/
 /node_modules/
