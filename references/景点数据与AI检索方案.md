@@ -28,7 +28,7 @@ data 目录目前有一份 Excel 和一份 CSV。
 
 保存语言无关的稳定信息。
 
-主要字段包括 id、slug、category、latitude、longitude、recommended_duration_minutes、status、created_at 和 updated_at。
+主要字段包括 id、category_code、latitude、longitude、recommended_duration_minutes、external_ids、coordinate_system、coordinates_checked_at、status、created_at 和 updated_at。当前 id 已经是稳定英文短标识，不再增加重复的 slug 字段。
 
 ### place_localizations
 
@@ -70,6 +70,18 @@ segment_type 可使用 overview、history、highlight、family、practical 和 f
 
 内容更新后生成新版本和新向量。旧版本停止检索，但保留审核记录。
 
+### place_visit_information
+
+保存页面与动态推荐需要读取的结构化游览信息。
+
+主要字段包括 place_id、locale、address、opening_hours_text、opening_hours、ticket_notes、booking_required、booking_url、reservation_notes、entrance_notes、checked_at、review_due_at 和 status。
+
+开放时间使用结构化 JSON，Worker 负责格式检查。过期信息可以显示原文，但不能直接判断景点仍然开放。
+
+### place_visit_information_sources
+
+保存游览信息和资料来源的对应关系。一个地点和语言可以关联多条 place_sources 记录。
+
 ## 产品读取方式
 
 普通页面按照地点标识和语言读取 places、place_localizations、guide_segments 与 place_media。地图只读取坐标、分类、名称和短介绍，避免一次加载整份导览。
@@ -106,7 +118,9 @@ AI 不能直接读取整张表。Cloudflare Worker 先根据地点、语言、�
 
 Supabase 项目 yjguudzllzjdmqsgwtru 已经通过 OAuth 连接。项目位于 ap-southeast-2，使用 PostgreSQL 17。
 
-数据库已经创建 places、place_localizations、guide_segments、place_sources、place_media 和 place_search_documents 六张表，并启用 vector 扩展和行级权限。52 个地点、52 条中文内容和 209 个中文导览段落已经导入。39 条中文内容通过当前审核，13 条保留草稿。故宫、天坛和景山另有三条已审核英文内容及十二个英文导览段落。
+数据库已经创建 places、place_localizations、guide_segments、place_sources、place_media 和 place_search_documents 六张内容表，并启用 vector 扩展和行级权限。52 个地点、52 条中文内容和 209 个中文导览段落已经导入。39 条中文内容通过当前审核，13 条保留草稿。故宫、天坛和景山另有三条已审核英文内容及十二个英文导览段落。
+
+MVP 数据迁移增加 place_visit_information 和 place_visit_information_sources。完整旅行数据结构与接口要求见 [MVP 数据结构与接口契约](./MVP数据结构与接口契约.md)。
 
 北京喜剧院坐标已经补齐。52 个景点都有来源记录，数据库现有 54 条来源。已生成 165 条检索文档，其中 126 条来自已审核内容。向量尚未生成。
 
