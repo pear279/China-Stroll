@@ -1,6 +1,10 @@
 import type { AgentSuggestion, TripSnapshot } from "../../../../packages/shared/src"
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787"
+export function resolveApiBaseUrl(isProduction: boolean, configuredUrl?: string) {
+  return isProduction ? "" : configuredUrl ?? "http://localhost:8787"
+}
+
+const baseUrl = resolveApiBaseUrl(import.meta.env.PROD, import.meta.env.VITE_API_BASE_URL)
 
 export class ApiRequestError extends Error {
   constructor(

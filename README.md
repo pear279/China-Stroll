@@ -16,7 +16,7 @@ npm run dev:web
 
 浏览器打开 `http://localhost:5173`。没有后端密钥时可以使用三景点预览，预览数据只保存在当前浏览器。
 
-Worker 本地运行需要单独设置 Supabase 服务端密钥。
+单独调试 Worker 时需要设置 Supabase 服务端密钥。
 
 ```bash
 cp apps/worker/.dev.vars.example apps/worker/.dev.vars
@@ -30,6 +30,14 @@ npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config apps/worker/wrangler.
 ```
 
 服务端密钥不能放入浏览器变量、日志或仓库。
+
+正式环境使用 Cloudflare Pages Functions 接管 `/health` 和 `/v1/*`。这样页面与业务接口共用 `china-stroll.pages.dev`，不依赖单独的 `workers.dev` 域名。本地检查 Pages 完整运行方式如下。
+
+```bash
+npm run dev:pages
+```
+
+Cloudflare Pages 需要增加名为 `SUPABASE_SERVICE_ROLE_KEY` 的 Secret。`SUPABASE_URL` 可以继续读取已有的 `VITE_SUPABASE_URL`，无需重复配置。前端正式构建固定使用同域接口，`VITE_API_BASE_URL` 只用于本地开发，可以从 Pages 正式环境删除。
 
 ## 检查命令
 

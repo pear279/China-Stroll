@@ -17,8 +17,10 @@ import {
   tripCommandResultSchema,
 } from "./contracts"
 
-type Bindings = Env & {
+export type WorkerBindings = {
+  SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  WEB_ORIGIN: string
 }
 
 type Variables = {
@@ -28,7 +30,7 @@ type Variables = {
   userClient: SupabaseClient<Database>
 }
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const app = new Hono<{ Bindings: WorkerBindings; Variables: Variables }>()
 
 app.use(
   "*",
@@ -38,6 +40,11 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
   }),
 )
+
+app.use("/v1/*", async (context, next) => {
+  await next()
+  context.header("Cache-Control", "private, no-store")
+})
 
 app.use("/v1/*", async (context, next) => {
   const contentLength = Number(context.req.header("Content-Length") ?? 0)
@@ -55,6 +62,11 @@ app.use("/v1/*", async (context, next) => {
 
   if (!accessToken) {
     return context.json(apiError("UNAUTHENTICATED", "Sign in before changing a trip."), 401)
+  }
+
+  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error(JSON.stringify({ message: "server_configuration_missing" }))
+    return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The trip service is temporarily unavailable."), 503)
   }
 
   const authClient = createClient<Database>(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_ROLE_KEY, {

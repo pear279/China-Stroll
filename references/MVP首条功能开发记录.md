@@ -20,7 +20,7 @@
 
 前端使用 React、TypeScript、Vite、Tailwind CSS 和 PWA。地图组件由产品自己的 `TravelMap` 包装 MapLibre GL JS，页面只传入地点和选中状态。MapLibre Worker 随 Vite 构建，不依赖外部 Worker 地址。
 
-Cloudflare Worker 提供创建旅行、读取旅行、加入地点、生成建议和确认建议五类接口。每次写入先验证 Supabase 用户，再检查成员身份、旅行版本和命令标识。
+Cloudflare Pages Functions 提供创建旅行、读取旅行、加入地点、生成建议和确认建议五类接口，并复用原有 Hono Worker 应用。页面与接口共用 `china-stroll.pages.dev`。每次写入先验证 Supabase 用户，再检查成员身份、旅行版本和命令标识。
 
 Supabase 新增三个服务端命令函数。浏览器角色没有执行权限，只有 `service_role` 可以调用。创建旅行会同时创建第一天和改动记录。重复命令返回第一次结果，旧版本写入会失败。
 
@@ -28,9 +28,9 @@ Supabase 新增三个服务端命令函数。浏览器角色没有执行权限�
 
 ## 验证结果
 
-1. TypeScript 前端和 Worker 类型检查通过。
-2. 八个领域与接口单元测试通过，覆盖输入限制、数据库结果校验和建议结构校验。
-3. Worker 健康接口和未登录拦截测试通过。
+1. TypeScript 前端、Worker 和 Pages Functions 类型检查通过。
+2. 十三个领域、接口与部署适配测试通过，覆盖输入限制、数据库结果校验、建议结构校验和同域接口选择。
+3. Pages Functions 本地健康接口返回 200，未登录写入返回 401，旅行接口带 `private, no-store` 响应头。
 4. 数据库命令测试先在回滚事务中通过，再应用到 Supabase，线上回滚测试再次通过。
 5. 重复命令、旧版本冲突、建议确认和单次版本增加均已覆盖。
 6. 桌面浏览器完成创建、加入三地、生成建议和确认建议。
@@ -40,7 +40,7 @@ Supabase 新增三个服务端命令函数。浏览器角色没有执行权限�
 
 ## 尚未完成
 
-Worker 还没有部署到 Cloudflare。仓库无法取得 Supabase 服务端密钥，部署前需要由项目所有者把密钥写入 Cloudflare Secret。真实邮件登录与线上 Worker 写入要在密钥配置后完成一次端到端检查。
+现有静态页面已经部署到 Cloudflare Pages。Pages Functions 同域接口已经完成本地构建和运行验证，尚未推送上线。上线前需要由项目所有者在 Pages 项目增加 `SUPABASE_SERVICE_ROLE_KEY` Secret。真实邮件登录与线上写入要在密钥配置和新版本部署后完成一次端到端检查。
 
 地图中的虚线只表示访问顺序，当前 OSM 公共瓦片只用于本地试验。正式底图、道路路线、第三方导航、定位状态和北京移动网络测试继续保留在后续任务中。
 
@@ -48,7 +48,7 @@ Worker 还没有部署到 Cloudflare。仓库无法取得 Supabase 服务端密�
 
 ## 下一步
 
-1. 在 Cloudflare Worker 配置 `SUPABASE_SERVICE_ROLE_KEY`，部署预览环境。
-2. 用一个真实测试账号完成创建旅行、加入地点和确认建议。
+1. 在 Cloudflare Pages 配置 `SUPABASE_SERVICE_ROLE_KEY`，推送同域接口版本。
+2. 先检查线上 `/health`，再用一个真实测试账号完成创建旅行、加入地点和确认建议。
 3. 接入正式底图与路线供应商，补定位和第三方导航。
 4. 加入 17 个重点地点，再开始地点搜索和导览问答。
