@@ -4,7 +4,9 @@ export function resolveApiBaseUrl(isProduction: boolean, configuredUrl?: string)
   return isProduction ? "" : configuredUrl ?? "http://localhost:8787"
 }
 
-const baseUrl = resolveApiBaseUrl(import.meta.env.PROD, import.meta.env.VITE_API_BASE_URL)
+const baseUrl = import.meta.env.DEV
+  ? resolveApiBaseUrl(false, import.meta.env.VITE_API_BASE_URL)
+  : ""
 
 export class ApiRequestError extends Error {
   constructor(
