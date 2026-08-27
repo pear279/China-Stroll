@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Stroll Serif";
+  src: local("Iowan Old Style"), local("Baskerville");
+  font-display: swap;
+}
+
+:root {
+  color: #26211d;
+  background: #f4f0e8;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #f4f0e8; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #e5ad45; outline-offset: 3px; }
+
+.brand { color: inherit; display: inline-flex; align-items: center; gap: .72rem; font-family: "Stroll Serif", Georgia, serif; font-size: 1.12rem; font-weight: 700; text-decoration: none; }
+.brand-seal { width: 2.35rem; height: 2.35rem; display: grid; place-items: center; border-radius: .4rem; color: #fff9ed; background: #b33a2e; font-family: serif; font-weight: 700; box-shadow: inset 0 0 0 2px rgb(255 249 237 / .25); }
+.eyebrow { color: #9a342b; font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+h1, h2, h3, p { margin-top: 0; }
+h1, h2, h3 { font-family: "Stroll Serif", Georgia, serif; }
+h1 { font-size: clamp(2.55rem, 6vw, 5.8rem); line-height: .98; letter-spacing: -.045em; }
+h2 { font-size: 1.55rem; line-height: 1.1; }
+
+.welcome-layout { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(350px, .75fr); gap: clamp(2rem, 7vw, 7rem); align-items: center; padding: clamp(1.5rem, 5vw, 5rem); background: radial-gradient(circle at 15% 15%, #fffaf0 0, transparent 38%), linear-gradient(135deg, #f5f1e8 0 68%, #ded7c7 68%); }
+.welcome-copy { max-width: 850px; }
+.welcome-copy .brand { margin-bottom: clamp(4rem, 12vh, 8rem); }
+.welcome-copy .eyebrow { margin-bottom: 1rem; }
+.welcome-lede { max-width: 650px; color: #655d54; font-size: clamp(1.04rem, 2vw, 1.26rem); line-height: 1.7; }
+.proof-row { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 2rem; }
+.proof-row span { display: inline-flex; align-items: center; gap: .45rem; padding: .65rem .85rem; border: 1px solid #d5cec0; border-radius: 999px; color: #504941; background: rgb(255 255 255 / .48); font-size: .82rem; }
+.welcome-card { position: relative; max-width: 470px; width: 100%; padding: clamp(1.25rem, 3.8vw, 2.5rem); border: 1px solid #d9d0bf; background: rgb(255 253 247 / .88); box-shadow: 0 28px 70px rgb(53 41 28 / .14); backdrop-filter: blur(14px); }
+.postcard-stack { margin: -5rem auto 2.1rem; width: min(86%, 330px); padding: .7rem .7rem 1.1rem; transform: rotate(2deg); background: #fffdf7; box-shadow: 0 18px 35px rgb(66 45 25 / .18); }
+.postcard-stack img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.postcard-stack span { display: block; margin-top: .75rem; color: #756b60; font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .2em; text-align: center; }
+.welcome-card h2 { margin-bottom: .55rem; }
+.auth-form, .create-card form { display: grid; gap: .7rem; }
+label { color: #4a433c; font-size: .8rem; font-weight: 750; }
+label span { color: #8f877d; font-weight: 500; }
+input { min-height: 3rem; width: 100%; padding: .8rem 1rem; border: 1px solid #cfc6b7; border-radius: .45rem; color: #2a2521; background: #fffdf8; }
+input:focus { border-color: #b33a2e; }
+.primary-button, .secondary-button, .assistant-button { min-height: 3.05rem; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: .45rem; font-weight: 800; }
+.primary-button { border: 1px solid #9e3027; color: #fffaf1; background: #b33a2e; box-shadow: 0 8px 20px rgb(179 58 46 / .18); }
+.primary-button:hover:not(:disabled) { background: #962c24; }
+.secondary-button { width: 100%; border: 1px solid #b9afa0; color: #38322d; background: transparent; }
+.or-divider { position: relative; margin: 1.2rem 0; border-top: 1px solid #ddd5c8; text-align: center; }
+.or-divider span { position: relative; top: -.75rem; padding: 0 .6rem; color: #928a80; background: #fffdf7; font-size: .78rem; }
+.privacy-note, .config-note, .status-message { margin: .75rem 0 0; color: #766e65; font-size: .76rem; line-height: 1.5; text-align: center; }
+.status-message { color: #6d4d19; }
+
+.create-layout { min-height: 100vh; display: grid; place-items: center; padding: 2rem; background: linear-gradient(rgb(246 242 234 / .88), rgb(246 242 234 / .94)), url("/places/temple-of-heaven.png") center/cover; }
+.step-count { position: fixed; top: 1.5rem; right: 1.5rem; color: #8f8579; font: .72rem ui-monospace, monospace; letter-spacing: .12em; }
+.create-card { width: min(100%, 570px); padding: clamp(1.5rem, 5vw, 4rem); border: 1px solid #d2c9ba; background: rgb(255 253 247 / .94); box-shadow: 0 25px 60px rgb(40 31 22 / .15); }
+.create-card h1 { margin: .8rem 0 1.2rem; font-size: clamp(2.5rem, 6vw, 4rem); }
+.create-card > p { color: #70685e; line-height: 1.6; }
+.create-card form { margin-top: 2rem; }
+.create-card .primary-button { margin-top: .5rem; }
+
+.app-shell { min-height: 100vh; }
+.app-header { position: sticky; top: 0; z-index: 20; min-height: 4.8rem; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; padding: .85rem clamp(1rem, 4vw, 3rem); border-bottom: 1px solid #d7cfc2; background: rgb(247 244 237 / .93); backdrop-filter: blur(14px); }
+.trip-meta { display: grid; gap: .1rem; text-align: center; }
+.trip-meta strong { font-family: "Stroll Serif", Georgia, serif; }
+.trip-meta span { color: #82796f; font-size: .68rem; letter-spacing: .05em; }
+.icon-button { justify-self: end; width: 2.55rem; height: 2.55rem; display: grid; place-items: center; border: 1px solid #cec5b7; border-radius: 50%; color: #625a52; background: transparent; }
+.planner-grid { display: grid; grid-template-columns: minmax(390px, .9fr) minmax(420px, 1.1fr); grid-template-areas: "day map" "places places"; gap: 1px; background: #d8d0c3; }
+.day-panel, .map-panel, .places-panel { background: #f7f4ed; }
+.day-panel { grid-area: day; padding: clamp(1.5rem, 4vw, 3.5rem); }
+.map-panel { grid-area: map; padding: clamp(1rem, 2vw, 1.7rem); }
+.places-panel { grid-area: places; padding: clamp(1.5rem, 4vw, 3.5rem); }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.section-heading h1 { margin: .4rem 0 0; font-size: clamp(2.2rem, 5vw, 4rem); }
+.section-heading h2, .map-panel-heading h2 { margin: .35rem 0 0; }
+.date-chip, .count-chip { flex: none; display: inline-flex; align-items: center; gap: .45rem; padding: .58rem .72rem; border: 1px solid #d0c8ba; border-radius: 999px; color: #6e655c; font-size: .74rem; }
+.status-banner { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.2rem; padding: .8rem 1rem; border: 1px solid #bfcab0; color: #3f5b2b; background: #f0f5e8; font-size: .85rem; }
+.empty-plan { padding: 2.2rem 1rem; border: 1px dashed #c8beaf; color: #776e64; text-align: center; }
+.empty-plan svg { color: #b33a2e; }
+.empty-plan h2 { margin: .7rem 0 .45rem; color: #342e29; }
+.empty-plan p { margin-bottom: 0; }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { position: relative; padding-bottom: .75rem; }
+.timeline li:not(:last-child)::before { content: ""; position: absolute; z-index: 0; top: 2.5rem; bottom: -.15rem; left: 1.33rem; border-left: 1px dashed #b9afa1; }
+.timeline-card { position: relative; z-index: 1; width: 100%; min-height: 4.8rem; display: grid; grid-template-columns: 2.7rem 1fr auto; align-items: center; gap: .8rem; padding: .8rem; border: 1px solid #d7cfc2; border-radius: .45rem; color: #332d28; background: #fffdf8; text-align: left; }
+.timeline-card.is-selected { border-color: #b33a2e; box-shadow: 0 0 0 2px rgb(179 58 46 / .08); }
+.timeline-number { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border-radius: 50%; color: #fff8eb; background: #b33a2e; font-family: "Stroll Serif", Georgia, serif; font-weight: 800; }
+.timeline-copy { display: grid; gap: .3rem; }
+.timeline-copy span { display: flex; align-items: center; gap: .35rem; color: #776e64; font-size: .75rem; }
+.assistant-card { position: relative; margin-top: 1rem; padding: 1.2rem 1.2rem 1.2rem 4.6rem; border: 1px solid #d6caa9; background: #fff9e9; }
+.assistant-icon { position: absolute; top: 1.15rem; left: 1.15rem; width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border-radius: 50%; color: #7f4d08; background: #f0dca5; }
+.assistant-card h2 { margin: .3rem 0 .65rem; }
+.assistant-card p { color: #685f53; font-size: .85rem; line-height: 1.55; }
+.assistant-button { border: 1px solid #c99b3c; padding: 0 1rem; color: #6a430c; background: #f7e6b9; }
+.suggestion-panel ul { display: grid; gap: .35rem; margin: 0 0 .8rem; padding: 0; list-style: none; }
+.suggestion-panel li { display: flex; align-items: center; gap: .45rem; color: #514940; font-size: .79rem; }
+.risk-note { display: grid; gap: .2rem; margin: .8rem 0; padding: .7rem; border-left: 3px solid #d4a43e; background: rgb(255 255 255 / .48); font-size: .74rem; }
+.risk-note span { color: #756a5c; }
+.suggestion-panel .primary-button { width: 100%; }
+
+.map-panel-heading { padding: .25rem .25rem 1rem; }
+.map-shell { position: relative; min-height: 620px; height: calc(100% - 4.5rem); overflow: hidden; border: 1px solid #cfc6b8; background: #ddd7ca; }
+.map-canvas { position: absolute; inset: 0; }
+.map-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: #635b52; background: #e9e4da; text-align: center; }
+.map-note { position: absolute; z-index: 2; left: 1rem; right: 1rem; bottom: 1rem; margin: 0; padding: .65rem .8rem; color: #5f574e; background: rgb(255 253 247 / .92); box-shadow: 0 4px 16px rgb(40 35 29 / .12); font-size: .7rem; }
+.map-pin { width: 2rem; height: 2rem; display: grid; place-items: center; border: 2px solid #fff8ed; border-radius: 50% 50% 50% 18%; transform: rotate(-45deg); color: white; background: #b33a2e; box-shadow: 0 4px 12px rgb(55 38 25 / .28); font-size: .72rem; font-weight: 800; }
+.map-pin::first-letter { transform: rotate(45deg); }
+.map-pin.is-selected { width: 2.45rem; height: 2.45rem; background: #23201d; }
+.maplibregl-ctrl-attrib { font-size: 9px; }
+
+.place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.place-card { overflow: hidden; border: 1px solid #d4ccbf; background: #fffdf8; }
+.place-card > img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #eee8dd; }
+.place-card-copy { padding: 1.05rem; }
+.place-zh { color: #9c332b; font-family: serif; font-size: .78rem; font-weight: 800; letter-spacing: .08em; }
+.place-card h3 { margin: .25rem 0 .55rem; font-size: 1.25rem; }
+.place-card p { min-height: 3.8rem; color: #756d63; font-size: .78rem; line-height: 1.55; }
+.place-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; border-top: 1px solid #e3ddd3; }
+.place-card-footer span, .place-card-footer button { display: inline-flex; align-items: center; gap: .35rem; }
+.place-card-footer span { color: #756d63; font-size: .74rem; }
+.place-card-footer button { border: 0; padding: .45rem .6rem; color: #9e3027; background: transparent; font-size: .78rem; font-weight: 800; }
+.loading-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: .8rem; color: #6d655b; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .welcome-layout { grid-template-columns: 1fr; padding-top: 2rem; background: #f5f1e8; }
+  .welcome-copy .brand { margin-bottom: 4rem; }
+  .welcome-card { justify-self: center; margin-top: 2rem; }
+  .planner-grid { grid-template-columns: 1fr; grid-template-areas: "day" "map" "places"; }
+  .map-shell { min-height: 470px; height: 60vh; }
+  .place-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .welcome-layout { padding: 1.1rem; align-content: start; }
+  .welcome-copy .brand { margin-bottom: 3.5rem; }
+  .welcome-copy h1 { font-size: 3.15rem; }
+  .welcome-card { margin-top: 4rem; padding: 1.2rem; }
+  .postcard-stack { margin-top: -4.5rem; width: 72%; }
+  .proof-row span { width: 100%; }
+  .app-header { grid-template-columns: 1fr auto; }
+  .trip-meta { grid-column: 1 / -1; grid-row: 2; text-align: left; }
+  .day-panel, .places-panel { padding: 1.15rem; }
+  .map-panel { padding: .7rem; }
+  .section-heading { align-items: flex-end; }
+  .date-chip { display: none; }
+  .assistant-card { padding-left: 1.1rem; }
+  .assistant-icon { position: static; margin-bottom: .8rem; }
+  .place-grid { grid-template-columns: 1fr; }
+  .place-card { display: grid; grid-template-columns: 38% 1fr; }
+  .place-card > img { height: 100%; }
+  .place-card p { min-height: 0; }
+  .map-shell { min-height: 390px; height: 58vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

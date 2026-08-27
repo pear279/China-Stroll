@@ -3,6 +3,8 @@
 .env
 .env.*
 !.env.example
+.dev.vars
+**/.dev.vars
 
 # 原始内容资料暂不进入公开仓库
 /data/*.xlsx
@@ -13,5 +15,6 @@
 /data/processed/
 /.firecrawl/
 /tmp/
-/dist/
+**/dist/
+**/.wrangler/
 /node_modules/

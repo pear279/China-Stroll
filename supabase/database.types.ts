@@ -963,7 +963,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_mvp_trip_changes: {
+        Args: {
+          p_actor_id: string
+          p_change_type?: string
+          p_changes: Json
+          p_command_id: string
+          p_expected_version: number
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      confirm_mvp_agent_suggestion: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_expected_version: number
+          p_suggestion_id: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      create_mvp_trip: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_locale?: string
+          p_name: string
+          p_start_date?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
