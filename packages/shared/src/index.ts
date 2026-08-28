@@ -173,34 +173,134 @@ export const samplePlaces: SamplePlace[] = [
   },
 ]
 
-export function buildSampleSuggestion(stops: TripStop[]): Omit<AgentSuggestion, "id" | "tripId" | "baseVersion" | "expiresAt"> {
-  const plannedOrder = ["forbidden-city", "jingshan-park", "temple-of-heaven"]
-  const startTimes = ["09:00", "14:15", "16:15"]
-  const changes: AgentChange[] = []
+const DAY_START_MINUTES = 9 * 60
+const DEFAULT_DURATION_MINUTES = 90
+const TRANSFER_MINUTES = 30
+const LUNCH_START_MINUTES = 12 * 60
+const LUNCH_MINUTES = 60
+const DAY_END_MINUTES = 18 * 60
 
-  plannedOrder.forEach((placeId, index) => {
-    const stop = stops.find((item) => item.placeId === placeId)
-    if (!stop) return
+export function haversineKilometres(from: Coordinate, to: Coordinate): number {
+  const radius = 6371
+  const toRadians = (value: number) => (value * Math.PI) / 180
+  const deltaLatitude = toRadians(to[1] - from[1])
+  const deltaLongitude = toRadians(to[0] - from[0])
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2
+    + Math.cos(toRadians(from[1])) * Math.cos(toRadians(to[1])) * Math.sin(deltaLongitude / 2) ** 2
+  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+export function orderStopsByProximity(stops: TripStop[]): TripStop[] {
+  const located = stops.filter((stop) => stop.coordinate)
+  const unlocated = stops.filter((stop) => !stop.coordinate)
+  if (located.length <= 2) return [...located, ...unlocated]
+
+  const northernmost = located.reduce((best, stop) =>
+    (stop.coordinate as Coordinate)[1] > (best.coordinate as Coordinate)[1] ? stop : best,
+  )
+  const ordered: TripStop[] = [northernmost]
+  const remaining = located.filter((stop) => stop.id !== northernmost.id)
+
+  while (remaining.length > 0) {
+    const current = ordered[ordered.length - 1].coordinate as Coordinate
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+    remaining.forEach((stop, index) => {
+      const distance = haversineKilometres(current, stop.coordinate as Coordinate)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    })
+    ordered.push(remaining.splice(nearestIndex, 1)[0])
+  }
+
+  return [...ordered, ...unlocated]
+}
+
+function formatClock(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60) % 24
+  const minutes = totalMinutes % 60
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+}
+
+export function buildDayPlan(stops: TripStop[]): { changes: AgentChange[]; overflow: TripStop[] } {
+  const ordered = orderStopsByProximity(stops)
+  const changes: AgentChange[] = []
+  const overflow: TripStop[] = []
+  let cursor = DAY_START_MINUTES
+  let lunchTaken = false
+
+  ordered.forEach((stop, index) => {
+    const duration = stop.durationMinutes ?? DEFAULT_DURATION_MINUTES
+    if (!lunchTaken && cursor < LUNCH_START_MINUTES && cursor + duration > LUNCH_START_MINUTES) {
+      cursor = LUNCH_START_MINUTES + LUNCH_MINUTES
+      lunchTaken = true
+    }
+    if (cursor + duration > DAY_END_MINUTES && changes.length > 0) {
+      overflow.push(stop)
+      return
+    }
     changes.push({
       op: "update_stop",
       stopId: stop.id,
-      startTime: startTimes[index],
-      durationMinutes: samplePlaces.find((place) => place.id === placeId)?.durationMinutes ?? 90,
+      startTime: formatClock(cursor),
+      durationMinutes: duration,
       sortOrder: index,
     })
+    cursor += duration + TRANSFER_MINUTES
+    if (cursor >= LUNCH_START_MINUTES) lunchTaken = true
   })
+
+  return { changes, overflow }
+}
+
+export function buildSampleSuggestion(stops: TripStop[]): Omit<AgentSuggestion, "id" | "tripId" | "baseVersion" | "expiresAt"> {
+  const firstDay = stops.filter((stop) => stop.dayNumber === null || stop.dayNumber === 1)
+  const { changes, overflow } = buildDayPlan(firstDay)
+  const ordered = orderStopsByProximity(firstDay)
+  const risks = [
+    "Opening hours and ticket availability still need a same-day check.",
+    "Travel between places is estimated at 30 minutes and is not a routed journey.",
+  ]
+
+  if (overflow.length > 0) {
+    risks.unshift(
+      `The day runs past 18:00, so ${overflow.map((stop) => stop.name).join(" and ")} still needs a slot.`,
+    )
+  }
+
+  const spread = measureSpreadKilometres(ordered)
+  if (spread > 12) {
+    risks.push(`These places span about ${Math.round(spread)} km, so plan extra travel time.`)
+  }
 
   return {
     intent: "Make the first day easier to follow",
     reason:
-      "Start at the Palace Museum, continue north to Jingshan for the city view, then keep the Temple of Heaven as the final stop. The order reduces backtracking between the two adjacent northern sights.",
+      ordered.length > 1
+        ? `Visit ${ordered.map((stop) => stop.name).join(", then ")}. The order follows the shortest hop between neighbouring places and keeps a break around midday.`
+        : "One place is planned, so the day only needs a comfortable start time.",
     changes,
-    risks: [
-      "Opening hours and ticket availability still need a same-day check.",
-      "Travel time to the Temple of Heaven is not included yet.",
-    ],
+    risks,
     status: "proposed",
   }
+}
+
+export function measureSpreadKilometres(stops: TripStop[]): number {
+  const located = stops.filter((stop) => stop.coordinate)
+  let widest = 0
+  for (let index = 1; index < located.length; index += 1) {
+    widest = Math.max(
+      widest,
+      haversineKilometres(
+        located[index - 1].coordinate as Coordinate,
+        located[index].coordinate as Coordinate,
+      ),
+    )
+  }
+  return widest
 }
 
 const samplePlaceImages = new Map(samplePlaces.map((place) => [place.id as string, place.image]))

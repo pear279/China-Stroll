@@ -5,6 +5,8 @@ import {
   collectPlaceCategories,
   formatCategoryLabel,
   formatDurationHours,
+  haversineKilometres,
+  orderStopsByProximity,
   placeInitials,
   resolvePlaceImage,
   samplePlaces,
@@ -27,7 +29,7 @@ describe("sample place coordinates", () => {
 })
 
 describe("buildSampleSuggestion", () => {
-  it("orders the three sample stops and keeps stable visit durations", () => {
+  it("reorders stops by proximity and opens the day at 09:00", () => {
     const stops: TripStop[] = [...samplePlaces].reverse().map((place, index) => ({
       id: `stop-${index}`,
       tripId: "trip-1",
@@ -48,11 +50,63 @@ describe("buildSampleSuggestion", () => {
       "update_stop",
       "update_stop",
     ])
-    expect(suggestion.changes.map((change) => "startTime" in change && change.startTime)).toEqual([
-      "09:00",
-      "14:15",
-      "16:15",
-    ])
+
+    const startTimes = suggestion.changes.map((change) =>
+      "startTime" in change ? change.startTime : null,
+    )
+    expect(startTimes[0]).toBe("09:00")
+    expect(startTimes).toEqual([...startTimes].sort())
+
+    const orderedNames = orderStopsByProximity(stops).map((stop) => stop.placeId)
+    expect(orderedNames[0]).toBe("jingshan-park")
+    expect(orderedNames[1]).toBe("forbidden-city")
+  })
+
+  it("pushes a stop past the midday break instead of overlapping lunch", () => {
+    const stops: TripStop[] = [...samplePlaces].reverse().map((place, index) => ({
+      id: `stop-${index}`,
+      tripId: "trip-1",
+      dayNumber: 1,
+      placeId: place.id,
+      name: place.name,
+      coordinate: place.coordinate,
+      startTime: null,
+      durationMinutes: null,
+      sortOrder: index,
+    }))
+
+    const startTimes = buildSampleSuggestion(stops).changes.map((change) =>
+      "startTime" in change ? change.startTime : null,
+    )
+
+    expect(startTimes.some((time) => time !== null && time >= "13:00")).toBe(true)
+    expect(startTimes).not.toContain("12:00")
+  })
+
+  it("keeps every stop inside the day and flags the ones that overflow", () => {
+    const stops: TripStop[] = samplePlaces.map((place, index) => ({
+      id: `stop-${index}`,
+      tripId: "trip-1",
+      dayNumber: 1,
+      placeId: place.id,
+      name: place.name,
+      coordinate: place.coordinate,
+      startTime: null,
+      durationMinutes: 300,
+      sortOrder: index,
+    }))
+
+    const suggestion = buildSampleSuggestion(stops)
+
+    expect(suggestion.changes.length).toBeLessThan(stops.length)
+    expect(suggestion.risks.some((risk) => risk.includes("18:00"))).toBe(true)
+  })
+
+  it("measures the widest hop between neighbouring stops", () => {
+    expect(haversineKilometres([116.3907694, 39.9172757], [116.3903973, 39.9244589])).toBeCloseTo(
+      0.8,
+      1,
+    )
   })
 
   it("only proposes changes for places already in the trip", () => {
