@@ -1,4 +1,4 @@
-import type { AgentSuggestion, TripSnapshot } from "../../../../packages/shared/src"
+import type { AgentSuggestion, Locale, PlaceDetail, PlaceListResponse, TripSnapshot } from "../../../../packages/shared/src"
 
 export function resolveApiBaseUrl(isProduction: boolean, configuredUrl?: string) {
   return isProduction ? "" : configuredUrl ?? "http://localhost:8787"
@@ -18,15 +18,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  })
+async function readResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as {
     error?: { code?: string; message?: string }
   }
@@ -41,7 +33,45 @@ async function request<T>(path: string, accessToken: string, init?: RequestInit)
   return payload as T
 }
 
+async function request<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  })
+  return readResponse<T>(response)
+}
+
+async function publicRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { "Content-Type": "application/json" },
+  })
+  return readResponse<T>(response)
+}
+
+export function buildPlaceListPath(filters: {
+  locale?: Locale
+  category?: string
+  maxDurationMinutes?: number
+} = {}) {
+  const query = new URLSearchParams()
+  if (filters.locale) query.set("locale", filters.locale)
+  if (filters.category) query.set("category", filters.category)
+  if (filters.maxDurationMinutes) query.set("maxDurationMinutes", String(filters.maxDurationMinutes))
+  const search = query.toString()
+  return search ? `/v1/places?${search}` : "/v1/places"
+}
+
 export const api = {
+  listPlaces(filters: { locale?: Locale; category?: string; maxDurationMinutes?: number } = {}) {
+    return publicRequest<PlaceListResponse>(buildPlaceListPath(filters))
+  },
+  getPlace(placeId: string, locale: Locale = "en") {
+    return publicRequest<PlaceDetail>(`/v1/places/${encodeURIComponent(placeId)}?locale=${locale}`)
+  },
   createTrip(accessToken: string, input: { name: string; startDate: string | null }) {
     return request<{ tripId: string; version: number }>("/v1/trips", accessToken, {
       method: "POST",
@@ -51,12 +81,12 @@ export const api = {
   getTrip(accessToken: string, tripId: string) {
     return request<TripSnapshot>(`/v1/trips/${tripId}`, accessToken)
   },
-  addStop(accessToken: string, trip: TripSnapshot, placeId: string) {
+  addStop(accessToken: string, trip: TripSnapshot, placeId: string, dayNumber = 1) {
     return request<{ version: number }>(`/v1/trips/${trip.id}/stops`, accessToken, {
       method: "POST",
       body: JSON.stringify({
         placeId,
-        dayNumber: 1,
+        dayNumber,
         expectedVersion: trip.version,
         commandId: crypto.randomUUID(),
       }),

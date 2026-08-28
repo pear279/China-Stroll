@@ -1,5 +1,72 @@
 export type Coordinate = [longitude: number, latitude: number]
 
+export type Locale = "en" | "zh-CN"
+
+export type PlaceSummary = {
+  id: string
+  locale: Locale
+  name: string
+  shortIntro: string
+  categoryCode: string
+  tags: string[]
+  coordinate: Coordinate
+  durationMinutes: number
+  coordinatesCheckedAt: string | null
+}
+
+export type OpeningHoursWindow = {
+  days: number[]
+  opens: string
+  closes: string
+  lastEntry?: string
+}
+
+export type OpeningHours = {
+  timeZone: string
+  weekly: OpeningHoursWindow[]
+  exceptions: { date: string; closed?: boolean; opens?: string; closes?: string }[]
+}
+
+export type PlaceVisitInformation = {
+  address: string
+  openingHoursText: string
+  openingHours: OpeningHours | null
+  ticketNotes: string
+  bookingRequired: boolean | null
+  bookingUrl: string | null
+  reservationNotes: string
+  entranceNotes: string
+  checkedAt: string | null
+  reviewDueAt: string | null
+  needsRecheck: boolean
+}
+
+export type PlaceDetail = {
+  id: string
+  locale: Locale
+  name: string
+  aliases: string[]
+  tags: string[]
+  shortIntro: string
+  history: string
+  highlights: string[]
+  visitorTips: string
+  practicalNotes: string
+  photoSpotNotes: string
+  categoryCode: string
+  coordinate: Coordinate | null
+  durationMinutes: number
+  coordinatesCheckedAt: string | null
+  reviewedAt: string | null
+  visitInformation: PlaceVisitInformation | null
+}
+
+export type PlaceListResponse = {
+  locale: Locale
+  places: PlaceSummary[]
+}
+
+
 export type SamplePlace = {
   id: "forbidden-city" | "temple-of-heaven" | "jingshan-park"
   name: string

@@ -60,6 +60,58 @@ export const confirmSuggestionSchema = z.object({
   commandId: z.uuid(),
 })
 
+export const placeIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+
+export const placeListQuerySchema = z.object({
+  locale: localeSchema.default("en"),
+  category: z.string().trim().min(1).max(40).optional(),
+  maxDurationMinutes: z.coerce.number().int().positive().max(1440).optional(),
+})
+
+export const placeDetailQuerySchema = z.object({
+  locale: localeSchema.default("en"),
+})
+
+export const openingHoursSchema = z.object({
+  timeZone: z.string().trim().min(1),
+  weekly: z
+    .array(
+      z.object({
+        days: z.array(z.int().min(0).max(6)),
+        opens: z.string().regex(/^\d{2}:\d{2}$/),
+        closes: z.string().regex(/^\d{2}:\d{2}$/),
+        lastEntry: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+      }),
+    )
+    .default([]),
+  exceptions: z
+    .array(
+      z.object({
+        date: z.iso.date(),
+        closed: z.boolean().optional(),
+        opens: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+        closes: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+      }),
+    )
+    .default([]),
+})
+
+export function parseOpeningHours(value: unknown) {
+  const parsed = openingHoursSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
+export function isReviewOverdue(reviewDueAt: string | null, now: Date = new Date()) {
+  if (!reviewDueAt) return true
+  const due = new Date(reviewDueAt).getTime()
+  return Number.isNaN(due) ? true : due <= now.getTime()
+}
+
 export type ApiErrorCode =
   | "VALIDATION_FAILED"
   | "UNAUTHENTICATED"

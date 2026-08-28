@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { z } from "zod"
-import { buildSampleSuggestion, type AgentSuggestion, type Coordinate, type TripSnapshot } from "../../../packages/shared/src"
+import { buildSampleSuggestion, type AgentSuggestion, type Coordinate, type PlaceDetail, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
 import type { Database } from "../../../supabase/database.types"
 import {
   addStopSchema,
@@ -10,7 +10,12 @@ import {
   apiError,
   confirmSuggestionSchema,
   createTripSchema,
+  isReviewOverdue,
   localeSchema,
+  parseOpeningHours,
+  placeDetailQuerySchema,
+  placeIdSchema,
+  placeListQuerySchema,
   suggestionRisksSchema,
   suggestionRequestSchema,
   suggestionStatusSchema,
@@ -20,6 +25,7 @@ import {
 export type WorkerBindings = {
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  SUPABASE_PUBLISHABLE_KEY?: string
   WEB_ORIGIN: string
 }
 
@@ -30,6 +36,15 @@ type Variables = {
   userClient: SupabaseClient<Database>
 }
 
+export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations"] as const
+
+export function requiresAuthentication(pathname: string) {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+
 const app = new Hono<{ Bindings: WorkerBindings; Variables: Variables }>()
 
 app.use(
@@ -37,13 +52,15 @@ app.use(
   cors({
     origin: (origin, context) => (origin === context.env.WEB_ORIGIN ? origin : ""),
     allowHeaders: ["Authorization", "Content-Type", "Idempotency-Key"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   }),
 )
 
 app.use("/v1/*", async (context, next) => {
   await next()
-  context.header("Cache-Control", "private, no-store")
+  if (requiresAuthentication(new URL(context.req.url).pathname)) {
+    context.header("Cache-Control", "private, no-store")
+  }
 })
 
 app.use("/v1/*", async (context, next) => {
@@ -56,7 +73,164 @@ app.use("/v1/*", async (context, next) => {
 
 app.get("/health", (context) => context.json({ status: "ok", service: "china-stroll-api" }))
 
+function createPublicClient(env: WorkerBindings) {
+  const key = env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY
+  if (!env.SUPABASE_URL || !key) return null
+  return createClient<Database>(env.SUPABASE_URL, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+app.get("/v1/places", async (context) => {
+  const parsed = placeListQuerySchema.safeParse({
+    locale: context.req.query("locale") ?? undefined,
+    category: context.req.query("category") ?? undefined,
+    maxDurationMinutes: context.req.query("maxDurationMinutes") ?? undefined,
+  })
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the place filters.", z.flattenError(parsed.error)), 400)
+  }
+
+  const client = createPublicClient(context.env)
+  if (!client) {
+    return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The place service is temporarily unavailable."), 503)
+  }
+
+  let query = client
+    .from("places")
+    .select(
+      "id,category_code,latitude,longitude,recommended_duration_minutes,coordinate_system,coordinates_checked_at,external_ids,place_localizations!inner(locale,name,short_intro,tags)",
+    )
+    .eq("status", "published")
+    .eq("place_localizations.locale", parsed.data.locale)
+    .eq("place_localizations.review_status", "published")
+    .eq("coordinate_system", "WGS84")
+    .not("coordinates_checked_at", "is", null)
+    .not("latitude", "is", null)
+    .not("longitude", "is", null)
+
+  if (parsed.data.category) query = query.eq("category_code", parsed.data.category)
+  if (parsed.data.maxDurationMinutes) {
+    query = query.lte("recommended_duration_minutes", parsed.data.maxDurationMinutes)
+  }
+
+  const { data, error } = await query.order("id")
+  if (error) return mapDatabaseError(context, error)
+
+  const places: PlaceSummary[] = (data ?? []).flatMap((place) => {
+    const localization = Array.isArray(place.place_localizations)
+      ? place.place_localizations[0]
+      : place.place_localizations
+    if (!localization || place.latitude == null || place.longitude == null) return []
+    return [
+      {
+        id: place.id,
+        locale: parsed.data.locale,
+        name: localization.name,
+        shortIntro: localization.short_intro,
+        categoryCode: place.category_code,
+        tags: localization.tags ?? [],
+        coordinate: [place.longitude, place.latitude] satisfies Coordinate,
+        durationMinutes: place.recommended_duration_minutes,
+        coordinatesCheckedAt: place.coordinates_checked_at,
+      },
+    ]
+  })
+
+  context.header("Cache-Control", "public, max-age=300")
+  return context.json({ locale: parsed.data.locale, places })
+})
+
+app.get("/v1/places/:placeId", async (context) => {
+  const placeId = placeIdSchema.safeParse(context.req.param("placeId"))
+  const parsed = placeDetailQuerySchema.safeParse({ locale: context.req.query("locale") ?? undefined })
+  if (!placeId.success || !parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the place identifier and language."), 400)
+  }
+
+  const client = createPublicClient(context.env)
+  if (!client) {
+    return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The place service is temporarily unavailable."), 503)
+  }
+
+  const [placeResult, localizationResult, visitResult] = await Promise.all([
+    client
+      .from("places")
+      .select("id,category_code,latitude,longitude,recommended_duration_minutes,coordinate_system,coordinates_checked_at,external_ids")
+      .eq("id", placeId.data)
+      .eq("status", "published")
+      .maybeSingle(),
+    client
+      .from("place_localizations")
+      .select("locale,name,aliases,tags,short_intro,history,highlights,visitor_tips,practical_notes,photo_spot_notes,reviewed_at")
+      .eq("place_id", placeId.data)
+      .eq("locale", parsed.data.locale)
+      .eq("review_status", "published")
+      .maybeSingle(),
+    client
+      .from("place_visit_information")
+      .select("address,opening_hours_text,opening_hours,ticket_notes,booking_required,booking_url,reservation_notes,entrance_notes,checked_at,review_due_at")
+      .eq("place_id", placeId.data)
+      .eq("locale", parsed.data.locale)
+      .eq("status", "published")
+      .maybeSingle(),
+  ])
+
+  if (placeResult.error) return mapDatabaseError(context, placeResult.error)
+  if (localizationResult.error) return mapDatabaseError(context, localizationResult.error)
+  if (visitResult.error) return mapDatabaseError(context, visitResult.error)
+  if (!placeResult.data || !localizationResult.data) {
+    return context.json(apiError("NOT_FOUND", "Place not found."), 404)
+  }
+
+  const visit = visitResult.data
+  const detail: PlaceDetail = {
+    id: placeResult.data.id,
+    locale: parsed.data.locale,
+    name: localizationResult.data.name,
+    aliases: localizationResult.data.aliases ?? [],
+    tags: localizationResult.data.tags ?? [],
+    shortIntro: localizationResult.data.short_intro,
+    history: localizationResult.data.history,
+    highlights: localizationResult.data.highlights ?? [],
+    visitorTips: localizationResult.data.visitor_tips,
+    practicalNotes: localizationResult.data.practical_notes,
+    photoSpotNotes: localizationResult.data.photo_spot_notes,
+    categoryCode: placeResult.data.category_code,
+    coordinate:
+      placeResult.data.latitude == null || placeResult.data.longitude == null
+        ? null
+        : ([placeResult.data.longitude, placeResult.data.latitude] satisfies Coordinate),
+    durationMinutes: placeResult.data.recommended_duration_minutes,
+    coordinatesCheckedAt: placeResult.data.coordinates_checked_at,
+    reviewedAt: localizationResult.data.reviewed_at,
+    visitInformation: visit
+      ? {
+          address: visit.address,
+          openingHoursText: visit.opening_hours_text,
+          openingHours: parseOpeningHours(visit.opening_hours),
+          ticketNotes: visit.ticket_notes,
+          bookingRequired: visit.booking_required,
+          bookingUrl: visit.booking_url,
+          reservationNotes: visit.reservation_notes,
+          entranceNotes: visit.entrance_notes,
+          checkedAt: visit.checked_at,
+          reviewDueAt: visit.review_due_at,
+          needsRecheck: isReviewOverdue(visit.review_due_at),
+        }
+      : null,
+  }
+
+  context.header("Cache-Control", "public, max-age=300")
+  return context.json(detail)
+})
+
 app.use("/v1/*", async (context, next) => {
+  const pathname = new URL(context.req.url).pathname
+  if (!requiresAuthentication(pathname)) {
+    return next()
+  }
+
   const authorization = context.req.header("Authorization")
   const accessToken = authorization?.startsWith("Bearer ") ? authorization.slice(7) : null
 

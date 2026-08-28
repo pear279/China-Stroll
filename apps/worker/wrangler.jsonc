@@ -11,6 +11,7 @@
   },
   "vars": {
     "SUPABASE_URL": "https://yjguudzllzjdmqsgwtru.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "",
     "WEB_ORIGIN": "http://localhost:5173"
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import app from "./index"
+import app, { PROTECTED_PREFIXES, requiresAuthentication } from "./index"
 
 const env = {
   SUPABASE_URL: "https://example.supabase.co",
@@ -24,5 +24,39 @@ describe("worker routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: { code: "UNAUTHENTICATED" },
     })
+  })
+
+  it("allows the place list without a bearer token", async () => {
+    const response = await app.request("/v1/places", {}, { ...env, SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "" })
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "DEPENDENCY_UNAVAILABLE" },
+    })
+  })
+
+  it("rejects an unsafe place identifier before touching the database", async () => {
+    const response = await app.request("/v1/places/Not%20A%20Place", {}, env)
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "VALIDATION_FAILED" },
+    })
+  })
+})
+
+describe("authentication boundary", () => {
+  it("protects every trip and invitation path", () => {
+    expect(requiresAuthentication("/v1/trips")).toBe(true)
+    expect(requiresAuthentication("/v1/trips/abc/stops")).toBe(true)
+    expect(requiresAuthentication("/v1/trip-invitations/accept")).toBe(true)
+  })
+
+  it("leaves published place reads open", () => {
+    expect(requiresAuthentication("/v1/places")).toBe(false)
+    expect(requiresAuthentication("/v1/places/forbidden-city")).toBe(false)
+  })
+
+  it("does not let a lookalike prefix bypass authentication", () => {
+    expect(requiresAuthentication("/v1/tripsomething")).toBe(false)
+    expect(PROTECTED_PREFIXES).toContain("/v1/trips")
   })
 })
