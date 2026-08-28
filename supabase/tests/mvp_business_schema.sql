@@ -317,6 +317,40 @@ where oid in (
 
 do $$
 declare
+  owner_delete_blocked boolean := false;
+begin
+  begin
+    delete from public.trip_members
+    where trip_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      and role = 'owner';
+  exception
+    when others then
+      owner_delete_blocked := sqlerrm = 'the active trip owner membership cannot be changed or removed';
+  end;
+
+  insert into mvp_schema_test_results values (
+    'owner membership direct delete blocked',
+    owner_delete_blocked,
+    'The owner membership must remain protected while its trip exists'
+  );
+end;
+$$;
+
+delete from public.trips
+where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+insert into mvp_schema_test_results
+select
+  'trip deletion cascades owner membership',
+  not exists (
+    select 1
+    from public.trip_members
+    where trip_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  ),
+  'Deleting an entire trip must remove its protected owner membership';
+
+do $$
+declare
   failed_tests text;
 begin
   select string_agg(test_name || '  ' || detail, E'\n' order by test_name)
