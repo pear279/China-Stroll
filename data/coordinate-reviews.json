@@ -1,0 +1,28 @@
+{
+  "reviewed_at": "2026-08-28T02:56:43Z",
+  "coordinate_system": "WGS84",
+  "purpose": "display_anchor",
+  "places": {
+    "forbidden-city": {
+      "latitude": 39.9172757,
+      "longitude": 116.3907694,
+      "source": "OpenStreetMap Nominatim",
+      "source_url": "https://www.openstreetmap.org/relation/9511883",
+      "external_ids": { "osm": "relation/9511883" }
+    },
+    "jingshan-park": {
+      "latitude": 39.9244589,
+      "longitude": 116.3903973,
+      "source": "OpenStreetMap Nominatim",
+      "source_url": "https://www.openstreetmap.org/way/29201967",
+      "external_ids": { "osm": "way/29201967" }
+    },
+    "temple-of-heaven": {
+      "latitude": 39.8799066,
+      "longitude": 116.4028716,
+      "source": "OpenStreetMap Nominatim",
+      "source_url": "https://www.openstreetmap.org/way/24824550",
+      "external_ids": { "osm": "way/24824550" }
+    }
+  }
+}

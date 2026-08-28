@@ -64,12 +64,18 @@ export function TravelMap({ stops, selectedStopId, onSelect }: TravelMapProps) {
       if (!stop.coordinate) return
       const markerButton = document.createElement("button")
       markerButton.type = "button"
-      markerButton.className = `map-pin${selectedStopId === stop.id ? " is-selected" : ""}`
-      markerButton.textContent = String(index + 1)
+      markerButton.className = `map-marker${selectedStopId === stop.id ? " is-selected" : ""}`
       markerButton.setAttribute("aria-label", `Select ${stop.name}`)
       markerButton.addEventListener("click", () => onSelect(stop.id))
+      const markerShape = document.createElement("span")
+      markerShape.className = "map-pin"
+      const markerLabel = document.createElement("span")
+      markerLabel.className = "map-pin-label"
+      markerLabel.textContent = String(index + 1)
+      markerShape.append(markerLabel)
+      markerButton.append(markerShape)
       markersRef.current.push(
-        new maplibregl.Marker({ element: markerButton })
+        new maplibregl.Marker({ element: markerButton, anchor: "bottom" })
           .setLngLat(stop.coordinate)
           .addTo(map),
       )

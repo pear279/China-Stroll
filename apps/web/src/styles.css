@@ -54,6 +54,7 @@ input:focus { border-color: #b33a2e; }
 .or-divider span { position: relative; top: -.75rem; padding: 0 .6rem; color: #928a80; background: #fffdf7; font-size: .78rem; }
 .privacy-note, .config-note, .status-message { margin: .75rem 0 0; color: #766e65; font-size: .76rem; line-height: 1.5; text-align: center; }
 .status-message { color: #6d4d19; }
+.test-mode-note { margin: .8rem 0; padding: .65rem .8rem; border: 1px solid #d8b46a; border-radius: .55rem; background: #fff8e8; color: #6d4d19; font-size: .76rem; line-height: 1.45; text-align: center; }
 
 .create-layout { min-height: 100vh; display: grid; place-items: center; padding: 2rem; background: linear-gradient(rgb(246 242 234 / .88), rgb(246 242 234 / .94)), url("/places/temple-of-heaven.png") center/cover; }
 .step-count { position: fixed; top: 1.5rem; right: 1.5rem; color: #8f8579; font: .72rem ui-monospace, monospace; letter-spacing: .12em; }
@@ -107,9 +108,11 @@ input:focus { border-color: #b33a2e; }
 .map-canvas { position: absolute; inset: 0; }
 .map-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: #635b52; background: #e9e4da; text-align: center; }
 .map-note { position: absolute; z-index: 2; left: 1rem; right: 1rem; bottom: 1rem; margin: 0; padding: .65rem .8rem; color: #5f574e; background: rgb(255 253 247 / .92); box-shadow: 0 4px 16px rgb(40 35 29 / .12); font-size: .7rem; }
+.map-marker { width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border: 0; padding: 0; background: transparent; }
 .map-pin { width: 2rem; height: 2rem; display: grid; place-items: center; border: 2px solid #fff8ed; border-radius: 50% 50% 50% 18%; transform: rotate(-45deg); color: white; background: #b33a2e; box-shadow: 0 4px 12px rgb(55 38 25 / .28); font-size: .72rem; font-weight: 800; }
-.map-pin::first-letter { transform: rotate(45deg); }
-.map-pin.is-selected { width: 2.45rem; height: 2.45rem; background: #23201d; }
+.map-pin-label { transform: rotate(45deg); }
+.map-marker.is-selected { width: 2.65rem; height: 2.65rem; }
+.map-marker.is-selected .map-pin { width: 2.45rem; height: 2.45rem; background: #23201d; }
 .maplibregl-ctrl-attrib { font-size: 9px; }
 
 .place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }

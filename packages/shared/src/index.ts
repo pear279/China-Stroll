@@ -83,7 +83,7 @@ export const samplePlaces: SamplePlace[] = [
     nameZh: "故宫博物院",
     shortIntro: "Walk through the heart of the former imperial city and its monumental palace courtyards.",
     durationMinutes: 240,
-    coordinate: [116.397155, 39.916345],
+    coordinate: [116.3907694, 39.9172757],
     image: "/places/palace-museum.png",
   },
   {
@@ -92,7 +92,7 @@ export const samplePlaces: SamplePlace[] = [
     nameZh: "景山公园",
     shortIntro: "Climb to the Central Axis viewpoint directly north of the Forbidden City.",
     durationMinutes: 90,
-    coordinate: [116.396981, 39.925052],
+    coordinate: [116.3903973, 39.9244589],
     image: "/places/jingshan-park.png",
   },
   {
@@ -101,7 +101,7 @@ export const samplePlaces: SamplePlace[] = [
     nameZh: "天坛公园",
     shortIntro: "Explore the ceremonial spaces built for imperial rites and prayers for good harvests.",
     durationMinutes: 180,
-    coordinate: [116.406609, 39.882201],
+    coordinate: [116.4028716, 39.8799066],
     image: "/places/temple-of-heaven.png",
   },
 ]

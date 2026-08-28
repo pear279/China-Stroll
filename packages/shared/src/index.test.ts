@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest"
+import coordinateReviews from "../../../data/coordinate-reviews.json"
 import { buildSampleSuggestion, samplePlaces, type TripStop } from "./index"
+
+describe("sample place coordinates", () => {
+  it("keeps every map sample tied to a reviewed WGS84 display anchor", () => {
+    expect(coordinateReviews.coordinate_system).toBe("WGS84")
+    expect(coordinateReviews.purpose).toBe("display_anchor")
+
+    for (const place of samplePlaces) {
+      const review = coordinateReviews.places[place.id]
+      expect(review, `${place.id} needs a coordinate review`).toBeDefined()
+      expect(place.coordinate).toEqual([review.longitude, review.latitude])
+      expect(review.source_url).toMatch(/^https:\/\/www\.openstreetmap\.org\//)
+    }
+  })
+})
 
 describe("buildSampleSuggestion", () => {
   it("orders the three sample stops and keeps stable visit durations", () => {

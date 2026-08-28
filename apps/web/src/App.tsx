@@ -15,7 +15,8 @@ import {
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { samplePlaces, type AgentSuggestion, type TripSnapshot } from "../../../packages/shared/src"
 import { api, ApiRequestError } from "./lib/api"
-import { addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip } from "./lib/demo"
+import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
+import { addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 const TravelMap = lazy(() =>
@@ -41,7 +42,7 @@ export function App() {
     const savedPreview = localStorage.getItem("china-stroll-preview-trip")
     if (savedPreview) {
       try {
-        setTrip(JSON.parse(savedPreview) as TripSnapshot)
+        setTrip(refreshSampleCoordinates(JSON.parse(savedPreview) as TripSnapshot))
         setMode("preview")
         return
       } catch {
@@ -148,17 +149,25 @@ export function App() {
     return (
       <WelcomeScreen
         configured={hasSupabaseConfig}
+        onAuthenticated={(nextSession) => {
+          setSession(nextSession)
+          setMode("account")
+        }}
         onPreview={() => setMode("preview")}
       />
     )
   }
-  if (!trip) return <CreateTripScreen busy={busy === "create-trip"} mode={mode} onCreate={createTrip} />
+  const testIdentity = session?.user.is_anonymous
+    ? sessionStorage.getItem(TEST_EMAIL_LABEL_KEY) ?? "Test visitor"
+    : null
+  if (!trip) return <CreateTripScreen busy={busy === "create-trip"} mode={mode} onCreate={createTrip} testIdentity={testIdentity} />
 
   return (
     <Planner
       busy={busy}
       message={message}
       mode={mode}
+      testIdentity={testIdentity}
       trip={trip}
       onAddPlace={addPlace}
       onConfirm={confirmSuggestion}
@@ -167,6 +176,7 @@ export function App() {
         setTrip(null)
         localStorage.removeItem("china-stroll-trip-id")
         localStorage.removeItem("china-stroll-preview-trip")
+        sessionStorage.removeItem(TEST_EMAIL_LABEL_KEY)
         if (mode === "account") await supabase?.auth.signOut()
         setMode("signed-out")
       }}
@@ -174,7 +184,15 @@ export function App() {
   )
 }
 
-function WelcomeScreen({ configured, onPreview }: { configured: boolean; onPreview: () => void }) {
+function WelcomeScreen({
+  configured,
+  onAuthenticated,
+  onPreview,
+}: {
+  configured: boolean
+  onAuthenticated: (session: Session) => void
+  onPreview: () => void
+}) {
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -183,12 +201,27 @@ function WelcomeScreen({ configured, onPreview }: { configured: boolean; onPrevi
     event.preventDefault()
     if (!supabase || !email) return
     setSubmitting(true)
-    const { error } = await supabase.auth.signInWithOtp({
+    if (isTestLoginEnabled) {
+      sessionStorage.setItem(TEST_EMAIL_LABEL_KEY, maskEmail(email))
+    }
+    const { data, error } = await startEmailLogin(
+      supabase.auth,
       email,
-      options: { emailRedirectTo: window.location.origin },
-    })
+      window.location.origin,
+      isTestLoginEnabled,
+    )
+    if (error && isTestLoginEnabled) {
+      sessionStorage.removeItem(TEST_EMAIL_LABEL_KEY)
+    }
     setSubmitting(false)
-    setStatus(error ? error.message : "Check your email for a secure sign-in link.")
+    if (data.session) onAuthenticated(data.session)
+    setStatus(
+      error
+        ? error.message
+        : isTestLoginEnabled
+          ? "Test session opened. Your email was not verified or sent."
+          : "Check your email for a secure sign-in link.",
+    )
   }
 
   return (
@@ -215,13 +248,16 @@ function WelcomeScreen({ configured, onPreview }: { configured: boolean; onPrevi
           <span>BEIJING · 北京</span>
         </div>
         <h2 id="start-title">Start your first stroll</h2>
+        {isTestLoginEnabled && (
+          <p className="test-mode-note">Test mode is on. This temporary account cannot be recovered after sign-out.</p>
+        )}
         {configured ? (
           <form onSubmit={signIn} className="auth-form">
             <label htmlFor="email">Email address</label>
             <input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
             <button className="primary-button" disabled={submitting} type="submit">
               {submitting ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}
-              Email me a sign-in link
+              {isTestLoginEnabled ? "Continue in test mode" : "Email me a sign-in link"}
             </button>
           </form>
         ) : (
@@ -230,13 +266,17 @@ function WelcomeScreen({ configured, onPreview }: { configured: boolean; onPrevi
         {status && <p className="status-message" role="status">{status}</p>}
         <div className="or-divider"><span>or</span></div>
         <button className="secondary-button" type="button" onClick={onPreview}>Explore the three-place preview</button>
-        <p className="privacy-note">Preview plans stay in this browser and are not shared.</p>
+        <p className="privacy-note">
+          {isTestLoginEnabled
+            ? "Your email stays in this browser as a masked label and is not verified."
+            : "Preview plans stay in this browser and are not shared."}
+        </p>
       </section>
     </main>
   )
 }
 
-function CreateTripScreen({ busy, mode, onCreate }: { busy: boolean; mode: Mode; onCreate: (name: string, date: string | null) => Promise<void> }) {
+function CreateTripScreen({ busy, mode, onCreate, testIdentity }: { busy: boolean; mode: Mode; onCreate: (name: string, date: string | null) => Promise<void>; testIdentity: string | null }) {
   const [name, setName] = useState("Our first Beijing day")
   const [date, setDate] = useState("")
   return (
@@ -262,16 +302,18 @@ function CreateTripScreen({ busy, mode, onCreate }: { busy: boolean; mode: Mode;
           </button>
         </form>
         {mode === "preview" && <p className="privacy-note">Preview mode keeps this plan on your device.</p>}
+        {testIdentity && <p className="test-mode-note">Test session · {testIdentity} · This account cannot be recovered after sign-out.</p>}
       </section>
     </main>
   )
 }
 
-function Planner({ busy, message, mode, trip, onAddPlace, onConfirm, onSuggest, onExit }: {
+function Planner({ busy, message, mode, trip, testIdentity, onAddPlace, onConfirm, onSuggest, onExit }: {
   busy: string | null
   message: string | null
   mode: Mode
   trip: TripSnapshot
+  testIdentity: string | null
   onAddPlace: (placeId: string) => Promise<void>
   onConfirm: (suggestion: AgentSuggestion) => Promise<void>
   onSuggest: () => Promise<void>
@@ -293,7 +335,7 @@ function Planner({ busy, message, mode, trip, onAddPlace, onConfirm, onSuggest, 
         </a>
         <div className="trip-meta">
           <strong>{trip.name}</strong>
-          <span>{mode === "preview" ? "Private preview" : "Shared trip"} · Version {trip.version}</span>
+          <span>{mode === "preview" ? "Private preview" : testIdentity ? `Test session · ${testIdentity}` : "Shared trip"} · Version {trip.version}</span>
         </div>
         <button className="icon-button" type="button" onClick={() => void onExit()} aria-label="Leave trip"><LogOut size={19} /></button>
       </header>

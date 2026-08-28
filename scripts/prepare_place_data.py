@@ -52,7 +52,19 @@ def nullable_float(value: str) -> float | None:
     return float(value) if value else None
 
 
-def normalize(source: Path) -> tuple[list[dict], list[dict]]:
+def load_coordinate_reviews(path: Path) -> dict:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("coordinate_system") != "WGS84":
+        raise ValueError("Coordinate reviews must use WGS84")
+    if payload.get("purpose") != "display_anchor":
+        raise ValueError("Coordinate reviews must describe display anchors")
+    if not payload.get("reviewed_at") or not isinstance(payload.get("places"), dict):
+        raise ValueError("Coordinate reviews need a review time and place records")
+    return payload
+
+
+def normalize(source: Path, coordinate_reviews_path: Path) -> tuple[list[dict], list[dict]]:
+    coordinate_reviews = load_coordinate_reviews(coordinate_reviews_path)
     with source.open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
 
@@ -95,6 +107,15 @@ def normalize(source: Path) -> tuple[list[dict], list[dict]]:
         if (latitude is None) != (longitude is None):
             raise ValueError(f"Incomplete coordinate pair for {place_id}")
 
+        coordinate_review = coordinate_reviews["places"].get(place_id)
+        if coordinate_review:
+            reviewed_latitude = float(coordinate_review["latitude"])
+            reviewed_longitude = float(coordinate_review["longitude"])
+            if latitude != reviewed_latitude or longitude != reviewed_longitude:
+                raise ValueError(f"CSV coordinates do not match the review for {place_id}")
+            if not coordinate_review.get("source_url") or not coordinate_review.get("external_ids"):
+                raise ValueError(f"Coordinate review lacks traceability for {place_id}")
+
         category = row[names["category"]].strip()
         if category not in CATEGORY_CODES:
             raise ValueError(f"Unknown category {category!r} for {place_id}")
@@ -104,6 +125,9 @@ def normalize(source: Path) -> tuple[list[dict], list[dict]]:
             "category_code": CATEGORY_CODES[category],
             "latitude": latitude,
             "longitude": longitude,
+            "coordinate_system": coordinate_reviews["coordinate_system"] if coordinate_review else None,
+            "coordinates_checked_at": coordinate_reviews["reviewed_at"] if coordinate_review else None,
+            "external_ids": coordinate_review["external_ids"] if coordinate_review else {},
             "recommended_duration_minutes": int(row[names["duration"]]),
             "locale": "zh-CN",
             "name": row[names["name"]].strip(),
@@ -153,6 +177,9 @@ with payload as (
     category_code text,
     latitude double precision,
     longitude double precision,
+    coordinate_system text,
+    coordinates_checked_at timestamptz,
+    external_ids jsonb,
     recommended_duration_minutes integer,
     locale text,
     name text,
@@ -171,6 +198,9 @@ insert into public.places (
   category_code,
   latitude,
   longitude,
+  coordinate_system,
+  coordinates_checked_at,
+  external_ids,
   recommended_duration_minutes,
   status
 )
@@ -179,6 +209,9 @@ select
   category_code,
   latitude,
   longitude,
+  coordinate_system,
+  coordinates_checked_at,
+  external_ids,
   recommended_duration_minutes,
   'draft'
 from records
@@ -186,6 +219,9 @@ on conflict (id) do update
 set category_code = excluded.category_code,
     latitude = excluded.latitude,
     longitude = excluded.longitude,
+    coordinate_system = coalesce(excluded.coordinate_system, public.places.coordinate_system),
+    coordinates_checked_at = coalesce(excluded.coordinates_checked_at, public.places.coordinates_checked_at),
+    external_ids = public.places.external_ids || excluded.external_ids,
     recommended_duration_minutes = excluded.recommended_duration_minutes,
     updated_at = now()
 where public.places.status = 'draft';
@@ -200,6 +236,9 @@ with payload as (
     category_code text,
     latitude double precision,
     longitude double precision,
+    coordinate_system text,
+    coordinates_checked_at timestamptz,
+    external_ids jsonb,
     recommended_duration_minutes integer,
     locale text,
     name text,
@@ -308,9 +347,14 @@ def main() -> None:
         default=Path("data/50景点信息sql表 .csv"),
     )
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed"))
+    parser.add_argument(
+        "--coordinate-reviews",
+        type=Path,
+        default=Path("data/coordinate-reviews.json"),
+    )
     args = parser.parse_args()
 
-    places, segments = normalize(args.source)
+    places, segments = normalize(args.source, args.coordinate_reviews)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "places.zh-CN.json").write_text(
         json.dumps(places, ensure_ascii=False, indent=2) + "\n",
@@ -331,6 +375,9 @@ def main() -> None:
                 "guide_segments": len(segments),
                 "missing_coordinates": [
                     item["id"] for item in places if item["latitude"] is None
+                ],
+                "unreviewed_coordinates": [
+                    item["id"] for item in places if item["coordinate_system"] is None
                 ],
             },
             ensure_ascii=False,

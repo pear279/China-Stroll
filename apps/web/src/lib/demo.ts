@@ -43,6 +43,23 @@ export function addDemoStop(trip: TripSnapshot, placeId: string): TripSnapshot {
   }
 }
 
+export function refreshSampleCoordinates(trip: TripSnapshot): TripSnapshot {
+  let changed = false
+  const stops = trip.stops.map((stop) => {
+    const place = samplePlaces.find((item) => item.id === stop.placeId)
+    if (!place) return stop
+    if (
+      stop.coordinate?.[0] === place.coordinate[0]
+      && stop.coordinate?.[1] === place.coordinate[1]
+    ) {
+      return stop
+    }
+    changed = true
+    return { ...stop, coordinate: place.coordinate }
+  })
+  return changed ? { ...trip, stops } : trip
+}
+
 export function createDemoSuggestion(trip: TripSnapshot): TripSnapshot {
   const draft = buildSampleSuggestion(trip.stops)
   const suggestion: AgentSuggestion = {
