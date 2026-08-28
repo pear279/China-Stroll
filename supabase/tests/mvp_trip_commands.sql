@@ -186,4 +186,122 @@ begin
 end;
 $$;
 
+-- 放开接口枚举后，add_stop 必须自己拒绝未发布和未审核坐标的地点。
+do $$
+declare
+  v_trip_id uuid;
+  v_rejected boolean;
+begin
+  insert into public.places (
+    id,
+    category_code,
+    latitude,
+    longitude,
+    recommended_duration_minutes,
+    status
+  )
+  values (
+    'command-test-draft-place',
+    'historic',
+    39.9,
+    116.4,
+    90,
+    'draft'
+  );
+
+  insert into public.place_localizations (
+    place_id,
+    locale,
+    name,
+    short_intro,
+    history,
+    visitor_tips,
+    practical_notes,
+    photo_spot_notes,
+    review_status
+  )
+  values (
+    'command-test-draft-place',
+    'en',
+    'Command test draft place',
+    'Draft content that must never reach a trip.',
+    'Draft history.',
+    'Draft tips.',
+    'Draft notes.',
+    'Draft photo notes.',
+    'published'
+  );
+
+  v_trip_id := (
+    public.create_mvp_trip(
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555561',
+      'Place gate test trip',
+      current_date,
+      'en'
+    ) ->> 'tripId'
+  )::uuid;
+
+  v_rejected := false;
+  begin
+    perform public.apply_mvp_trip_changes(
+      '44444444-4444-4444-8444-444444444444',
+      v_trip_id,
+      1,
+      '55555555-5555-4555-8555-555555555562',
+      '[{"op":"add_stop","placeId":"command-test-draft-place","dayNumber":1}]'::jsonb
+    );
+  exception when others then
+    v_rejected := sqlerrm like '%NOT_FOUND%';
+  end;
+
+  if not v_rejected then
+    raise exception 'add_stop must reject a place that is not published';
+  end if;
+
+  update public.places
+  set status = 'published'
+  where id = 'command-test-draft-place';
+
+  v_rejected := false;
+  begin
+    perform public.apply_mvp_trip_changes(
+      '44444444-4444-4444-8444-444444444444',
+      v_trip_id,
+      1,
+      '55555555-5555-4555-8555-555555555563',
+      '[{"op":"add_stop","placeId":"command-test-draft-place","dayNumber":1}]'::jsonb
+    );
+  exception when others then
+    v_rejected := sqlerrm like '%NOT_FOUND%';
+  end;
+
+  if not v_rejected then
+    raise exception 'add_stop must reject a place without a reviewed coordinate';
+  end if;
+
+  update public.places
+  set coordinate_system = 'WGS84',
+      coordinates_checked_at = now()
+  where id = 'command-test-draft-place';
+
+  perform public.apply_mvp_trip_changes(
+    '44444444-4444-4444-8444-444444444444',
+    v_trip_id,
+    1,
+    '55555555-5555-4555-8555-555555555564',
+    '[{"op":"add_stop","placeId":"command-test-draft-place","dayNumber":1}]'::jsonb
+  );
+
+  if not exists (
+    select 1
+    from public.trip_stops
+    where trip_id = v_trip_id
+      and place_id = 'command-test-draft-place'
+  ) then
+    raise exception 'add_stop must accept a published place with a reviewed coordinate';
+  end if;
+end;
+$$;
+
 rollback;

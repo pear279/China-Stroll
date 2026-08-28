@@ -99,7 +99,7 @@ export type TripDay = {
 export type AgentChange =
   | {
       op: "add_stop"
-      placeId: SamplePlace["id"]
+      placeId: string
       dayNumber: number
       startTime: string
       sortOrder: number

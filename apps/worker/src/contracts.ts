@@ -2,12 +2,17 @@ import { z } from "zod"
 
 export const localeSchema = z.enum(["en", "zh-CN"])
 
-const samplePlaceIdSchema = z.enum(["forbidden-city", "jingshan-park", "temple-of-heaven"])
+export const placeIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
 
 export const agentChangeSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("add_stop"),
-    placeId: samplePlaceIdSchema,
+    placeId: placeIdSchema,
     dayNumber: z.int().positive(),
     startTime: z.string(),
     sortOrder: z.int().nonnegative(),
@@ -45,7 +50,7 @@ export const createTripSchema = z.object({
 })
 
 export const addStopSchema = z.object({
-  placeId: samplePlaceIdSchema,
+  placeId: placeIdSchema,
   dayNumber: z.int().positive().default(1),
   expectedVersion: z.int().positive(),
   commandId: z.uuid(),
@@ -59,13 +64,6 @@ export const confirmSuggestionSchema = z.object({
   expectedVersion: z.int().positive(),
   commandId: z.uuid(),
 })
-
-export const placeIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(80)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
 
 export const placeListQuerySchema = z.object({
   locale: localeSchema.default("en"),

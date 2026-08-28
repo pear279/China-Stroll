@@ -476,6 +476,9 @@ function mapDatabaseError(context: Parameters<typeof apiErrorResponse>[0], error
   if (error.code === "PGRST116" || message.includes("not_found")) {
     return apiErrorResponse(context, 404, "NOT_FOUND", "The requested trip item was not found.")
   }
+  if (message.includes("validation_failed")) {
+    return apiErrorResponse(context, 400, "VALIDATION_FAILED", "That change cannot be applied to this trip.")
+  }
   return apiErrorResponse(context, 503, "DEPENDENCY_UNAVAILABLE", "The trip service is temporarily unavailable.")
 }
 

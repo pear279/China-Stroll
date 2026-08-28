@@ -11,14 +11,31 @@ import {
 } from "./contracts"
 
 describe("worker contracts", () => {
-  it("rejects an unsupported place", () => {
+  it("accepts a place beyond the first three samples", () => {
     const result = addStopSchema.safeParse({
       placeId: "summer-palace",
       dayNumber: 1,
       expectedVersion: 1,
       commandId: crypto.randomUUID(),
     })
+    expect(result.success).toBe(true)
+  })
+
+  it("still rejects a malformed place identifier", () => {
+    const result = addStopSchema.safeParse({
+      placeId: "Summer Palace",
+      dayNumber: 1,
+      expectedVersion: 1,
+      commandId: crypto.randomUUID(),
+    })
     expect(result.success).toBe(false)
+  })
+
+  it("lets a suggestion add any published place", () => {
+    const result = agentChangesSchema.safeParse([
+      { op: "add_stop", placeId: "summer-palace", dayNumber: 2, startTime: "09:00", sortOrder: 0 },
+    ])
+    expect(result.success).toBe(true)
   })
 
   it("normalizes a valid trip request", () => {
