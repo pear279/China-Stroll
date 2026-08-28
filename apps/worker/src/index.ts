@@ -21,12 +21,18 @@ import {
   suggestionStatusSchema,
   tripCommandResultSchema,
 } from "./contracts"
+import { generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 
 export type WorkerBindings = {
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
   SUPABASE_PUBLISHABLE_KEY?: string
   WEB_ORIGIN: string
+  SILICONFLOW_API_KEY?: string
+  SILICONFLOW_BASE_URL?: string
+  SILICONFLOW_CHAT_MODEL?: string
+  SILICONFLOW_EMBEDDING_MODEL?: string
+  SILICONFLOW_TIMEOUT_MS?: string
 }
 
 type Variables = {
@@ -366,7 +372,7 @@ app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
   const tripId = context.req.param("tripId")
   const client = context.get("userClient")
   const [tripResult, stopResult, dayResult] = await Promise.all([
-    client.from("trips").select("id,version").eq("id", tripId).maybeSingle(),
+    client.from("trips").select("id,locale,version").eq("id", tripId).maybeSingle(),
     client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,sort_order").eq("trip_id", tripId),
     client.from("trip_days").select("id,day_number").eq("trip_id", tripId),
   ])
@@ -388,7 +394,23 @@ app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
     durationMinutes: stop.duration_minutes,
     sortOrder: stop.sort_order,
   }))
-  const draft = buildSampleSuggestion(stops)
+  const modelDraft = await generateTripSuggestion(siliconFlowConfigFromBindings(context.env), {
+    intent: parsed.data.intent,
+    locale: localeSchema.parse(tripResult.data.locale),
+    stops,
+  }).catch((error) => {
+    console.error(JSON.stringify({ message: "siliconflow_suggestion_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+    return null
+  })
+  const knownStopIds = new Set(stops.map((stop) => stop.id))
+  const safeModelDraft = modelDraft?.changes.every(
+    (change) => change.op === "update_stop" && knownStopIds.has(change.stopId),
+  )
+    ? modelDraft
+    : null
+  const draft = safeModelDraft
+    ? { intent: parsed.data.intent, ...safeModelDraft, status: "proposed" as const }
+    : buildSampleSuggestion(stops)
   if (draft.changes.length === 0) {
     return context.json(apiError("VALIDATION_FAILED", "Add at least one sample place before asking for a plan."), 400)
   }

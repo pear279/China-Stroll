@@ -29,6 +29,7 @@ npm run dev:worker
 
 ```bash
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config apps/worker/wrangler.jsonc
+npx wrangler secret put SILICONFLOW_API_KEY --config apps/worker/wrangler.jsonc
 ```
 
 服务端密钥不能放入浏览器变量、日志或仓库。
@@ -39,7 +40,7 @@ npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config apps/worker/wrangler.
 npm run dev:pages
 ```
 
-Cloudflare Pages 需要增加名为 `SUPABASE_SERVICE_ROLE_KEY` 的 Secret。`SUPABASE_URL` 可以继续读取已有的 `VITE_SUPABASE_URL`，无需重复配置。前端正式构建固定使用同域接口，`VITE_API_BASE_URL` 只用于本地开发，可以从 Pages 正式环境删除。
+Cloudflare Pages 需要增加名为 `SUPABASE_SERVICE_ROLE_KEY` 和 `SILICONFLOW_API_KEY` 的 Secret。后者填写硅基流动 API Key。模型默认使用 `https://api.siliconflow.cn/v1`、`deepseek-ai/DeepSeek-V4-Flash`、`BAAI/bge-m3` 和 15 秒超时，因此不需要再填普通环境变量。需要调整时才添加 `SILICONFLOW_BASE_URL`、`SILICONFLOW_CHAT_MODEL`、`SILICONFLOW_EMBEDDING_MODEL` 或 `SILICONFLOW_TIMEOUT_MS`。`SUPABASE_URL` 和 `SUPABASE_PUBLISHABLE_KEY` 可以继续读取已有的 `VITE_SUPABASE_URL` 与 `VITE_SUPABASE_PUBLISHABLE_KEY`，无需重复配置。前端正式构建固定使用同域接口，`VITE_API_BASE_URL` 只用于本地开发，可以从 Pages 正式环境删除。
 
 ## 检查命令
 
@@ -56,4 +57,4 @@ npm run build
 
 地图只显示三个样本地点与访问顺序。虚线不是道路路线。当前底图只用于本地技术试验，正式发布前需要选择符合许可、署名和北京访问要求的底图服务。
 
-行程建议暂时使用可重复测试的规则生成。模型服务接入后继续输出同一套结构化改动，并保留用户确认和版本检查。
+行程建议在配置 `SILICONFLOW_API_KEY` 后使用 `deepseek-ai/DeepSeek-V4-Flash` 生成结构化草案。请求失败或密钥未配置时使用可重复测试的规则建议。模型输出继续经过结构校验，并保留用户确认和版本检查。`BAAI/bge-m3` 已作为检索嵌入模型配置。向量生成和问答接口将在资料检索功能提交时启用。

@@ -7,10 +7,12 @@ describe("Pages Functions adapter", () => {
     expect(
       resolvePagesBindings(request, {
         VITE_SUPABASE_URL: "https://example.supabase.co",
+        VITE_SUPABASE_PUBLISHABLE_KEY: "test-only-publishable-key",
         SUPABASE_SERVICE_ROLE_KEY: "test-only-service-key",
       }),
     ).toEqual({
       SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "test-only-publishable-key",
       SUPABASE_SERVICE_ROLE_KEY: "test-only-service-key",
       WEB_ORIGIN: "https://china-stroll.pages.dev",
     })
