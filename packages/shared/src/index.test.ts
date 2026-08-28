@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest"
 import coordinateReviews from "../../../data/coordinate-reviews.json"
-import { buildSampleSuggestion, samplePlaces, type TripStop } from "./index"
+import {
+  buildSampleSuggestion,
+  collectPlaceCategories,
+  formatCategoryLabel,
+  formatDurationHours,
+  placeInitials,
+  resolvePlaceImage,
+  samplePlaces,
+  type PlaceSummary,
+  type TripStop,
+} from "./index"
 
 describe("sample place coordinates", () => {
   it("keeps every map sample tied to a reviewed WGS84 display anchor", () => {
@@ -61,5 +71,40 @@ describe("buildSampleSuggestion", () => {
     ])
 
     expect(suggestion.changes).toHaveLength(1)
+  })
+})
+
+describe("place display helpers", () => {
+  it("returns a cleared image only for the three sample places", () => {
+    expect(resolvePlaceImage("forbidden-city")).toBe("/places/palace-museum.png")
+    expect(resolvePlaceImage("summer-palace")).toBeNull()
+  })
+
+  it("builds readable initials for a placeholder tile", () => {
+    expect(placeInitials("The Palace Museum")).toBe("PM")
+    expect(placeInitials("Jingshan Park")).toBe("JP")
+    expect(placeInitials("Hutong")).toBe("HU")
+    expect(placeInitials("")).toBe("?")
+  })
+
+  it("reads visit length in half hour steps and keeps short visits in minutes", () => {
+    expect(formatDurationHours(240)).toBe("4 hr")
+    expect(formatDurationHours(90)).toBe("1.5 hr")
+    expect(formatDurationHours(60)).toBe("1 hr")
+    expect(formatDurationHours(45)).toBe("45 min")
+  })
+
+  it("collects a sorted unique category list", () => {
+    const places = [
+      { categoryCode: "museum" },
+      { categoryCode: "historic" },
+      { categoryCode: "museum" },
+    ] as PlaceSummary[]
+    expect(collectPlaceCategories(places)).toEqual(["historic", "museum"])
+  })
+
+  it("turns a category code into a label", () => {
+    expect(formatCategoryLabel("historic")).toBe("Historic")
+    expect(formatCategoryLabel("imperial-garden")).toBe("Imperial Garden")
   })
 })

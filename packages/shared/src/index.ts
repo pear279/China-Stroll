@@ -202,3 +202,44 @@ export function buildSampleSuggestion(stops: TripStop[]): Omit<AgentSuggestion, 
     status: "proposed",
   }
 }
+
+const samplePlaceImages = new Map(samplePlaces.map((place) => [place.id as string, place.image]))
+
+export function resolvePlaceImage(placeId: string): string | null {
+  return samplePlaceImages.get(placeId) ?? null
+}
+
+export function placeInitials(name: string): string {
+  const words = name
+    .replace(/^(the|a|an)\s+/i, "")
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length === 0) return "?"
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return `${words[0][0]}${words[1][0]}`.toUpperCase()
+}
+
+export function formatDurationHours(durationMinutes: number): string {
+  if (durationMinutes < 60) return `${durationMinutes} min`
+  const hours = Math.round((durationMinutes / 60) * 2) / 2
+  return hours === 1 ? "1 hr" : `${hours} hr`
+}
+
+export function collectPlaceCategories(places: PlaceSummary[]): string[] {
+  return [...new Set(places.map((place) => place.categoryCode))].sort()
+}
+
+export function formatCategoryLabel(categoryCode: string): string {
+  return categoryCode
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+export const durationFilters = [
+  { label: "Any length", maxDurationMinutes: undefined },
+  { label: "Up to 1 hr", maxDurationMinutes: 60 },
+  { label: "Up to 2 hr", maxDurationMinutes: 120 },
+  { label: "Up to 3 hr", maxDurationMinutes: 180 },
+] as const

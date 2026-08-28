@@ -115,9 +115,16 @@ input:focus { border-color: #b33a2e; }
 .map-marker.is-selected .map-pin { width: 2.45rem; height: 2.45rem; background: #23201d; }
 .maplibregl-ctrl-attrib { font-size: 9px; }
 
+.place-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem 1rem; margin-bottom: 1.35rem; padding: .85rem 1rem; border: 1px solid #d9d1c4; border-radius: .5rem; background: #fffdf8; }
+.place-filters label { color: #4a433c; font-size: .74rem; font-weight: 750; }
+.place-filters select { min-height: 2.55rem; padding: .35rem .6rem; border: 1px solid #cfc6b7; border-radius: .4rem; color: #2a2521; background: #fffdf8; font-size: .82rem; }
+.place-filters select:focus { border-color: #b33a2e; }
+.filter-count { margin-left: auto; color: #776e64; font-size: .74rem; }
 .place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .place-card { overflow: hidden; border: 1px solid #d4ccbf; background: #fffdf8; }
 .place-card > img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #eee8dd; }
+.place-card-placeholder { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-bottom: 1px solid #e3ddd3; background: #efe9de; }
+.place-card-placeholder span { color: #a4998a; font-family: "Stroll Serif", Georgia, serif; font-size: 2.1rem; font-weight: 700; letter-spacing: .04em; }
 .place-card-copy { padding: 1.05rem; }
 .place-zh { color: #9c332b; font-family: serif; font-size: .78rem; font-weight: 800; letter-spacing: .08em; }
 .place-card h3 { margin: .25rem 0 .55rem; font-size: 1.25rem; }
@@ -157,7 +164,11 @@ input:focus { border-color: #b33a2e; }
   .place-grid { grid-template-columns: 1fr; }
   .place-card { display: grid; grid-template-columns: 38% 1fr; }
   .place-card > img { height: 100%; }
+  .place-card-placeholder { height: 100%; aspect-ratio: auto; border-bottom: 0; border-right: 1px solid #e3ddd3; }
   .place-card p { min-height: 0; }
+  .place-filters { flex-direction: column; align-items: stretch; }
+  .place-filters select { width: 100%; }
+  .filter-count { margin-left: 0; }
   .map-shell { min-height: 390px; height: 58vh; }
 }
 

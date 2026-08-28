@@ -13,7 +13,18 @@ import {
   Users,
 } from "lucide-react"
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
-import { samplePlaces, type AgentSuggestion, type TripSnapshot } from "../../../packages/shared/src"
+import {
+  collectPlaceCategories,
+  durationFilters,
+  formatCategoryLabel,
+  formatDurationHours,
+  placeInitials,
+  resolvePlaceImage,
+  samplePlaces,
+  type AgentSuggestion,
+  type PlaceSummary,
+  type TripSnapshot,
+} from "../../../packages/shared/src"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
@@ -25,12 +36,26 @@ const TravelMap = lazy(() =>
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
 
+const previewPlaces: PlaceSummary[] = samplePlaces.map((place) => ({
+  id: place.id,
+  locale: "en",
+  name: place.name,
+  shortIntro: place.shortIntro,
+  categoryCode: "historic",
+  tags: [],
+  coordinate: place.coordinate,
+  durationMinutes: place.durationMinutes,
+  coordinatesCheckedAt: null,
+}))
+
 export function App() {
   const [mode, setMode] = useState<Mode>("loading")
   const [session, setSession] = useState<Session | null>(null)
   const [trip, setTrip] = useState<TripSnapshot | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [places, setPlaces] = useState<PlaceSummary[]>([])
+  const [placesState, setPlacesState] = useState<"idle" | "loading" | "ready" | "failed">("idle")
 
   const loadTrip = useCallback(async (accessToken: string, tripId: string) => {
     const nextTrip = await api.getTrip(accessToken, tripId)
@@ -73,6 +98,32 @@ export function App() {
       localStorage.setItem("china-stroll-preview-trip", JSON.stringify(trip))
     }
   }, [mode, trip])
+
+  useEffect(() => {
+    if (mode === "preview") {
+      setPlaces(previewPlaces)
+      setPlacesState("ready")
+      return
+    }
+    if (mode !== "account") return
+    let active = true
+    setPlacesState("loading")
+    void api
+      .listPlaces({ locale: "en" })
+      .then((response) => {
+        if (!active) return
+        setPlaces(response.places)
+        setPlacesState("ready")
+      })
+      .catch(() => {
+        if (!active) return
+        setPlaces([])
+        setPlacesState("failed")
+      })
+    return () => {
+      active = false
+    }
+  }, [mode])
 
   async function run(label: string, task: () => Promise<void>) {
     setBusy(label)
@@ -167,6 +218,8 @@ export function App() {
       busy={busy}
       message={message}
       mode={mode}
+      places={places}
+      placesState={placesState}
       testIdentity={testIdentity}
       trip={trip}
       onAddPlace={addPlace}
@@ -308,10 +361,12 @@ function CreateTripScreen({ busy, mode, onCreate, testIdentity }: { busy: boolea
   )
 }
 
-function Planner({ busy, message, mode, trip, testIdentity, onAddPlace, onConfirm, onSuggest, onExit }: {
+function Planner({ busy, message, mode, places, placesState, trip, testIdentity, onAddPlace, onConfirm, onSuggest, onExit }: {
   busy: string | null
   message: string | null
   mode: Mode
+  places: PlaceSummary[]
+  placesState: "idle" | "loading" | "ready" | "failed"
   trip: TripSnapshot
   testIdentity: string | null
   onAddPlace: (placeId: string) => Promise<void>
@@ -320,8 +375,20 @@ function Planner({ busy, message, mode, trip, testIdentity, onAddPlace, onConfir
   onExit: () => Promise<void>
 }) {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(trip.stops[0]?.id ?? null)
+  const [category, setCategory] = useState<string>("all")
+  const [maxDuration, setMaxDuration] = useState<number | undefined>(undefined)
   const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
   const plannedIds = useMemo(() => new Set(trip.stops.map((stop) => stop.placeId)), [trip.stops])
+  const categories = useMemo(() => collectPlaceCategories(places), [places])
+  const visiblePlaces = useMemo(
+    () =>
+      places.filter(
+        (place) =>
+          (category === "all" || place.categoryCode === category)
+          && (maxDuration === undefined || place.durationMinutes <= maxDuration),
+      ),
+    [category, maxDuration, places],
+  )
 
   useEffect(() => {
     if (!selectedStopId && trip.stops[0]) setSelectedStopId(trip.stops[0].id)
@@ -390,18 +457,89 @@ function Planner({ busy, message, mode, trip, testIdentity, onAddPlace, onConfir
         </aside>
 
         <section className="places-panel" aria-labelledby="places-heading">
-          <div className="section-heading"><div><span className="eyebrow">Verified samples</span><h2 id="places-heading">Add a place</h2></div><span className="count-chip">{trip.stops.length} / 3 planned</span></div>
-          <div className="place-grid">
-            {samplePlaces.map((place) => {
-              const planned = plannedIds.has(place.id)
-              return (
-                <article className="place-card" key={place.id}>
-                  <img src={place.image} alt={`Archive stamp artwork for ${place.name}`} />
-                  <div className="place-card-copy"><span className="place-zh">{place.nameZh}</span><h3>{place.name}</h3><p>{place.shortIntro}</p><div className="place-card-footer"><span><Clock3 size={15} />{Math.round(place.durationMinutes / 30) / 2} hr</span><button disabled={planned || busy === `add-${place.id}`} type="button" onClick={() => void onAddPlace(place.id)}>{planned ? <><Check size={16} /> Planned</> : <><Plus size={16} /> Add</>}</button></div></div>
-                </article>
-              )
-            })}
+          <div className="section-heading">
+            <div><span className="eyebrow">Reviewed places</span><h2 id="places-heading">Add a place</h2></div>
+            <span className="count-chip">{trip.stops.length} planned</span>
           </div>
+
+          {placesState === "ready" && places.length > 0 && (
+            <div className="place-filters">
+              <label htmlFor="place-category">Category</label>
+              <select id="place-category" value={category} onChange={(event) => setCategory(event.target.value)}>
+                <option value="all">All categories</option>
+                {categories.map((code) => (
+                  <option key={code} value={code}>{formatCategoryLabel(code)}</option>
+                ))}
+              </select>
+              <label htmlFor="place-duration">Visit length</label>
+              <select
+                id="place-duration"
+                value={maxDuration === undefined ? "any" : String(maxDuration)}
+                onChange={(event) => setMaxDuration(event.target.value === "any" ? undefined : Number(event.target.value))}
+              >
+                {durationFilters.map((filter) => (
+                  <option
+                    key={filter.label}
+                    value={filter.maxDurationMinutes === undefined ? "any" : String(filter.maxDurationMinutes)}
+                  >
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+              <span className="filter-count" role="status">{visiblePlaces.length} of {places.length} shown</span>
+            </div>
+          )}
+
+          {placesState === "loading" && (
+            <div className="empty-plan" role="status"><LoaderCircle className="spin" size={26} /><p>Loading reviewed places…</p></div>
+          )}
+
+          {placesState === "failed" && (
+            <div className="empty-plan" role="status">
+              <Compass size={28} />
+              <h2>Places are unavailable right now.</h2>
+              <p>Your saved plan above still works. Try again in a moment.</p>
+            </div>
+          )}
+
+          {placesState === "ready" && visiblePlaces.length === 0 && (
+            <div className="empty-plan" role="status">
+              <Compass size={28} />
+              <h2>No place matches these filters.</h2>
+              <p>Widen the category or visit length to see more.</p>
+            </div>
+          )}
+
+          {visiblePlaces.length > 0 && (
+            <div className="place-grid">
+              {visiblePlaces.map((place) => {
+                const planned = plannedIds.has(place.id)
+                const image = resolvePlaceImage(place.id)
+                return (
+                  <article className="place-card" key={place.id}>
+                    {image ? (
+                      <img src={image} alt={`Archive stamp artwork for ${place.name}`} />
+                    ) : (
+                      <div className="place-card-placeholder" role="img" aria-label={`No cleared image for ${place.name} yet`}>
+                        <span>{placeInitials(place.name)}</span>
+                      </div>
+                    )}
+                    <div className="place-card-copy">
+                      <span className="place-zh">{formatCategoryLabel(place.categoryCode)}</span>
+                      <h3>{place.name}</h3>
+                      <p>{place.shortIntro}</p>
+                      <div className="place-card-footer">
+                        <span><Clock3 size={15} />{formatDurationHours(place.durationMinutes)}</span>
+                        <button disabled={planned || busy === `add-${place.id}`} type="button" onClick={() => void onAddPlace(place.id)}>
+                          {planned ? <><Check size={16} /> Planned</> : <><Plus size={16} /> Add</>}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
         </section>
       </main>
     </div>
