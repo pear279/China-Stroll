@@ -51,7 +51,13 @@ npm test
 npm run build
 ```
 
-数据库测试位于 `supabase/tests`。这些脚本使用事务创建临时用户和旅行，完成检查后回滚。
+本地数据库验证需要 Supabase CLI 和正在运行的 OrbStack。命令会从空库应用全部迁移与种子文件，执行 `supabase/tests` 中的两套事务回滚测试，检查测试数据没有残留，再重建一次数据库：
+
+```bash
+npm run db:verify
+```
+
+该命令只操作本地 Supabase，不会连接或更新线上项目。
 
 ## 当前边界
 

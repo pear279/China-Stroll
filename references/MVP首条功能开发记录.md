@@ -30,6 +30,12 @@
 
 本轮通过类型检查、代码检查、51 项自动化测试和网页生产构建。桌面浏览器与 390 像素宽度完成多日期、指定日期加入、收藏、详情抽屉和导航入口验收，控制台没有错误或警告。新增日期的 SQL 回滚测试已经补入仓库。Supabase 命令行工具可用，本机缺少 Docker 或 Podman，数据库测试无法启动，本轮没有应用线上迁移。
 
+## 2026 年 8 月 30 日本地数据库验证
+
+本机使用 OrbStack Docker Server 28.5.2 和 Supabase CLI 2.116.0 建立了本地 PostgreSQL 17 环境。`npm run db:verify` 从空库应用全部迁移和当前仅含内容审核说明的 `supabase/seed.sql`，执行两套 SQL 回滚测试，检查固定测试用户、临时地点和测试旅行没有残留，再从空库重建一次数据库。
+
+`mvp_business_schema.sql` 和 `mvp_trip_commands.sql` 均通过。命令测试现在在自己的事务中创建已发布且完成坐标审核的 `forbidden-city` 夹具，不再依赖远程项目已有地点。两次迁移重建、权限、RLS、幂等、版本冲突、地点审核门槛和新增日期断言全部通过。本次没有运行 `supabase link` 或 `supabase db push`，新增迁移仍未应用到线上。
+
 ## 实现范围
 
 前端使用 React、TypeScript、Vite、Tailwind CSS 和 PWA。地图组件由产品自己的 `TravelMap` 包装 MapLibre GL JS，页面只传入地点和选中状态。MapLibre Worker 随 Vite 构建，不依赖外部 Worker 地址。
