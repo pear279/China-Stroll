@@ -17,6 +17,59 @@ values (
   now()
 );
 
+insert into public.places (
+  id,
+  category_code,
+  latitude,
+  longitude,
+  recommended_duration_minutes,
+  coordinate_system,
+  coordinates_checked_at,
+  status
+)
+values (
+  'forbidden-city',
+  'historic',
+  39.9172757,
+  116.3907694,
+  240,
+  'WGS84',
+  now(),
+  'published'
+)
+on conflict (id) do update
+set latitude = excluded.latitude,
+    longitude = excluded.longitude,
+    coordinate_system = excluded.coordinate_system,
+    coordinates_checked_at = excluded.coordinates_checked_at,
+    status = excluded.status;
+
+insert into public.place_localizations (
+  place_id,
+  locale,
+  name,
+  short_intro,
+  history,
+  visitor_tips,
+  practical_notes,
+  photo_spot_notes,
+  review_status
+)
+values (
+  'forbidden-city',
+  'en',
+  'The Palace Museum',
+  'Published command-test fixture.',
+  'Published command-test fixture history.',
+  'Published command-test fixture tips.',
+  'Published command-test fixture practical notes.',
+  'Published command-test fixture photo notes.',
+  'published'
+)
+on conflict (place_id, locale) do update
+set name = excluded.name,
+    review_status = excluded.review_status;
+
 do $$
 declare
   v_create_result jsonb;
