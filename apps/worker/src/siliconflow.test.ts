@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { generateEmbeddings, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { generateEmbeddings, generatePlaceAnswer, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 
 const config = siliconFlowConfigFromBindings({ SILICONFLOW_API_KEY: "test-key" })
 
@@ -36,5 +36,31 @@ describe("SiliconFlow configuration", () => {
   it("accepts only 1024-dimension bge-m3 embeddings", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ embedding: Array(1024).fill(0.1) }] }), { status: 200 }))
     await expect(generateEmbeddings(config, ["故宫"], fetcher)).resolves.toHaveLength(1)
+  })
+
+  it("keeps place answers within the supplied source identifiers", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      answer: "The reviewed passage recommends the central courtyard.",
+      sourceIds: [7],
+    }) } }] }), { status: 200 }))
+    await expect(generatePlaceAnswer(config, {
+      question: "Where should I begin?",
+      locale: "en",
+      placeName: "Test place",
+      passages: [{ id: 1, title: "Overview", content: "Begin in the central courtyard.", sourceIds: [7] }],
+    }, fetcher)).resolves.toMatchObject({ sourceIds: [7] })
+  })
+
+  it("rejects place answers that cite an unavailable source", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      answer: "Unsupported answer.",
+      sourceIds: [99],
+    }) } }] }), { status: 200 }))
+    await expect(generatePlaceAnswer(config, {
+      question: "Where should I begin?",
+      locale: "en",
+      placeName: "Test place",
+      passages: [{ id: 1, title: "Overview", content: "Begin in the central courtyard.", sourceIds: [7] }],
+    }, fetcher)).rejects.toThrow()
   })
 })

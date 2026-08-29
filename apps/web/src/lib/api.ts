@@ -1,4 +1,13 @@
-import type { AgentSuggestion, Locale, PlaceDetail, PlaceListResponse, TripSnapshot } from "../../../../packages/shared/src"
+import type {
+  AgentSuggestion,
+  Locale,
+  PlaceDetail,
+  PlaceGuideResponse,
+  PlaceLibraryItem,
+  PlaceListResponse,
+  PlaceQuestionResponse,
+  TripSnapshot,
+} from "../../../../packages/shared/src"
 
 export function resolveApiBaseUrl(isProduction: boolean, configuredUrl?: string) {
   return isProduction ? "" : configuredUrl ?? "http://localhost:8787"
@@ -72,6 +81,29 @@ export const api = {
   getPlace(placeId: string, locale: Locale = "en") {
     return publicRequest<PlaceDetail>(`/v1/places/${encodeURIComponent(placeId)}?locale=${locale}`)
   },
+  getPlaceGuide(placeId: string, locale: Locale = "en", audience: "general" | "child" = "general") {
+    return publicRequest<PlaceGuideResponse>(
+      `/v1/places/${encodeURIComponent(placeId)}/guide?locale=${locale}&audience=${audience}`,
+    )
+  },
+  askPlace(accessToken: string, placeId: string, question: string, locale: Locale = "en") {
+    return request<PlaceQuestionResponse>(`/v1/places/${encodeURIComponent(placeId)}/questions`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({ question, locale }),
+    })
+  },
+  listSavedPlaces(accessToken: string) {
+    return request<{ items: PlaceLibraryItem[] }>("/v1/place-library", accessToken)
+  },
+  savePlace(accessToken: string, placeId: string) {
+    return request<PlaceLibraryItem>("/v1/place-library", accessToken, {
+      method: "POST",
+      body: JSON.stringify({ placeId, labels: [], note: "" }),
+    })
+  },
+  removeSavedPlace(accessToken: string, placeId: string) {
+    return request<void>(`/v1/place-library/${encodeURIComponent(placeId)}`, accessToken, { method: "DELETE" })
+  },
   createTrip(accessToken: string, input: { name: string; startDate: string | null }) {
     return request<{ tripId: string; version: number }>("/v1/trips", accessToken, {
       method: "POST",
@@ -87,6 +119,16 @@ export const api = {
       body: JSON.stringify({
         placeId,
         dayNumber,
+        expectedVersion: trip.version,
+        commandId: crypto.randomUUID(),
+      }),
+    })
+  },
+  addTripDay(accessToken: string, trip: TripSnapshot, date: string | null = null) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/days`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({
+        date,
         expectedVersion: trip.version,
         commandId: crypto.randomUUID(),
       }),

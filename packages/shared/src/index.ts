@@ -66,6 +66,48 @@ export type PlaceListResponse = {
   places: PlaceSummary[]
 }
 
+export type GuideSegment = {
+  id: number
+  type: "overview" | "history" | "highlight" | "family" | "practical" | "faq"
+  audience: "general" | "child"
+  title: string | null
+  content: string
+  sequence: number
+  updatedAt: string
+}
+
+export type GuideSource = {
+  id: number
+  name: string
+  url: string | null
+  checkedAt: string | null
+  reviewDueAt: string | null
+  needsRecheck: boolean
+}
+
+export type PlaceGuideResponse = {
+  placeId: string
+  locale: Locale
+  audience: "general" | "child"
+  segments: GuideSegment[]
+  sources: GuideSource[]
+}
+
+export type PlaceQuestionResponse = {
+  answer: string
+  sourceIds: number[]
+  generatedBy: "model" | "guide-fallback"
+  updatedAt: string | null
+}
+
+export type PlaceLibraryItem = {
+  id: string
+  placeId: string
+  collectionName: string | null
+  labels: string[]
+  note: string
+}
+
 
 export type SamplePlace = {
   id: "forbidden-city" | "temple-of-heaven" | "jingshan-park"
@@ -303,10 +345,8 @@ export function measureSpreadKilometres(stops: TripStop[]): number {
   return widest
 }
 
-const samplePlaceImages = new Map(samplePlaces.map((place) => [place.id as string, place.image]))
-
-export function resolvePlaceImage(placeId: string): string | null {
-  return samplePlaceImages.get(placeId) ?? null
+export function resolvePlaceImage(placeId: string): string {
+  return `/places/${placeId === "forbidden-city" ? "palace-museum" : placeId}.jpg`
 }
 
 export function placeInitials(name: string): string {

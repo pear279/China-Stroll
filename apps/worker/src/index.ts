@@ -2,10 +2,23 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { z } from "zod"
-import { buildSampleSuggestion, type AgentSuggestion, type Coordinate, type PlaceDetail, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
+import {
+  buildSampleSuggestion,
+  type AgentSuggestion,
+  type Coordinate,
+  type GuideSegment,
+  type GuideSource,
+  type PlaceDetail,
+  type PlaceGuideResponse,
+  type PlaceLibraryItem,
+  type PlaceQuestionResponse,
+  type PlaceSummary,
+  type TripSnapshot,
+} from "../../../packages/shared/src"
 import type { Database } from "../../../supabase/database.types"
 import {
   addStopSchema,
+  addTripDaySchema,
   agentChangesSchema,
   apiError,
   confirmSuggestionSchema,
@@ -14,14 +27,17 @@ import {
   localeSchema,
   parseOpeningHours,
   placeDetailQuerySchema,
+  placeGuideQuerySchema,
   placeIdSchema,
   placeListQuerySchema,
+  placeQuestionSchema,
+  savePlaceSchema,
   suggestionRisksSchema,
   suggestionRequestSchema,
   suggestionStatusSchema,
   tripCommandResultSchema,
 } from "./contracts"
-import { generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { generatePlaceAnswer, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 
 export type WorkerBindings = {
   SUPABASE_URL: string
@@ -42,12 +58,12 @@ type Variables = {
   userClient: SupabaseClient<Database>
 }
 
-export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations"] as const
+export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library"] as const
 
 export function requiresAuthentication(pathname: string) {
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
+  ) || /^\/v1\/places\/[^/]+\/questions$/.test(pathname)
 }
 
 
@@ -145,6 +161,90 @@ app.get("/v1/places", async (context) => {
 
   context.header("Cache-Control", "public, max-age=300")
   return context.json({ locale: parsed.data.locale, places })
+})
+
+async function loadPublishedGuide(
+  client: SupabaseClient<Database>,
+  placeId: string,
+  locale: "en" | "zh-CN",
+  audience: "general" | "child" = "general",
+) {
+  const [placeResult, segmentResult, sourceResult] = await Promise.all([
+    client
+      .from("place_localizations")
+      .select("name,updated_at")
+      .eq("place_id", placeId)
+      .eq("locale", locale)
+      .eq("review_status", "published")
+      .maybeSingle(),
+    client
+      .from("guide_segments")
+      .select("id,segment_type,audience,title,content,sequence,updated_at")
+      .eq("place_id", placeId)
+      .eq("locale", locale)
+      .eq("audience", audience)
+      .eq("review_status", "published")
+      .order("sequence"),
+    client
+      .from("place_sources")
+      .select("id,source_name,source_url,checked_at,review_due_at")
+      .eq("place_id", placeId)
+      .eq("status", "published")
+      .order("id"),
+  ])
+  return { placeResult, segmentResult, sourceResult }
+}
+
+app.get("/v1/places/:placeId/guide", async (context) => {
+  const placeId = placeIdSchema.safeParse(context.req.param("placeId"))
+  const parsed = placeGuideQuerySchema.safeParse({
+    locale: context.req.query("locale") ?? undefined,
+    audience: context.req.query("audience") ?? undefined,
+  })
+  if (!placeId.success || !parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the guide request."), 400)
+  }
+  const client = createPublicClient(context.env)
+  if (!client) {
+    return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The guide service is temporarily unavailable."), 503)
+  }
+  const { placeResult, segmentResult, sourceResult } = await loadPublishedGuide(
+    client,
+    placeId.data,
+    parsed.data.locale,
+    parsed.data.audience,
+  )
+  if (placeResult.error || segmentResult.error || sourceResult.error) {
+    return mapDatabaseError(context, placeResult.error ?? segmentResult.error ?? sourceResult.error as { message: string })
+  }
+  if (!placeResult.data) return context.json(apiError("NOT_FOUND", "Guide not found."), 404)
+
+  const segments: GuideSegment[] = (segmentResult.data ?? []).map((segment) => ({
+    id: segment.id,
+    type: segment.segment_type as GuideSegment["type"],
+    audience: segment.audience as GuideSegment["audience"],
+    title: segment.title,
+    content: segment.content,
+    sequence: segment.sequence,
+    updatedAt: segment.updated_at,
+  }))
+  const sources: GuideSource[] = (sourceResult.data ?? []).map((source) => ({
+    id: source.id,
+    name: source.source_name,
+    url: source.source_url,
+    checkedAt: source.checked_at,
+    reviewDueAt: source.review_due_at,
+    needsRecheck: isReviewOverdue(source.review_due_at),
+  }))
+  const response: PlaceGuideResponse = {
+    placeId: placeId.data,
+    locale: parsed.data.locale,
+    audience: parsed.data.audience,
+    segments,
+    sources,
+  }
+  context.header("Cache-Control", "public, max-age=300")
+  return context.json(response)
 })
 
 app.get("/v1/places/:placeId", async (context) => {
@@ -271,6 +371,147 @@ app.use("/v1/*", async (context, next) => {
   await next()
 })
 
+app.get("/v1/place-library", async (context) => {
+  const { data, error } = await context
+    .get("admin")
+    .from("place_library_items")
+    .select("id,place_id,collection_name,labels,note")
+    .eq("user_id", context.get("user").id)
+    .not("place_id", "is", null)
+    .order("created_at", { ascending: false })
+  if (error) return mapDatabaseError(context, error)
+  const items: PlaceLibraryItem[] = (data ?? []).flatMap((item) => item.place_id ? [{
+    id: item.id,
+    placeId: item.place_id,
+    collectionName: item.collection_name,
+    labels: item.labels,
+    note: item.note,
+  }] : [])
+  return context.json({ items })
+})
+
+app.post("/v1/place-library", async (context) => {
+  const parsed = savePlaceSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the saved place."), 400)
+  }
+  const admin = context.get("admin")
+  const userId = context.get("user").id
+  const { data: existing, error: lookupError } = await admin
+    .from("place_library_items")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("place_id", parsed.data.placeId)
+    .maybeSingle()
+  if (lookupError) return mapDatabaseError(context, lookupError)
+  const values = {
+    user_id: userId,
+    place_id: parsed.data.placeId,
+    source: "product" as const,
+    collection_name: parsed.data.collectionName ?? null,
+    labels: parsed.data.labels,
+    note: parsed.data.note,
+  }
+  const query = existing
+    ? admin.from("place_library_items").update(values).eq("id", existing.id)
+    : admin.from("place_library_items").insert(values)
+  const { data, error } = await query
+    .select("id,place_id,collection_name,labels,note")
+    .single()
+  if (error) return mapDatabaseError(context, error)
+  if (!data.place_id) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The saved place is incomplete."), 500)
+  return context.json({
+    id: data.id,
+    placeId: data.place_id,
+    collectionName: data.collection_name,
+    labels: data.labels,
+    note: data.note,
+  } satisfies PlaceLibraryItem, 201)
+})
+
+app.delete("/v1/place-library/:placeId", async (context) => {
+  const placeId = placeIdSchema.safeParse(context.req.param("placeId"))
+  if (!placeId.success) return context.json(apiError("VALIDATION_FAILED", "Check the saved place."), 400)
+  const { error } = await context
+    .get("admin")
+    .from("place_library_items")
+    .delete()
+    .eq("user_id", context.get("user").id)
+    .eq("place_id", placeId.data)
+  if (error) return mapDatabaseError(context, error)
+  return context.body(null, 204)
+})
+
+app.post("/v1/places/:placeId/questions", async (context) => {
+  const placeId = placeIdSchema.safeParse(context.req.param("placeId"))
+  const parsed = placeQuestionSchema.safeParse(await context.req.json().catch(() => null))
+  if (!placeId.success || !parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Ask one question about this place."), 400)
+  }
+  const client = createPublicClient(context.env)
+  if (!client) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The guide service is temporarily unavailable."), 503)
+  const [placeResult, documentResult, sourceResult] = await Promise.all([
+    client.from("place_localizations")
+      .select("name")
+      .eq("place_id", placeId.data)
+      .eq("locale", parsed.data.locale)
+      .eq("review_status", "published")
+      .maybeSingle(),
+    client.from("place_search_documents")
+      .select("id,section,content,source_ids,updated_at")
+      .eq("place_id", placeId.data)
+      .eq("locale", parsed.data.locale)
+      .eq("status", "published"),
+    client.from("place_sources")
+      .select("id")
+      .eq("place_id", placeId.data)
+      .eq("status", "published"),
+  ])
+  if (placeResult.error || documentResult.error || sourceResult.error) {
+    return mapDatabaseError(context, placeResult.error ?? documentResult.error ?? sourceResult.error as { message: string })
+  }
+  if (!placeResult.data) return context.json(apiError("NOT_FOUND", "Guide not found."), 404)
+  const publishedSourceIds = new Set((sourceResult.data ?? []).map((source) => source.id))
+  const terms = parsed.data.question.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+  const documents = (documentResult.data ?? []).map((document) => ({
+    ...document,
+    score: terms.filter((term) => `${document.section} ${document.content}`.toLocaleLowerCase().includes(term)).length,
+  })).sort((left, right) => right.score - left.score || right.updated_at.localeCompare(left.updated_at)).slice(0, 4)
+  const passages = documents.map((document) => ({
+    id: document.id,
+    sourceIds: document.source_ids.filter((sourceId) => publishedSourceIds.has(sourceId)),
+    title: document.section,
+    content: document.content,
+  }))
+  const sourceIds = [...new Set(passages.flatMap((passage) => passage.sourceIds))]
+  const modelAnswer = await generatePlaceAnswer(siliconFlowConfigFromBindings(context.env), {
+    question: parsed.data.question,
+    locale: parsed.data.locale,
+    placeName: placeResult.data.name,
+    passages,
+  }).catch((error) => {
+    console.error(JSON.stringify({ message: "siliconflow_place_answer_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+    return null
+  })
+  const fallbackPassages = passages.slice(0, 2)
+  const response: PlaceQuestionResponse = modelAnswer
+    ? {
+        answer: modelAnswer.answer,
+        sourceIds: modelAnswer.sourceIds,
+        generatedBy: "model",
+        updatedAt: documents[0]?.updated_at ?? null,
+      }
+    : {
+        answer: fallbackPassages.length > 0
+          ? `The reviewed guide currently says ${fallbackPassages.map((passage) => passage.content).join(" ")}`
+          : "The available reviewed guide cannot confirm this yet.",
+        sourceIds,
+        generatedBy: "guide-fallback",
+        updatedAt: documents[0]?.updated_at ?? null,
+      }
+  return context.json(response)
+})
+
 app.post("/v1/trips", async (context) => {
   const parsed = createTripSchema.safeParse(await context.req.json().catch(() => null))
   if (!parsed.success) {
@@ -285,6 +526,23 @@ app.post("/v1/trips", async (context) => {
     p_start_date: parsed.data.startDate ?? undefined,
   })
 
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data), 201)
+})
+
+app.post("/v1/trips/:tripId/days", async (context) => {
+  const parsed = addTripDaySchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the new trip day."), 400)
+  }
+  const { data, error } = await context.get("admin").rpc("add_mvp_trip_day", {
+    p_actor_id: context.get("user").id,
+    p_command_id: parsed.data.commandId,
+    p_day_date: parsed.data.date ?? undefined,
+    p_expected_version: parsed.data.expectedVersion,
+    p_title: parsed.data.title ?? undefined,
+    p_trip_id: context.req.param("tripId"),
+  })
   if (error) return mapDatabaseError(context, error)
   return context.json(tripCommandResultSchema.parse(data), 201)
 })

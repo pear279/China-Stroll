@@ -304,4 +304,77 @@ begin
 end;
 $$;
 
+do $$
+declare
+  v_trip_id uuid;
+  v_first_result jsonb;
+  v_duplicate_result jsonb;
+  v_version bigint;
+  v_conflict_seen boolean := false;
+begin
+  if has_function_privilege(
+    'authenticated',
+    'public.add_mvp_trip_day(uuid,uuid,bigint,uuid,date,text)',
+    'execute'
+  ) then
+    raise exception 'authenticated must not execute add_mvp_trip_day';
+  end if;
+
+  v_trip_id := (
+    public.create_mvp_trip(
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555571',
+      'Day command test trip',
+      current_date,
+      'en'
+    ) ->> 'tripId'
+  )::uuid;
+
+  v_first_result := public.add_mvp_trip_day(
+    '44444444-4444-4444-8444-444444444444',
+    v_trip_id,
+    1,
+    '55555555-5555-4555-8555-555555555572',
+    current_date + 1,
+    'Museum day'
+  );
+
+  if (v_first_result ->> 'version')::bigint <> 2
+    or (v_first_result ->> 'dayNumber')::integer <> 2 then
+    raise exception 'adding a day must create day two at version 2';
+  end if;
+
+  v_duplicate_result := public.add_mvp_trip_day(
+    '44444444-4444-4444-8444-444444444444',
+    v_trip_id,
+    1,
+    '55555555-5555-4555-8555-555555555572',
+    current_date + 1,
+    'Museum day'
+  );
+
+  select version into v_version from public.trips where id = v_trip_id;
+  if v_duplicate_result <> v_first_result or v_version <> 2 then
+    raise exception 'duplicate day command must not create another write';
+  end if;
+
+  begin
+    perform public.add_mvp_trip_day(
+      '44444444-4444-4444-8444-444444444444',
+      v_trip_id,
+      1,
+      '55555555-5555-4555-8555-555555555573',
+      current_date + 2,
+      null
+    );
+  exception when others then
+    v_conflict_seen := sqlerrm like '%VERSION_CONFLICT%';
+  end;
+
+  if not v_conflict_seen then
+    raise exception 'stale day command version must be rejected';
+  end if;
+end;
+$$;
+
 rollback;

@@ -8,6 +8,14 @@
 
 China Stroll 适合采用 mapcn，但只把它用于地图渲染和地图界面。地点搜索、路线计算、地点标准化、开放时间、AI 推荐和第三方导航继续由产品自己的接口负责。
 
+## 2026 年 8 月 29 日接入状态
+
+mapcn 的 `Map`、`MapMarker`、`MarkerContent` 和 `MapRoute` 已通过官方组件仓库复制进项目。`TravelMap` 继续作为业务包装，页面只传行程地点、候选景点、用户位置和选中地点编号。
+
+MapLibre Worker 已改为随 Vite 构建，网页不会访问 unpkg。试验底图仍使用 OpenStreetMap 公共瓦片，不能用于公开发布。生产构建中地图代码保持延迟加载，地图产物约 964 kB，后续需要继续拆分和做首屏性能测试。
+
+当前地图支持行程地点、候选景点、选中状态、一次性位置标记、直线访问顺序提示和一公里、三公里、五公里附近筛选。Apple Maps、Google Maps 和高德入口位于景点详情，高德暂时按名称搜索。
+
 推荐做法如下。
 
 1. 使用 mapcn 的 `Map`、`MapMarker`、`MarkerContent`、`MapRoute`、`MapClusterLayer` 和 `useMap`。

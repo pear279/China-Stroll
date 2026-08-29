@@ -7,6 +7,11 @@ const modelSuggestionSchema = z.object({
   risks: suggestionRisksSchema.max(5),
 })
 
+const placeAnswerSchema = z.object({
+  answer: z.string().trim().min(1).max(3000),
+  sourceIds: z.array(z.int().positive()).max(8),
+})
+
 export type SiliconFlowConfig = {
   apiKey?: string
   baseUrl: string
@@ -30,6 +35,7 @@ export type TripSuggestionInput = {
 }
 
 export type ModelSuggestion = z.infer<typeof modelSuggestionSchema>
+export type ModelPlaceAnswer = z.infer<typeof placeAnswerSchema>
 
 type Fetcher = typeof fetch
 
@@ -86,6 +92,57 @@ export async function generateTripSuggestion(
     const content = payload.choices?.[0]?.message?.content
     if (!content) throw new Error("siliconflow_empty_response")
     return modelSuggestionSchema.parse(JSON.parse(content))
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+export async function generatePlaceAnswer(
+  config: SiliconFlowConfig,
+  input: {
+    question: string
+    locale: "en" | "zh-CN"
+    placeName: string
+    passages: Array<{ id: number; sourceIds: number[]; title: string | null; content: string }>
+  },
+  fetcher: Fetcher = fetch,
+): Promise<ModelPlaceAnswer | null> {
+  if (!config.apiKey || input.passages.length === 0) return null
+
+  const allowedSourceIds = new Set(input.passages.flatMap((passage) => passage.sourceIds))
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetcher(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.chatModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Answer only from the supplied reviewed passages. Return one JSON object with answer and sourceIds. If the passages do not support the answer, say that the available guide cannot confirm it. Never invent opening hours, prices, booking rules, safety facts, or history. Keep the answer under 180 words.",
+          },
+          { role: "user", content: JSON.stringify(input) },
+        ],
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`siliconflow_status_${response.status}`)
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content
+    if (!content) throw new Error("siliconflow_empty_response")
+    const parsed = placeAnswerSchema.parse(JSON.parse(content))
+    if (!parsed.sourceIds.every((sourceId) => allowedSourceIds.has(sourceId))) {
+      throw new Error("siliconflow_unknown_source")
+    }
+    return parsed
   } finally {
     clearTimeout(timeoutId)
   }

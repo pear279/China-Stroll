@@ -963,6 +963,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_mvp_trip_day: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_day_date?: string
+          p_expected_version: number
+          p_title?: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
       apply_mvp_trip_changes: {
         Args: {
           p_actor_id: string
@@ -1126,4 +1137,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

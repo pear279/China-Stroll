@@ -56,6 +56,13 @@ export const addStopSchema = z.object({
   commandId: z.uuid(),
 })
 
+export const addTripDaySchema = z.object({
+  date: z.iso.date().nullable().optional(),
+  title: z.string().trim().min(1).max(120).optional(),
+  expectedVersion: z.int().positive(),
+  commandId: z.uuid(),
+})
+
 export const suggestionRequestSchema = z.object({
   intent: z.string().trim().min(1).max(100).default("Make day one easier to follow"),
 })
@@ -73,6 +80,25 @@ export const placeListQuerySchema = z.object({
 
 export const placeDetailQuerySchema = z.object({
   locale: localeSchema.default("en"),
+})
+
+export const guideAudienceSchema = z.enum(["general", "child"])
+
+export const placeGuideQuerySchema = z.object({
+  locale: localeSchema.default("en"),
+  audience: guideAudienceSchema.default("general"),
+})
+
+export const placeQuestionSchema = z.object({
+  locale: localeSchema.default("en"),
+  question: z.string().trim().min(2).max(500),
+})
+
+export const savePlaceSchema = z.object({
+  placeId: placeIdSchema,
+  collectionName: z.string().trim().min(1).max(80).nullable().optional(),
+  labels: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  note: z.string().trim().max(1000).default(""),
 })
 
 export const openingHoursSchema = z.object({

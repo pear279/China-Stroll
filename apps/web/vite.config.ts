@@ -6,6 +6,9 @@ import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
   root: fileURLToPath(new URL(".", import.meta.url)),
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -27,6 +30,14 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         globIgnores: ["assets/TravelMap-*.js", "assets/maplibre-gl-worker-*.js"],
+        runtimeCaching: [{
+          urlPattern: ({ url }) => url.pathname.startsWith("/places/") && url.pathname.endsWith(".jpg"),
+          handler: "CacheFirst",
+          options: {
+            cacheName: "reviewed-place-images",
+            expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 },
+          },
+        }],
         navigateFallback: "/index.html"
       }
     })

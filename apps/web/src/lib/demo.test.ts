@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest"
 import type { TripSnapshot } from "../../../../packages/shared/src"
-import { refreshSampleCoordinates } from "./demo"
+import { addDemoDay, addDemoStop, createDemoTrip, refreshSampleCoordinates } from "./demo"
+
+describe("preview trip days", () => {
+  it("adds a new day and places a stop on the chosen day", () => {
+    const first = createDemoTrip("Beijing", "2026-09-01")
+    const second = addDemoDay(first, "2026-09-02")
+    const planned = addDemoStop(second, "jingshan-park", 2)
+
+    expect(second.days).toHaveLength(2)
+    expect(planned.stops[0].dayNumber).toBe(2)
+    expect(planned.version).toBe(3)
+  })
+})
 
 describe("preview coordinate refresh", () => {
   it("replaces stale sample coordinates without changing the trip version", () => {

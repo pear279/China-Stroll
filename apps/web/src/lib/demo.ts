@@ -19,7 +19,7 @@ export function createDemoTrip(name: string, startDate: string | null): TripSnap
   }
 }
 
-export function addDemoStop(trip: TripSnapshot, placeId: string): TripSnapshot {
+export function addDemoStop(trip: TripSnapshot, placeId: string, dayNumber = 1): TripSnapshot {
   const place = samplePlaces.find((item) => item.id === placeId)
   if (!place || trip.stops.some((stop) => stop.placeId === placeId)) return trip
 
@@ -31,15 +31,25 @@ export function addDemoStop(trip: TripSnapshot, placeId: string): TripSnapshot {
       {
         id: crypto.randomUUID(),
         tripId: trip.id,
-        dayNumber: 1,
+        dayNumber,
         placeId: place.id,
         name: place.name,
         coordinate: place.coordinate,
         startTime: null,
         durationMinutes: place.durationMinutes,
-        sortOrder: trip.stops.length,
+        sortOrder: trip.stops.filter((stop) => stop.dayNumber === dayNumber).length,
       },
     ],
+  }
+}
+
+export function addDemoDay(trip: TripSnapshot, date: string | null = null): TripSnapshot {
+  const dayNumber = trip.days.length + 1
+  return {
+    ...trip,
+    endDate: date ?? trip.endDate,
+    version: trip.version + 1,
+    days: [...trip.days, { id: dayNumber, dayNumber, date, title: `Day ${dayNumber}` }],
   }
 }
 
