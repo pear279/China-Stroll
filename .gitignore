@@ -19,3 +19,4 @@
 **/.wrangler/
 /node_modules/
 /.workbuddy/
+/.worktrees/
