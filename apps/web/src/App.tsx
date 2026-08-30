@@ -1,37 +1,12 @@
 import type { Session } from "@supabase/supabase-js"
-import {
-  ArrowRight,
-  CalendarDays,
-  Check,
-  Clock3,
-  Compass,
-  Crosshair,
-  LoaderCircle,
-  LogOut,
-  MapPinned,
-  Plus,
-  Sparkles,
-  Users,
-} from "lucide-react"
+import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useState } from "react"
-import {
-  collectPlaceCategories,
-  durationFilters,
-  formatCategoryLabel,
-  formatDurationHours,
-  placeInitials,
-  resolvePlaceImage,
-  samplePlaces,
-  type AgentSuggestion,
-  type PlaceSummary,
-  type TripSnapshot,
-} from "../../../packages/shared/src"
+import { samplePlaces, type AgentSuggestion, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
-
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
 
