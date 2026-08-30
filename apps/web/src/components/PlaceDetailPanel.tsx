@@ -1,7 +1,7 @@
 import { Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send, X } from "lucide-react"
 import { FormEvent, useEffect, useState } from "react"
 import { resolvePlaceImage, type PlaceDetail, type PlaceGuideResponse, type PlaceSummary, type TripDay } from "../../../../packages/shared/src"
-import { api } from "../lib/api"
+import type { PlaceRepository } from "../data/placeRepository"
 import { amapSearchUrl, appleMapsUrl, googleMapsUrl } from "../lib/navigation"
 
 type Props = {
@@ -9,13 +9,24 @@ type Props = {
   accessToken: string | null
   days: TripDay[]
   planned: boolean
+  repository: PlaceRepository
   saved: boolean
   onClose: () => void
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
   onToggleSaved: (placeId: string) => Promise<void>
 }
 
-export function PlaceDetailPanel({ place, accessToken, days, planned, saved, onClose, onAdd, onToggleSaved }: Props) {
+export function PlaceDetailPanel({
+  place,
+  accessToken,
+  days,
+  planned,
+  repository,
+  saved,
+  onClose,
+  onAdd,
+  onToggleSaved,
+}: Props) {
   const [detail, setDetail] = useState<PlaceDetail | null>(null)
   const [guide, setGuide] = useState<PlaceGuideResponse | null>(null)
   const [audience, setAudience] = useState<"general" | "child">("general")
@@ -29,7 +40,10 @@ export function PlaceDetailPanel({ place, accessToken, days, planned, saved, onC
     let active = true
     setStatus("loading")
     setAnswer(null)
-    Promise.all([api.getPlace(place.id), api.getPlaceGuide(place.id, "en", audience)])
+    Promise.all([
+      repository.getPlace(place.id),
+      repository.getGuide(place.id, "en", audience),
+    ])
       .then(([nextDetail, nextGuide]) => {
         if (!active) return
         setDetail(nextDetail)
@@ -43,7 +57,7 @@ export function PlaceDetailPanel({ place, accessToken, days, planned, saved, onC
         setStatus("failed")
       })
     return () => { active = false }
-  }, [audience, place.id])
+  }, [audience, place.id, repository])
 
   async function run(label: string, task: () => Promise<void>) {
     setBusy(label)
@@ -54,7 +68,11 @@ export function PlaceDetailPanel({ place, accessToken, days, planned, saved, onC
     event.preventDefault()
     if (!accessToken || !question.trim()) return
     await run("question", async () => {
-      const response = await api.askPlace(accessToken, place.id, question.trim())
+      const response = await repository.askPlace({
+        placeId: place.id,
+        locale: "en",
+        question: question.trim(),
+      })
       setAnswer(response.answer)
     })
   }

@@ -5,7 +5,10 @@ import type {
   PlaceGuideResponse,
   PlaceLibraryItem,
   PlaceListResponse,
+  PlaceQuestionRequest,
   PlaceQuestionResponse,
+  PlaceRecommendationInput,
+  PlaceRecommendationResponse,
   TripSnapshot,
 } from "../../../../packages/shared/src"
 
@@ -43,13 +46,25 @@ async function readResponse<T>(response: Response): Promise<T> {
 }
 
 async function request<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  headers.set("Content-Type", "application/json")
+  headers.set("Authorization", `Bearer ${accessToken}`)
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
+  })
+  return readResponse<T>(response)
+}
+
+async function optionalAuthRequest<T>(path: string, accessToken: string | null, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  headers.set("Content-Type", "application/json")
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`)
+  }
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers,
   })
   return readResponse<T>(response)
 }
@@ -86,10 +101,20 @@ export const api = {
       `/v1/places/${encodeURIComponent(placeId)}/guide?locale=${locale}&audience=${audience}`,
     )
   },
-  askPlace(accessToken: string, placeId: string, question: string, locale: Locale = "en") {
-    return request<PlaceQuestionResponse>(`/v1/places/${encodeURIComponent(placeId)}/questions`, accessToken, {
+  askPlace(accessToken: string | null, input: PlaceQuestionRequest) {
+    return optionalAuthRequest<PlaceQuestionResponse>(
+      `/v1/places/${encodeURIComponent(input.placeId)}/questions`,
+      accessToken,
+      {
       method: "POST",
-      body: JSON.stringify({ question, locale }),
+      body: JSON.stringify({ question: input.question, locale: input.locale }),
+    },
+    )
+  },
+  recommendPlaces(accessToken: string | null, input: PlaceRecommendationInput) {
+    return optionalAuthRequest<PlaceRecommendationResponse>("/v1/place-recommendations", accessToken, {
+      method: "POST",
+      body: JSON.stringify(input),
     })
   },
   listSavedPlaces(accessToken: string) {

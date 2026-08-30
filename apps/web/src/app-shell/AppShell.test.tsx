@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { PlaceSummary, TripSnapshot } from "../../../../packages/shared/src"
+import type { PlaceRepository } from "../data/placeRepository"
 import { AppShell } from "./AppShell"
 import type { AppShellProps } from "./types"
 
@@ -34,11 +35,56 @@ const trip: TripSnapshot = {
   suggestions: [],
 }
 
+const repository: PlaceRepository = {
+  listPlaces: vi.fn(async () => ({ locale: "en" as const, places: [palace] })),
+  getPlace: vi.fn(async () => ({
+    id: palace.id,
+    locale: "en" as const,
+    name: palace.name,
+    aliases: [],
+    tags: palace.tags,
+    shortIntro: palace.shortIntro,
+    history: "Reviewed history",
+    highlights: [],
+    visitorTips: "Arrive early.",
+    practicalNotes: "Bring water.",
+    photoSpotNotes: "Morning light works best.",
+    categoryCode: palace.categoryCode,
+    coordinate: palace.coordinate,
+    durationMinutes: palace.durationMinutes,
+    coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+    reviewedAt: "2026-08-30T00:00:00.000Z",
+    visitInformation: null,
+  })),
+  getGuide: vi.fn(async () => ({
+    placeId: palace.id,
+    locale: "en" as const,
+    audience: "general" as const,
+    segments: [],
+    sources: [],
+  })),
+  askPlace: vi.fn(async () => ({
+    answer: "Reviewed answer",
+    answerMode: "reviewed-local" as const,
+    generatedBy: "deterministic-retrieval" as const,
+    sources: [],
+    searchedAt: null,
+    updatedAt: "2026-08-30T00:00:00.000Z",
+    dependencyStatus: "ready" as const,
+  })),
+  recommendPlaces: vi.fn(async () => ({
+    results: [],
+    generatedBy: "deterministic" as const,
+    updatedAt: "2026-08-30T00:00:00.000Z",
+  })),
+}
+
 const props: AppShellProps = {
   accessToken: null,
   busy: null,
   message: null,
   mode: "preview",
+  placeRepository: repository,
   places: [palace],
   placesState: "ready",
   savedPlaceIds: new Set(),

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { buildPlaceListPath, resolveApiBaseUrl } from "./api"
 
 describe("API base URL", () => {
@@ -22,5 +22,77 @@ describe("place list path", () => {
     expect(path).toContain("locale=zh-CN")
     expect(path).toContain("category=historic")
     expect(path).toContain("maxDurationMinutes=120")
+  })
+})
+
+describe("authenticated place requests", () => {
+  const fetchMock = vi.fn()
+
+  afterEach(() => {
+    fetchMock.mockReset()
+    vi.unstubAllGlobals()
+  })
+
+  it("does not emit Authorization: Bearer null for place questions", async () => {
+    const { api } = await import("./api")
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({
+        answer: "Unable to confirm.",
+        answerMode: "unable-to-confirm",
+        generatedBy: "none",
+        sources: [],
+        searchedAt: null,
+        updatedAt: null,
+        dependencyStatus: "search-unavailable",
+      })),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.askPlace(null, {
+      placeId: "forbidden-city",
+      locale: "en",
+      question: "Where is a blue umbrella shop?",
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/places/forbidden-city/questions"),
+      expect.objectContaining({
+        headers: expect.not.objectContaining({
+          Authorization: "Bearer null",
+        }),
+      }),
+    )
+  })
+
+  it("does not emit Authorization: Bearer null for place recommendations", async () => {
+    const { api } = await import("./api")
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({
+        results: [],
+        generatedBy: "deterministic",
+        updatedAt: "2026-08-30T00:00:00.000Z",
+      })),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.recommendPlaces(null, {
+      preferences: ["history"],
+      context: "",
+      locale: "en",
+      coordinate: null,
+      radiusKm: null,
+      availableMinutes: 240,
+      candidatePlaceIds: ["forbidden-city"],
+      plannedPlaceIds: [],
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/place-recommendations"),
+      expect.objectContaining({
+        headers: expect.not.objectContaining({
+          Authorization: "Bearer null",
+        }),
+      }),
+    )
   })
 })

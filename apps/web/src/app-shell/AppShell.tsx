@@ -16,6 +16,7 @@ export function AppShell({
   busy,
   message,
   mode,
+  placeRepository,
   places,
   placesState,
   savedPlaceIds,
@@ -154,6 +155,7 @@ export function AppShell({
           accessToken={accessToken}
           days={trip.days}
           planned={plannedIds.has(detailPlace.id)}
+          repository={placeRepository}
           saved={savedPlaceIds.has(detailPlace.id)}
           onClose={() => setDetailPlaceId(null)}
           onAdd={onAddPlace}

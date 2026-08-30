@@ -1,4 +1,5 @@
 import type { AgentSuggestion, PlaceSummary, TripSnapshot } from "../../../../packages/shared/src"
+import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
 export type PlacesState = "idle" | "loading" | "ready" | "failed"
@@ -11,6 +12,7 @@ export type AppShellProps = {
   busy: string | null
   message: string | null
   mode: AppMode
+  placeRepository: PlaceRepository
   places: PlaceSummary[]
   placesState: PlacesState
   savedPlaceIds: Set<string>

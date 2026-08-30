@@ -1,26 +1,15 @@
 import type { Session } from "@supabase/supabase-js"
 import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
-import { FormEvent, useCallback, useEffect, useState } from "react"
-import { samplePlaces, type AgentSuggestion, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { type AgentSuggestion, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
+import { createPlaceRepository } from "./data/placeRepository"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
-
-const previewPlaces: PlaceSummary[] = samplePlaces.map((place) => ({
-  id: place.id,
-  locale: "en",
-  name: place.name,
-  shortIntro: place.shortIntro,
-  categoryCode: "historic",
-  tags: [],
-  coordinate: place.coordinate,
-  durationMinutes: place.durationMinutes,
-  coordinatesCheckedAt: null,
-}))
 
 export function App() {
   const [mode, setMode] = useState<Mode>("loading")
@@ -31,6 +20,12 @@ export function App() {
   const [places, setPlaces] = useState<PlaceSummary[]>([])
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() => new Set())
   const [placesState, setPlacesState] = useState<"idle" | "loading" | "ready" | "failed">("idle")
+  const placeRepository = useMemo(
+    () => (mode === "preview"
+      ? createPlaceRepository("static")
+      : createPlaceRepository("api", session?.access_token ?? null)),
+    [mode, session?.access_token],
+  )
 
   const loadTrip = useCallback(async (accessToken: string, tripId: string) => {
     const nextTrip = await api.getTrip(accessToken, tripId)
@@ -75,15 +70,10 @@ export function App() {
   }, [mode, trip])
 
   useEffect(() => {
-    if (mode === "preview") {
-      setPlaces(previewPlaces)
-      setPlacesState("ready")
-      return
-    }
-    if (mode !== "account") return
+    if (mode !== "preview" && mode !== "account") return
     let active = true
     setPlacesState("loading")
-    void api
+    void placeRepository
       .listPlaces({ locale: "en" })
       .then((response) => {
         if (!active) return
@@ -98,7 +88,7 @@ export function App() {
     return () => {
       active = false
     }
-  }, [mode])
+  }, [mode, placeRepository])
 
   useEffect(() => {
     if (mode === "preview") {
@@ -243,6 +233,7 @@ export function App() {
       busy={busy}
       message={message}
       mode={mode}
+      placeRepository={placeRepository}
       places={places}
       placesState={placesState}
       savedPlaceIds={savedPlaceIds}
