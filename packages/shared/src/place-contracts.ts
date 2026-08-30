@@ -163,37 +163,54 @@ export const placeQuestionRequestSchema = z.object({
 
 export type PlaceQuestionRequest = z.infer<typeof placeQuestionRequestSchema>
 
-export const placeQuestionResponseSchema = z
-  .object({
-    answer: z.string().min(1),
-    answerMode: z.enum([
-      "reviewed-local",
-      "model-grounded-local",
-      "web-grounded",
-      "unable-to-confirm",
-    ]),
-    generatedBy: z.enum(["deterministic-retrieval", "model", "web-search", "none"]),
-    sources: z.array(placeSourceCitationSchema),
-    updatedAt: isoDatetimeSchema.nullable(),
-    searchedAt: isoDatetimeSchema.nullable(),
-    dependencyStatus: z.enum([
-      "ready",
-      "ai-unavailable",
-      "search-unavailable",
-      "no-reliable-sources",
-    ]),
-    warning: z.string().optional(),
-    sourceIds: z.array(z.number().int().positive()).optional(),
-  })
-  .superRefine((value, context) => {
-    if (value.answerMode === "web-grounded" && value.sources.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["sources"],
-        message: "Web answers require a citation",
-      })
-    }
-  })
+const placeQuestionResponseBaseSchema = z.object({
+  answer: z.string().min(1),
+  updatedAt: isoDatetimeSchema.nullable(),
+  warning: z.string().optional(),
+})
+
+const localQuestionResponseSchema = placeQuestionResponseBaseSchema.extend({
+  answerMode: z.literal("reviewed-local"),
+  generatedBy: z.literal("deterministic-retrieval"),
+  sources: z.array(placeSourceCitationSchema),
+  searchedAt: z.null(),
+  dependencyStatus: z.enum(["ready", "ai-unavailable"]),
+  sourceIds: z.array(z.number().int().positive()).optional(),
+})
+
+const modelGroundedLocalQuestionResponseSchema = placeQuestionResponseBaseSchema.extend({
+  answerMode: z.literal("model-grounded-local"),
+  generatedBy: z.literal("model"),
+  sources: z.array(placeSourceCitationSchema),
+  searchedAt: z.null(),
+  dependencyStatus: z.literal("ready"),
+  sourceIds: z.array(z.number().int().positive()).optional(),
+})
+
+const webGroundedQuestionResponseSchema = placeQuestionResponseBaseSchema.extend({
+  answerMode: z.literal("web-grounded"),
+  generatedBy: z.literal("web-search"),
+  sources: z.array(placeSourceCitationSchema).min(1, "Web answers require a citation"),
+  searchedAt: isoDatetimeSchema,
+  dependencyStatus: z.literal("ready"),
+  sourceIds: z.array(z.number().int().positive()).optional(),
+})
+
+const unableToConfirmQuestionResponseSchema = placeQuestionResponseBaseSchema.extend({
+  answerMode: z.literal("unable-to-confirm"),
+  generatedBy: z.literal("none"),
+  sources: z.array(placeSourceCitationSchema).length(0),
+  searchedAt: z.null(),
+  dependencyStatus: z.enum(["ai-unavailable", "search-unavailable", "no-reliable-sources"]),
+  sourceIds: z.array(z.number().int().positive()).length(0).optional(),
+})
+
+export const placeQuestionResponseSchema = z.discriminatedUnion("answerMode", [
+  localQuestionResponseSchema,
+  modelGroundedLocalQuestionResponseSchema,
+  webGroundedQuestionResponseSchema,
+  unableToConfirmQuestionResponseSchema,
+])
 
 export type PlaceQuestionResponse = z.infer<typeof placeQuestionResponseSchema>
 
@@ -227,13 +244,44 @@ export const placeCatalogGuidesSchema = z.object({
 
 export type PlaceCatalogGuides = z.infer<typeof placeCatalogGuidesSchema>
 
-export const placeCatalogEntrySchema = z.object({
-  summary: placeCatalogSummarySchema,
-  detail: placeDetailSchema,
-  guides: placeCatalogGuidesSchema,
-  searchDocuments: z.array(placeSearchDocumentSchema),
-  displayImage: z.string().startsWith("/places/"),
-})
+export const placeCatalogEntrySchema = z
+  .object({
+    summary: placeCatalogSummarySchema,
+    detail: placeDetailSchema,
+    guides: placeCatalogGuidesSchema,
+    searchDocuments: z.array(placeSearchDocumentSchema),
+    displayImage: z.string().startsWith("/places/"),
+  })
+  .superRefine((entry, context) => {
+    if (entry.detail.id !== entry.summary.id) {
+      context.addIssue({
+        code: "custom",
+        path: ["detail", "id"],
+        message: "Catalog entry detail must match the authoritative place ID",
+      })
+    }
+    if (entry.guides.placeId !== entry.summary.id) {
+      context.addIssue({
+        code: "custom",
+        path: ["guides", "placeId"],
+        message: "Catalog entry guides must match the authoritative place ID",
+      })
+    }
+    if (entry.detail.locale !== entry.summary.locale) {
+      context.addIssue({
+        code: "custom",
+        path: ["detail", "locale"],
+        message: "Catalog entry detail must match the authoritative locale",
+      })
+    }
+    if (entry.guides.locale !== entry.summary.locale) {
+      context.addIssue({
+        code: "custom",
+        path: ["guides", "locale"],
+        message: "Catalog entry guides must match the authoritative locale",
+      })
+    }
+  })
 
 export type PlaceCatalogEntry = z.infer<typeof placeCatalogEntrySchema>
 
@@ -246,15 +294,29 @@ const placeCatalogLocaleEntriesSchema = z
   .length(20)
   .refine(hasUniquePlaceIds, "Catalog entries must have unique place IDs")
 
-export const placeCatalogSchema = z.object({
-  version: z.number().int().positive(),
-  checkedAt: isoDatetimeSchema,
-  reviewDueAt: isoDatetimeSchema,
-  locales: z.object({
-    en: placeCatalogLocaleEntriesSchema,
-    "zh-CN": placeCatalogLocaleEntriesSchema,
-  }),
-})
+export const placeCatalogSchema = z
+  .object({
+    version: z.number().int().positive(),
+    checkedAt: isoDatetimeSchema,
+    reviewDueAt: isoDatetimeSchema,
+    locales: z.object({
+      en: placeCatalogLocaleEntriesSchema,
+      "zh-CN": placeCatalogLocaleEntriesSchema,
+    }),
+  })
+  .superRefine((catalog, context) => {
+    for (const locale of ["en", "zh-CN"] as const) {
+      catalog.locales[locale].forEach((entry, index) => {
+        if (entry.summary.locale !== locale) {
+          context.addIssue({
+            code: "custom",
+            path: ["locales", locale, index, "summary", "locale"],
+            message: "Catalog locale buckets must contain only matching locale entries",
+          })
+        }
+      })
+    }
+  })
 
 export type PlaceCatalog = z.infer<typeof placeCatalogSchema>
 

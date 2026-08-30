@@ -494,29 +494,41 @@ app.post("/v1/places/:placeId/questions", async (context) => {
     return null
   })
   const fallbackPassages = passages.slice(0, 2)
-  const response: PlaceQuestionResponse = modelAnswer
-    ? {
-        answer: modelAnswer.answer,
-        answerMode: "model-grounded-local",
-        sources: [],
-        sourceIds: modelAnswer.sourceIds,
-        generatedBy: "model",
-        searchedAt: null,
-        dependencyStatus: "ready",
-        updatedAt: documents[0]?.updated_at ?? null,
-      }
-    : {
-        answer: fallbackPassages.length > 0
-          ? `The reviewed guide currently says ${fallbackPassages.map((passage) => passage.content).join(" ")}`
-          : "The available reviewed guide cannot confirm this yet.",
-        answerMode: fallbackPassages.length > 0 ? "reviewed-local" : "unable-to-confirm",
-        sources: [],
-        sourceIds,
-        generatedBy: fallbackPassages.length > 0 ? "deterministic-retrieval" : "none",
-        searchedAt: null,
-        dependencyStatus: fallbackPassages.length > 0 ? "ai-unavailable" : "no-reliable-sources",
-        updatedAt: documents[0]?.updated_at ?? null,
-      }
+  let response: PlaceQuestionResponse
+  if (modelAnswer) {
+    response = {
+      answer: modelAnswer.answer,
+      answerMode: "model-grounded-local",
+      sources: [],
+      sourceIds: modelAnswer.sourceIds,
+      generatedBy: "model",
+      searchedAt: null,
+      dependencyStatus: "ready",
+      updatedAt: documents[0]?.updated_at ?? null,
+    }
+  } else if (fallbackPassages.length > 0) {
+    response = {
+      answer: `The reviewed guide currently says ${fallbackPassages.map((passage) => passage.content).join(" ")}`,
+      answerMode: "reviewed-local",
+      sources: [],
+      sourceIds,
+      generatedBy: "deterministic-retrieval",
+      searchedAt: null,
+      dependencyStatus: "ai-unavailable",
+      updatedAt: documents[0]?.updated_at ?? null,
+    }
+  } else {
+    response = {
+      answer: "The available reviewed guide cannot confirm this yet.",
+      answerMode: "unable-to-confirm",
+      sources: [],
+      sourceIds: [],
+      generatedBy: "none",
+      searchedAt: null,
+      dependencyStatus: "no-reliable-sources",
+      updatedAt: documents[0]?.updated_at ?? null,
+    }
+  }
   return context.json(response)
 })
 
