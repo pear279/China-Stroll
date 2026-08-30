@@ -13,7 +13,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react"
-import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useState } from "react"
 import {
   collectPlaceCategories,
   durationFilters,
@@ -26,16 +26,12 @@ import {
   type PlaceSummary,
   type TripSnapshot,
 } from "../../../packages/shared/src"
+import { AppShell } from "./app-shell/AppShell"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
-import { haversineKilometres } from "./lib/navigation"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
-import { PlaceDetailPanel } from "./components/PlaceDetailPanel"
 
-const TravelMap = lazy(() =>
-  import("./components/TravelMap").then((module) => ({ default: module.TravelMap })),
-)
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
 
@@ -268,7 +264,7 @@ export function App() {
   if (!trip) return <CreateTripScreen busy={busy === "create-trip"} mode={mode} onCreate={createTrip} testIdentity={testIdentity} />
 
   return (
-    <Planner
+    <AppShell
       busy={busy}
       message={message}
       mode={mode}
@@ -416,239 +412,6 @@ function CreateTripScreen({ busy, mode, onCreate, testIdentity }: { busy: boolea
         {testIdentity && <p className="test-mode-note">Test session · {testIdentity} · This account cannot be recovered after sign-out.</p>}
       </section>
     </main>
-  )
-}
-
-function Planner({ accessToken, busy, message, mode, places, placesState, savedPlaceIds, trip, testIdentity, onAddPlace, onAddDay, onToggleSaved, onConfirm, onSuggest, onExit }: {
-  accessToken: string | null
-  busy: string | null
-  message: string | null
-  mode: Mode
-  places: PlaceSummary[]
-  placesState: "idle" | "loading" | "ready" | "failed"
-  savedPlaceIds: Set<string>
-  trip: TripSnapshot
-  testIdentity: string | null
-  onAddPlace: (placeId: string, dayNumber?: number) => Promise<void>
-  onAddDay: () => Promise<void>
-  onToggleSaved: (placeId: string) => Promise<void>
-  onConfirm: (suggestion: AgentSuggestion) => Promise<void>
-  onSuggest: () => Promise<void>
-  onExit: () => Promise<void>
-}) {
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(trip.stops[0]?.placeId ?? null)
-  const [detailPlaceId, setDetailPlaceId] = useState<string | null>(null)
-  const [selectedDay, setSelectedDay] = useState(trip.days[0]?.dayNumber ?? 1)
-  const [category, setCategory] = useState<string>("all")
-  const [maxDuration, setMaxDuration] = useState<number | undefined>(undefined)
-  const [nearbyRadius, setNearbyRadius] = useState<1 | 3 | 5>(3)
-  const [userCoordinate, setUserCoordinate] = useState<[number, number] | null>(null)
-  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle")
-  const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
-  const plannedIds = useMemo(() => new Set(trip.stops.map((stop) => stop.placeId)), [trip.stops])
-  const categories = useMemo(() => collectPlaceCategories(places), [places])
-  const visiblePlaces = useMemo(
-    () =>
-      places.filter(
-        (place) =>
-          (category === "all" || place.categoryCode === category)
-          && (maxDuration === undefined || place.durationMinutes <= maxDuration)
-          && (!userCoordinate || haversineKilometres(userCoordinate, place.coordinate) <= nearbyRadius),
-      ),
-    [category, maxDuration, nearbyRadius, places, userCoordinate],
-  )
-
-  useEffect(() => {
-    if (!selectedPlaceId && trip.stops[0]?.placeId) setSelectedPlaceId(trip.stops[0].placeId)
-  }, [selectedPlaceId, trip.stops])
-
-  const detailPlace = places.find((place) => place.id === detailPlaceId) ?? null
-
-  function requestLocation() {
-    if (!navigator.geolocation) {
-      setLocationStatus("failed")
-      return
-    }
-    setLocationStatus("loading")
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserCoordinate([position.coords.longitude, position.coords.latitude])
-        setLocationStatus("ready")
-      },
-      () => setLocationStatus("failed"),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
-    )
-  }
-
-  return (
-    <div className="app-shell">
-      <header className="app-header">
-        <a className="brand" href="/" onClick={(event) => event.preventDefault()}>
-          <span className="brand-seal">游</span><span>China Stroll</span>
-        </a>
-        <div className="trip-meta">
-          <strong>{trip.name}</strong>
-          <span>{mode === "preview" ? "Private preview" : testIdentity ? `Test session · ${testIdentity}` : "Shared trip"} · Version {trip.version}</span>
-        </div>
-        <button className="icon-button" type="button" onClick={() => void onExit()} aria-label="Leave trip"><LogOut size={19} /></button>
-      </header>
-
-      <main className="planner-grid">
-        <section className="day-panel" aria-labelledby="day-heading">
-          <div className="section-heading">
-            <div><span className="eyebrow">Day {selectedDay}</span><h1 id="day-heading">Your Beijing day</h1></div>
-            <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void onAddDay()}><Plus size={16} />Add day</button>
-          </div>
-
-          <div className="day-tabs" aria-label="Trip days">
-            {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : ""} key={day.dayNumber} type="button" onClick={() => setSelectedDay(day.dayNumber)}><CalendarDays size={15} />Day {day.dayNumber}<small>{day.date ?? "Date open"}</small></button>)}
-          </div>
-
-          {message && <div className="status-banner" role="status"><Check size={18} />{message}</div>}
-
-          {trip.stops.filter((stop) => (stop.dayNumber ?? 1) === selectedDay).length === 0 ? (
-            <div className="empty-plan"><Compass size={30} /><h2>Your day has room to breathe.</h2><p>Add one of the three verified sample places below.</p></div>
-          ) : (
-            <ol className="timeline">
-              {[...trip.stops].filter((stop) => (stop.dayNumber ?? 1) === selectedDay).sort((a, b) => a.sortOrder - b.sortOrder).map((stop, index) => (
-                <li key={stop.id}>
-                  <button className={selectedPlaceId === stop.placeId ? "timeline-card is-selected" : "timeline-card"} type="button" onClick={() => stop.placeId && setSelectedPlaceId(stop.placeId)}>
-                    <span className="timeline-number">{index + 1}</span>
-                    <span className="timeline-copy"><strong>{stop.name}</strong><span><Clock3 size={15} />{stop.startTime ? stop.startTime.slice(0, 5) : "Time open"} · {stop.durationMinutes ?? 90} min</span></span>
-                    <MapPinned size={19} />
-                  </button>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          <div className="assistant-card">
-            <div className="assistant-icon"><Sparkles size={22} /></div>
-            <div><span className="eyebrow">Plan check</span><h2>{pendingSuggestion ? "A clearer order is ready" : "Want a clearer visit order?"}</h2></div>
-            {pendingSuggestion ? (
-              <SuggestionPanel suggestion={pendingSuggestion} busy={busy === "confirm"} onConfirm={() => void onConfirm(pendingSuggestion)} />
-            ) : (
-              <>
-                <p>China Stroll can arrange the places already in your day. It will show the exact changes before saving.</p>
-                <button className="assistant-button" disabled={trip.stops.length === 0 || busy === "suggest"} type="button" onClick={() => void onSuggest()}>
-                  {busy === "suggest" ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                  Review my day
-                </button>
-              </>
-            )}
-          </div>
-        </section>
-
-        <aside className="map-panel">
-          <div className="map-panel-heading"><span className="eyebrow">Map and list stay together</span><h2>Your route at a glance</h2></div>
-          <div className="nearby-controls">
-            <button type="button" onClick={requestLocation} disabled={locationStatus === "loading"}><Crosshair size={16} />{locationStatus === "loading" ? "Locating…" : userCoordinate ? "Location ready" : "Use my location"}</button>
-            {[1, 3, 5].map((radius) => <button key={radius} type="button" className={nearbyRadius === radius ? "is-active" : ""} disabled={!userCoordinate} onClick={() => setNearbyRadius(radius as 1 | 3 | 5)}>{radius} km</button>)}
-            {locationStatus === "failed" && <span>Location unavailable. Allow access and try again.</span>}
-          </div>
-          <Suspense fallback={<div className="map-shell"><div className="map-status">Preparing map…</div></div>}>
-            <TravelMap stops={trip.stops} places={visiblePlaces} selectedPlaceId={selectedPlaceId} userCoordinate={userCoordinate} onSelect={setSelectedPlaceId} />
-          </Suspense>
-          {selectedPlaceId && places.find((place) => place.id === selectedPlaceId) && <button className="map-selection-card" type="button" onClick={() => setDetailPlaceId(selectedPlaceId)}><strong>{places.find((place) => place.id === selectedPlaceId)?.name}</strong><span>Open details and navigation</span></button>}
-        </aside>
-
-        <section className="places-panel" aria-labelledby="places-heading">
-          <div className="section-heading">
-            <div><span className="eyebrow">Reviewed places</span><h2 id="places-heading">Add a place</h2></div>
-            <span className="count-chip">{trip.stops.length} planned</span>
-          </div>
-
-          {placesState === "ready" && places.length > 0 && (
-            <div className="place-filters">
-              <label htmlFor="place-category">Category</label>
-              <select id="place-category" value={category} onChange={(event) => setCategory(event.target.value)}>
-                <option value="all">All categories</option>
-                {categories.map((code) => (
-                  <option key={code} value={code}>{formatCategoryLabel(code)}</option>
-                ))}
-              </select>
-              <label htmlFor="place-duration">Visit length</label>
-              <select
-                id="place-duration"
-                value={maxDuration === undefined ? "any" : String(maxDuration)}
-                onChange={(event) => setMaxDuration(event.target.value === "any" ? undefined : Number(event.target.value))}
-              >
-                {durationFilters.map((filter) => (
-                  <option
-                    key={filter.label}
-                    value={filter.maxDurationMinutes === undefined ? "any" : String(filter.maxDurationMinutes)}
-                  >
-                    {filter.label}
-                  </option>
-                ))}
-              </select>
-              <span className="filter-count" role="status">{visiblePlaces.length} of {places.length} shown</span>
-            </div>
-          )}
-
-          {placesState === "loading" && (
-            <div className="empty-plan" role="status"><LoaderCircle className="spin" size={26} /><p>Loading reviewed places…</p></div>
-          )}
-
-          {placesState === "failed" && (
-            <div className="empty-plan" role="status">
-              <Compass size={28} />
-              <h2>Places are unavailable right now.</h2>
-              <p>Your saved plan above still works. Try again in a moment.</p>
-            </div>
-          )}
-
-          {placesState === "ready" && visiblePlaces.length === 0 && (
-            <div className="empty-plan" role="status">
-              <Compass size={28} />
-              <h2>No place matches these filters.</h2>
-              <p>Widen the category or visit length to see more.</p>
-            </div>
-          )}
-
-          {visiblePlaces.length > 0 && (
-            <div className="place-grid">
-              {visiblePlaces.map((place) => {
-                const planned = plannedIds.has(place.id)
-                const image = resolvePlaceImage(place.id)
-                return (
-                  <article className="place-card" key={place.id}>
-                    {image ? (
-                      <button className="place-image-button" type="button" onClick={() => { setSelectedPlaceId(place.id); setDetailPlaceId(place.id) }}><img src={image} alt={`${place.name} display artwork`} /></button>
-                    ) : (
-                      <div className="place-card-placeholder" role="img" aria-label={`No cleared image for ${place.name} yet`}>
-                        <span>{placeInitials(place.name)}</span>
-                      </div>
-                    )}
-                    <div className="place-card-copy">
-                      <span className="place-zh">{formatCategoryLabel(place.categoryCode)}</span>
-                      <h3>{place.name}</h3>
-                      <p>{place.shortIntro}</p>
-                      <div className="place-card-footer">
-                        <span><Clock3 size={15} />{formatDurationHours(place.durationMinutes)}</span>
-                        <div><button type="button" onClick={() => { setSelectedPlaceId(place.id); setDetailPlaceId(place.id) }}>Details</button><button disabled={planned || busy === `add-${place.id}`} type="button" onClick={() => void onAddPlace(place.id, selectedDay)}>{planned ? <><Check size={16} /> Planned</> : <><Plus size={16} /> Day {selectedDay}</>}</button></div>
-                      </div>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      </main>
-      {detailPlace && <PlaceDetailPanel place={detailPlace} accessToken={accessToken} days={trip.days} planned={plannedIds.has(detailPlace.id)} saved={savedPlaceIds.has(detailPlace.id)} onClose={() => setDetailPlaceId(null)} onAdd={onAddPlace} onToggleSaved={onToggleSaved} />}
-    </div>
-  )
-}
-
-function SuggestionPanel({ suggestion, busy, onConfirm }: { suggestion: AgentSuggestion; busy: boolean; onConfirm: () => void }) {
-  return (
-    <div className="suggestion-panel">
-      <p>{suggestion.reason}</p>
-      <ul>{suggestion.changes.map((change, index) => <li key={`${change.op}-${index}`}><Check size={15} />{change.op === "update_stop" ? `Stop ${index + 1} starts at ${change.startTime}` : "Update visit order"}</li>)}</ul>
-      <div className="risk-note"><strong>Before you confirm</strong><span>{suggestion.risks[0]}</span></div>
-      <button className="primary-button" type="button" disabled={busy} onClick={onConfirm}>{busy ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}Confirm these changes</button>
-    </div>
   )
 }
 
