@@ -44,3 +44,24 @@
 ## Concerns
 
 None. Runtime freshness recomputation remains intentionally deferred to Task 4 as specified.
+
+## Fix Round 1
+
+### Change
+
+Search-document citations are now selected from curated `factScope` values. Overview documents use identity/history scopes, visit documents use `visit_recheck`, and guide documents use narrative/review scopes. Coordinate-only `display_coordinate` sources are therefore excluded from all reviewed-local content documents. Regression assertions cover Tian'anmen overview, visit, and guide documents.
+
+### Exact verification commands and results
+
+- `npx vitest run packages/shared/src/place-contracts.test.ts` — first run after adding the regression test: FAIL, `expected [ 'tiananmen:official', …(1) ] to not include 'tiananmen:coordinate-1'`.
+- `npm run catalog:prepare` — PASS; `Wrote apps/web/public/data/places-v1.json (20 English, 20 Chinese entries)`.
+- `npx vitest run packages/shared/src/place-contracts.test.ts` — PASS, `Test Files 1 passed`, `Tests 10 passed`.
+- `npm run catalog:verify` — PASS; `Catalog verified: 20 English and 20 Chinese entries`.
+- `npm run typecheck` — PASS.
+- `npm run build:web` — PASS; image verification reported `Verified 52 display illustrations; no photograph-format fallback assets found`; Vite and PWA generation completed with `precache 12 entries`.
+
+### Changed files
+
+- `scripts/build_place_catalog.mjs`
+- `apps/web/public/data/places-v1.json`
+- `packages/shared/src/place-contracts.test.ts`

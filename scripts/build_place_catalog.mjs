@@ -32,7 +32,21 @@ function sourceCitation(place, source, checkedAt, reviewDueAt) {
   }
 }
 
-function buildSearchDocuments(place, localization, segments, sourceIds, checkedAt) {
+function buildSearchDocuments(
+  place,
+  localization,
+  segments,
+  sourceRecords,
+  sourceCitations,
+  checkedAt,
+) {
+  const sourceIdsForScopes = (scopes) =>
+    sourceRecords.flatMap((source, index) =>
+      source.factScope?.some((scope) => scopes.includes(scope))
+        ? [sourceCitations[index].id]
+        : [],
+    )
+
   return [
     {
       id: `${place.id}:${localization.locale}:overview`,
@@ -43,7 +57,7 @@ function buildSearchDocuments(place, localization, segments, sourceIds, checkedA
         localization.history,
         localization.highlights.join("\n"),
       ].join("\n"),
-      sourceIds,
+      sourceIds: sourceIdsForScopes(["identity", "history"]),
       updatedAt: checkedAt,
     },
     {
@@ -54,14 +68,14 @@ function buildSearchDocuments(place, localization, segments, sourceIds, checkedA
         localization.practicalNotes,
         localization.photoSpotNotes,
       ].join("\n"),
-      sourceIds,
+      sourceIds: sourceIdsForScopes(["visit_recheck"]),
       updatedAt: checkedAt,
     },
     {
       id: `${place.id}:${localization.locale}:guide`,
       section: "guide",
       content: segments.map((segment) => segment.content).join("\n"),
-      sourceIds,
+      sourceIds: sourceIdsForScopes(["identity", "history", "visit_recheck"]),
       updatedAt: checkedAt,
     },
   ]
@@ -145,7 +159,8 @@ function localeEntry(place, locale, metadata, displayImage) {
       place,
       localization,
       segments,
-      sources.map((source) => source.id),
+      place.sources,
+      sources,
       metadata.checkedAt,
     ),
     displayImage,

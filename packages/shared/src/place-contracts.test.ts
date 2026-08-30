@@ -138,6 +138,20 @@ describe("place contracts", () => {
     expect(catalog.locales.en.every((entry) => entry.displayImage.startsWith("/places/"))).toBe(true)
   })
 
+  it("keeps Tian'anmen search citations scoped to each document's facts", async () => {
+    const url = new URL("../../../apps/web/public/data/places-v1.json", import.meta.url)
+    const payload = JSON.parse(await readFile(url, "utf8"))
+    const catalog = placeCatalogSchema.parse(payload)
+    const entry = catalog.locales.en.find((item) => item.summary.id === "tiananmen")
+    expect(entry).toBeDefined()
+
+    for (const section of ["overview", "visit", "guide"]) {
+      const document = entry?.searchDocuments.find((item) => item.section === section)
+      expect(document?.sourceIds).toContain("tiananmen:official")
+      expect(document?.sourceIds).not.toContain("tiananmen:coordinate-1")
+    }
+  })
+
   it("rejects a web-grounded answer without clickable citations", () => {
     expect(() =>
       placeQuestionResponseSchema.parse({
