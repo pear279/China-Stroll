@@ -123,6 +123,33 @@ const questionIntentAliases = {
   duration: ["duration", "how long", "visit length", "多久", "多长时间", "逛多久", "半天"],
 } as const
 
+const genericEnglishPhraseStopwords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "at",
+  "by",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "was",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+])
+
 function normalize(value: string) {
   return value.normalize("NFKC").trim().toLocaleLowerCase()
 }
@@ -143,6 +170,19 @@ function extractSearchableText(place: PlaceSummary) {
 
 function tokenize(value: string) {
   return normalizeForTokenization(value).match(/[\p{Script=Han}]+|[\p{Letter}\p{Number}]{2,}/gu) ?? []
+}
+
+function isChineseToken(token: string) {
+  return /^[\p{Script=Han}]+$/u.test(token)
+}
+
+function isMeaningfulEnglishPhrase(tokens: string[]) {
+  if (tokens.length === 0) {
+    return false
+  }
+
+  const nonStopwordCount = tokens.filter((token) => !genericEnglishPhraseStopwords.has(token)).length
+  return nonStopwordCount >= 2
 }
 
 function detectIntentMatches(question: string, document: string) {
@@ -169,9 +209,19 @@ function extractQuestionPhrases(question: string) {
   for (let index = 0; index < tokens.length - 1; index += 1) {
     const left = tokens[index]
     const right = tokens[index + 1]
-    if (/^[\p{Script=Han}]+$/u.test(left) || /^[\p{Script=Han}]+$/u.test(right)) continue
-    phrases.add(`${left} ${right}`)
+    if (isChineseToken(left) || isChineseToken(right)) {
+      continue
+    }
+    if (isMeaningfulEnglishPhrase([left, right])) {
+      phrases.add(`${left} ${right}`)
+    }
   }
+
+  tokens.forEach((token) => {
+    if (isChineseToken(token) && token.length >= 2) {
+      phrases.add(token)
+    }
+  })
 
   return [...phrases]
 }
@@ -205,6 +255,17 @@ function findSourcesById(sources: PlaceSourceCitation[], sourceIds: string[]) {
 
 function uniquePreferences(preferences: PlaceRecommendationInput["preferences"]) {
   return SUPPORTED_PREFERENCES.filter((preference) => preferences.includes(preference))
+}
+
+function uniquePlaceIds(placeIds: string[]) {
+  const seen = new Set<string>()
+  return placeIds.filter((placeId) => {
+    if (seen.has(placeId)) {
+      return false
+    }
+    seen.add(placeId)
+    return true
+  })
 }
 
 function matchesKeyword(place: PlaceSummary, preference: SupportedPreference) {
@@ -322,7 +383,7 @@ export function rankPlaceRecommendations(
   ])
   const activeRadiusKm = input.coordinate ? input.radiusKm : null
 
-  const candidates = input.candidatePlaceIds.flatMap((placeId) => {
+  const candidates = uniquePlaceIds(input.candidatePlaceIds).flatMap((placeId) => {
     const place = placeById.get(placeId)
     if (!place) {
       return []

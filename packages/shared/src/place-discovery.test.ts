@@ -2,6 +2,7 @@
 // @vitest-environment node
 import { readFile } from "node:fs/promises"
 import { describe, expect, it } from "vitest"
+import type { PlaceCatalogEntry } from "./place-contracts"
 import { placeCatalogSchema } from "./place-contracts"
 import {
   filterPlaceSummaries,
@@ -14,6 +15,73 @@ async function loadCatalog() {
   const url = new URL("../../../apps/web/public/data/places-v1.json", import.meta.url)
   const payload = JSON.parse(await readFile(url, "utf8"))
   return placeCatalogSchema.parse(payload)
+}
+
+function buildReviewedEntry(content: string): PlaceCatalogEntry {
+  return {
+    summary: {
+      id: "test-place",
+      locale: "en",
+      name: "Test Place",
+      shortIntro: "Reviewed summary",
+      categoryCode: "museum",
+      tags: ["history"],
+      coordinate: [116.39, 39.91],
+      durationMinutes: 120,
+      coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+      aliases: [],
+      highlights: ["Imperial Garden"],
+      reviewedAt: "2026-08-30T00:00:00.000Z",
+      reviewDueAt: "2026-09-29T00:00:00.000Z",
+    },
+    detail: {
+      id: "test-place",
+      locale: "en",
+      name: "Test Place",
+      aliases: [],
+      tags: ["history"],
+      shortIntro: "Reviewed summary",
+      history: "Reviewed history",
+      highlights: ["Imperial Garden"],
+      visitorTips: "Arrive early.",
+      practicalNotes: "Bring ID.",
+      photoSpotNotes: "Best light in the morning.",
+      categoryCode: "museum",
+      coordinate: [116.39, 39.91],
+      durationMinutes: 120,
+      coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+      reviewedAt: "2026-08-30T00:00:00.000Z",
+      visitInformation: null,
+    },
+    guides: {
+      placeId: "test-place",
+      locale: "en",
+      general: [],
+      child: [],
+      sources: [
+        {
+          id: "test-place:official",
+          name: "Test Place Official",
+          url: "https://example.com/test-place",
+          publishedAt: null,
+          checkedAt: "2026-08-30T00:00:00.000Z",
+          reviewDueAt: "2026-09-29T00:00:00.000Z",
+          needsRecheck: false,
+          sourceType: "official",
+        },
+      ],
+    },
+    searchDocuments: [
+      {
+        id: "test-place:guide",
+        section: "guide",
+        content,
+        sourceIds: ["test-place:official"],
+        updatedAt: "2026-08-30T00:00:00.000Z",
+      },
+    ],
+    displayImage: "/places/test-place.webp",
+  }
 }
 
 describe("filterPlaceSummaries", () => {
@@ -76,6 +144,21 @@ describe("findReviewedAnswer", () => {
       findReviewedAnswer(forbiddenCity!, "Where can I buy a blue umbrella nearby?"),
     ).toBeNull()
   })
+
+  it("returns null for a generic unsupported what-is question", () => {
+    const entry = buildReviewedEntry("This is the reviewed overview of the palace museum.")
+
+    expect(findReviewedAnswer(entry, "What is the blue umbrella policy?")).toBeNull()
+  })
+
+  it("keeps meaningful exact phrase boosts for covered content", () => {
+    const entry = buildReviewedEntry("Imperial Garden walking route and courtyard context.")
+
+    const response = findReviewedAnswer(entry, "Can you explain the Imperial Garden?")
+
+    expect(response?.answerMode).toBe("reviewed-local")
+    expect(response?.answer).toContain("Imperial Garden")
+  })
 })
 
 describe("inferPreferences", () => {
@@ -128,5 +211,39 @@ describe("rankPlaceRecommendations", () => {
     })
 
     expect(results.map((item) => item.placeId)).toEqual(["forbidden-city", "jingshan-park"])
+  })
+
+  it("deduplicates candidate place ids before ranking top-5 results", async () => {
+    const catalog = await loadCatalog()
+    const places = catalog.locales.en.map((entry) => entry.summary)
+
+    const results = rankPlaceRecommendations(places, {
+      preferences: [],
+      context: "",
+      locale: "en",
+      coordinate: null,
+      radiusKm: null,
+      availableMinutes: null,
+      candidatePlaceIds: [
+        "forbidden-city",
+        "forbidden-city",
+        "jingshan-park",
+        "jingshan-park",
+        "temple-of-heaven",
+        "beihai-park",
+        "beijing-zoo",
+        "national-museum-of-china",
+      ],
+      plannedPlaceIds: [],
+    })
+
+    expect(results.map((item) => item.placeId)).toEqual([
+      "beihai-park",
+      "beijing-zoo",
+      "forbidden-city",
+      "jingshan-park",
+      "national-museum-of-china",
+    ])
+    expect(new Set(results.map((item) => item.placeId)).size).toBe(results.length)
   })
 })
