@@ -40,12 +40,13 @@ This file is the authoritative implementation plan. A task is complete only when
   - Test: deterministic validator, `npm run db:verify`, public list/detail API test.
   - Verified: deterministic 20-place JSON/SQL and migration created; two clean PostgreSQL 17 rebuilds, transactional SQL tests, anonymous RLS counts (20 places/40 localizations/40 visit records) and source-link assertions passed on 2026-08-30. Fast-changing opening, ticket and booking facts are intentionally marked for official recheck rather than asserted.
 
-- [ ] Task 5 — Implement the four-module application shell
+- [x] Task 5 — Implement the four-module application shell
   - Goal: replace the planner-only information architecture without losing current features.
   - Files: web module components, navigation state/router, styles and UI tests.
   - Steps: extract Attractions, Map, Tools and Mine views; add mobile bottom navigation; share trip/place selection state; preserve loading/empty/error/success states.
   - Acceptance: all four entry points are obvious at 390px; existing discovery, map and itinerary flows remain usable.
   - Test: component tests, production build and mobile screenshots.
+  - Verified: React Router routes `/attractions`, `/map`, `/tools` and `/me`, shared place/day/filter/location state, persistent accessible bottom navigation and Pages direct loads passed on 2026-08-30. The complete gate passed 16 test files/65 tests, 20-place deterministic validation, 52-image verification, typecheck, zero-warning lint, Web/Functions/Worker builds and two clean PostgreSQL 17 rebuilds with 20/40/40 RLS assertions. Playwright at 390×844 found no horizontal overflow on any module; denied location kept all three preview places usable; the final attraction action retained 44px clearance above the fixed navigation; keyboard focus order and visible focus passed. Tools exposes only real emergency links and reviewed guidance; unsupported provider actions and location sharing remain visibly unavailable.
 
 - [ ] Task 6 — Complete Attractions 1.0
   - Goal: deliver current/nearby place, filters, detail, save, add-to-day, guide and recommendation as one coherent module.

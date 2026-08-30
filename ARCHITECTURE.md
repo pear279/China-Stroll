@@ -35,7 +35,9 @@ The four modules are presentation boundaries, not separate data silos. `Trip`, `
 - `/tools`: navigation/taxi, payment/exchange, translation and service numbers.
 - `/me`: profile, trip table, reservation table, members and privacy controls.
 
-The first implementation may use internal React route state before adding a routing dependency, but browser back behavior and deep-link requirements must be tested before release. Place selection crosses modules through a stable `selectedPlaceId`; module components never copy a supplier-specific place object into their own state.
+The application uses React Router with `BrowserRouter`; browser back/forward and direct loads preserve the four formal module paths. Place selection crosses modules through a stable `selectedPlaceId`; module components never copy a supplier-specific place object into their own state.
+
+Cloudflare Pages uses its default SPA fallback because the project has no top-level `404.html`. A catch-all `_redirects` rule is intentionally absent: Wrangler 4.127 identifies `/* /index.html 200` as an infinite loop. `apps/web/public/_routes.json` keeps `/health` and `/v1/*` in the Pages Functions routing scope, so module paths return `index.html` while API paths continue to return JSON.
 
 ## Data Model
 
