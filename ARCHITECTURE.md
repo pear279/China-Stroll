@@ -121,7 +121,7 @@ Client sends explicit trip, preference and location scope → Worker retrieves a
 - `apps/web`: React PWA and public generated display assets
 - `apps/worker`: reusable Hono API
 - `components/ui`: project-owned UI primitives including mapcn-derived map components
-- `packages/shared`: domain types and deterministic shared logic
+- `packages/shared`: domain types and deterministic shared logic. `src/place-contracts.ts` is the shared place contract boundary for catalog payloads plus question/recommendation trust invariants; `src/index.ts` re-exports it while place discovery logic lands separately.
 - `functions`: Cloudflare Pages adapter
 - `supabase`: migrations, database types and transactional SQL tests
 - `scripts`: deterministic validation, generation and local verification commands

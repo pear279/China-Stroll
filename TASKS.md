@@ -53,6 +53,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: Attractions module, API client/Worker endpoints, shared contracts and tests.
   - Acceptance: a user can find one of 20 places, understand its source/review status and add it to a selected day in three actions or fewer.
   - Test: normal, empty, denied-location, AI-unavailable and mobile paths.
+  - Progress 2026-08-30: shared place contracts and trust invariants landed in `packages/shared/src/place-contracts.ts`; focused shared tests and full app/Worker typecheck passed in the Attractions 1.0 worktree.
 
 - [ ] Task 7 — Complete itinerary editing and reservations in Mine
   - Goal: make the itinerary and reservation data models usable.

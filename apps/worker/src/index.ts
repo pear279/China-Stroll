@@ -497,16 +497,24 @@ app.post("/v1/places/:placeId/questions", async (context) => {
   const response: PlaceQuestionResponse = modelAnswer
     ? {
         answer: modelAnswer.answer,
+        answerMode: "model-grounded-local",
+        sources: [],
         sourceIds: modelAnswer.sourceIds,
         generatedBy: "model",
+        searchedAt: null,
+        dependencyStatus: "ready",
         updatedAt: documents[0]?.updated_at ?? null,
       }
     : {
         answer: fallbackPassages.length > 0
           ? `The reviewed guide currently says ${fallbackPassages.map((passage) => passage.content).join(" ")}`
           : "The available reviewed guide cannot confirm this yet.",
+        answerMode: fallbackPassages.length > 0 ? "reviewed-local" : "unable-to-confirm",
+        sources: [],
         sourceIds,
-        generatedBy: "guide-fallback",
+        generatedBy: fallbackPassages.length > 0 ? "deterministic-retrieval" : "none",
+        searchedAt: null,
+        dependencyStatus: fallbackPassages.length > 0 ? "ai-unavailable" : "no-reliable-sources",
         updatedAt: documents[0]?.updated_at ?? null,
       }
   return context.json(response)

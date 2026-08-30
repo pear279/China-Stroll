@@ -7,7 +7,9 @@ import {
   formatDurationHours,
   haversineKilometres,
   orderStopsByProximity,
+  placeCatalogSchema,
   placeInitials,
+  placeQuestionResponseSchema,
   resolvePlaceImage,
   samplePlaces,
   type PlaceSummary,
@@ -160,5 +162,12 @@ describe("place display helpers", () => {
   it("turns a category code into a label", () => {
     expect(formatCategoryLabel("historic")).toBe("Historic")
     expect(formatCategoryLabel("imperial-garden")).toBe("Imperial Garden")
+  })
+})
+
+describe("shared package entry point", () => {
+  it("re-exports the place contract schemas", () => {
+    expect(placeCatalogSchema.safeParse).toBeTypeOf("function")
+    expect(placeQuestionResponseSchema.safeParse).toBeTypeOf("function")
   })
 })
