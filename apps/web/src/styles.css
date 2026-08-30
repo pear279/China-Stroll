@@ -56,7 +56,7 @@ input:focus { border-color: #b33a2e; }
 .status-message { color: #6d4d19; }
 .test-mode-note { margin: .8rem 0; padding: .65rem .8rem; border: 1px solid #d8b46a; border-radius: .55rem; background: #fff8e8; color: #6d4d19; font-size: .76rem; line-height: 1.45; text-align: center; }
 
-.create-layout { min-height: 100vh; display: grid; place-items: center; padding: 2rem; background: linear-gradient(rgb(246 242 234 / .88), rgb(246 242 234 / .94)), url("/places/temple-of-heaven.png") center/cover; }
+.create-layout { min-height: 100vh; display: grid; place-items: center; padding: 2rem; background: linear-gradient(rgb(246 242 234 / .88), rgb(246 242 234 / .94)), url("/places/temple-of-heaven.webp") center/cover; }
 .step-count { position: fixed; top: 1.5rem; right: 1.5rem; color: #8f8579; font: .72rem ui-monospace, monospace; letter-spacing: .12em; }
 .create-card { width: min(100%, 570px); padding: clamp(1.5rem, 5vw, 4rem); border: 1px solid #d2c9ba; background: rgb(255 253 247 / .94); box-shadow: 0 25px 60px rgb(40 31 22 / .15); }
 .create-card h1 { margin: .8rem 0 1.2rem; font-size: clamp(2.5rem, 6vw, 4rem); }

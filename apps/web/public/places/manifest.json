@@ -1,0 +1,525 @@
+{
+  "version": 1,
+  "images": [
+    {
+      "placeId": "baiyun-temple",
+      "source": "data/processed/place-display-images/baiyun-temple-stamp-square.png",
+      "output": "/places/baiyun-temple.webp",
+      "sourceSha256": "bb46ec410a475f0284eed4d98e8978ac5adfa745ecdee691818dcf1022618078",
+      "outputSha256": "c5485662a9a72ea63159eba7e56552942d57879cadbab2354743db5bcc006a6c",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "baoguo-temple",
+      "source": "data/processed/place-display-images/baoguo-temple-stamp-square.png",
+      "output": "/places/baoguo-temple.webp",
+      "sourceSha256": "afbc0717a141038c29fccb2653177e6ccd162e91fe40c44c762b8f858cef0f4c",
+      "outputSha256": "4fb1476dcfca3833bbd3552fc627b2c983f56e61d9e26665695fadd073194158",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beihai-park",
+      "source": "data/processed/place-display-images/beihai-park-stamp-square.png",
+      "output": "/places/beihai-park.webp",
+      "sourceSha256": "1860641e8803b8c1c0c9ec966f51fe021048328ab00538f9ed3ecf8f29fc8a52",
+      "outputSha256": "19d1ca6b1c58500da054dcb747d3246b6b47d235b8c41e223ad93200deee584b",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-comedy-theater",
+      "source": "data/processed/place-display-images/beijing-comedy-theater-stamp-square.png",
+      "output": "/places/beijing-comedy-theater.webp",
+      "sourceSha256": "938d970a7efd5ca2cd7e938077724de17d73240de384d03ed1edb4fa83297d5f",
+      "outputSha256": "eb868f5fdfd4b3932d6fbeff3381d3316bf21da140e5da3a16f9011ac11d8f2d",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-exhibition-center",
+      "source": "data/processed/place-display-images/beijing-exhibition-center-stamp-square.png",
+      "output": "/places/beijing-exhibition-center.webp",
+      "sourceSha256": "09796cba7666c079642cf5a9603b1dfb3de2d32ceb41e529ac35cc94bf1ff838",
+      "outputSha256": "f4a1e475f759bf81196d36f47e85fd5c71f755bfb665a5564cdb90836f0b8dcf",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-grand-view-garden",
+      "source": "data/processed/place-display-images/beijing-grand-view-garden-stamp-square.png",
+      "output": "/places/beijing-grand-view-garden.webp",
+      "sourceSha256": "0313a7f044bed17d6a04d0c8aab1b233bb2b40c62ca07d072e0e7fb4880912dd",
+      "outputSha256": "28c9c96310768f7ac517936847f37abe59468ea0fcc4f89df64662dba362814f",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-planetarium",
+      "source": "data/processed/place-display-images/beijing-planetarium-stamp-square.png",
+      "output": "/places/beijing-planetarium.webp",
+      "sourceSha256": "ec79ca96b7b949190351a33bc64b62275eb18d0b7ce49367ad381e125f135054",
+      "outputSha256": "6680be285b607304b53d4edda799ee11adf4b70a54751b100c5bc93d350b1e1d",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-planning-exhibition-hall",
+      "source": "data/processed/place-display-images/beijing-planning-exhibition-hall-stamp-square.png",
+      "output": "/places/beijing-planning-exhibition-hall.webp",
+      "sourceSha256": "0fc3bab269179f14e433177b37a8d3db82a3feba0c1b243662779e5bed2ec2a1",
+      "outputSha256": "70a3b94c4227cb9ba6dedaa03e936bf5353e984e8573fd93f74593a4749d8d43",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "beijing-zoo",
+      "source": "data/processed/place-display-images/beijing-zoo-stamp-square.png",
+      "output": "/places/beijing-zoo.webp",
+      "sourceSha256": "4255b779788f0ae9bc6583ea9faeadd9f6fdde830cab72f9159908433de859e2",
+      "outputSha256": "1873b7c51de649328c7cabee7fba4851229785b781f2ee3416ee137b96f111c5",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "confucius-temple",
+      "source": "data/processed/place-display-images/confucius-temple-stamp-square.png",
+      "output": "/places/confucius-temple.webp",
+      "sourceSha256": "1466f0a27bc9e6bd1d583f3bf5f95589cfb5262757344e6401876d04082204d3",
+      "outputSha256": "b62a5a0009af073e42a1b31db411d0392a790d29b908e33bdb5ec2e50aa21301",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "dashilar-hutong-area",
+      "source": "data/processed/place-display-images/dashilar-hutong-area-stamp-square.png",
+      "output": "/places/dashilar-hutong-area.webp",
+      "sourceSha256": "fabe4dfa66bcfba2e702885c52495acbc95e62f8969d0a8ab7e7cfa29af3d2be",
+      "outputSha256": "abcaaf9aa2c7a746fe5dd486c3f71c1e89db97dbcab92691309581318ceb5e2e",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "ditan-park",
+      "source": "data/processed/place-display-images/ditan-park-stamp-square.png",
+      "output": "/places/ditan-park.webp",
+      "sourceSha256": "dd4f6a1a6482203c6e45f6e5ca29fcb8dd06a5542a925cb6f60a48e94f31c963",
+      "outputSha256": "5ef7d1cd41a81da161665e5c613210566ca11ccedd0a8d6ca56cc7b7dcf66500",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "drum-and-bell-towers",
+      "source": "data/processed/place-display-images/drum-and-bell-towers-stamp-square.png",
+      "output": "/places/drum-and-bell-towers.webp",
+      "sourceSha256": "b5e4ce119eba3ab5b33c239c9f063817272163b47ebd101b026ff073f39a4ddc",
+      "outputSha256": "2c03dc8a8db7fc6dafe03570c1730c963ff085898d10ef37d2eab619dda98be9",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "fayuan-temple",
+      "source": "data/processed/place-display-images/fayuan-temple-stamp-square.png",
+      "output": "/places/fayuan-temple.webp",
+      "sourceSha256": "c83cc9292e26e874eb5755c70f11a837704458629c6455fa6d5c84be17f646bd",
+      "outputSha256": "fa2612bd500068e60269643af0681433ccb2fba671b685db510fb00c753b9781",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "financial-street",
+      "source": "data/processed/place-display-images/financial-street-stamp-square.png",
+      "output": "/places/financial-street.webp",
+      "sourceSha256": "207170d4735f8b2c3e6c971843471293d40a709ef2a8f1aaeea105004d86b3a5",
+      "outputSha256": "6663244ea5e21e9b1dd3b2477aed6ca0482c9fb1475ea3e9ae9d6f4b57d4c1fb",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "forbidden-city",
+      "source": "data/processed/place-display-images/palace-museum-stamp-square.png",
+      "output": "/places/forbidden-city.webp",
+      "sourceSha256": "4591dde6332faad15e98414f4a89a2cb5b520e336f289bfeffe28334e186f2e5",
+      "outputSha256": "8f12c5948b7465de332b1cfdf98667962d8feb00484b5fefe44d817cbc25f10e",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "geological-museum-of-china",
+      "source": "data/processed/place-display-images/geological-museum-of-china-stamp-square.png",
+      "output": "/places/geological-museum-of-china.webp",
+      "sourceSha256": "f214cbc42240f1dde9806d710b685f9a7ca85ddef0649aab62c8b3a663dc870e",
+      "outputSha256": "88ac7f8d625d2798a07e47d413eea55d6efb53275e73db5306755e471697806a",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "guangji-temple",
+      "source": "data/processed/place-display-images/guangji-temple-stamp-square.png",
+      "output": "/places/guangji-temple.webp",
+      "sourceSha256": "aa667914d9b2b3845b8ada6489a4522fe078f9610e2cb10a04caebc6e833e9d6",
+      "outputSha256": "e31bcd47c2bdb958b6aaf65da52e3705eaf44dadcca763f152ae8169f3931293",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "guijie",
+      "source": "data/processed/place-display-images/guijie-stamp-square.png",
+      "output": "/places/guijie.webp",
+      "sourceSha256": "9d542af30823a9d701d7780a081b9142a8037d5af1f578bc6dfa08e343a6fc8c",
+      "outputSha256": "3a8643636a4ec45185a4c8f969c041975485add0dbd1fde23a3147a3527c74be",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "guozijian",
+      "source": "data/processed/place-display-images/guozijian-stamp-square.png",
+      "output": "/places/guozijian.webp",
+      "sourceSha256": "0521e14f2caa07afb2394f73441c34ca5c65557104c8b997b534a63b800f810a",
+      "outputSha256": "2e547aa7073c09c50424ccd12434166d7c76721bcecc71e65ff1019447f383b2",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "huangchenggen-ruins-park",
+      "source": "data/processed/place-display-images/huangchenggen-ruins-park-stamp-square.png",
+      "output": "/places/huangchenggen-ruins-park.webp",
+      "sourceSha256": "3affba9cd9e106b39c44ca9151dd5ffaac09a824f8ab458d87d89ce9ceb36fb4",
+      "outputSha256": "391eeef2ea1170dc211668a1282950466cf02e4335309dba48b19d2b26648874",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "jingshan-park",
+      "source": "data/processed/place-display-images/jingshan-park-stamp-square.png",
+      "output": "/places/jingshan-park.webp",
+      "sourceSha256": "d8b19d757006aae6710785126ee6ea8fc01e93ee8d0bb270d2275d3ac42518cb",
+      "outputSha256": "19c9ea9893e2504374ff0828a0fdf6dbd583170b762d1196956c04bc0e6606d2",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "lama-temple",
+      "source": "data/processed/place-display-images/lama-temple-stamp-square.png",
+      "output": "/places/lama-temple.webp",
+      "sourceSha256": "cb3f89398e7a849f79ae8b37cfd2849839b1a4e1eb812fd462a662220f82b141",
+      "outputSha256": "983efc185a002ce946a8ca24e98eab6fea89f10de6a12cef0cee76959193b540",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "lingjing-hutong",
+      "source": "data/processed/place-display-images/lingjing-hutong-stamp-square.png",
+      "output": "/places/lingjing-hutong.webp",
+      "sourceSha256": "35590c4e979de2c71ca550ee01d9277e2db41f0bca0f05b1f750af8b1e5af271",
+      "outputSha256": "fb1faa5f860efa17acbaf91e094c6455ba1969a4042273641de4ed67faa4df61",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "liuyin-park",
+      "source": "data/processed/place-display-images/liuyin-park-stamp-square.png",
+      "output": "/places/liuyin-park.webp",
+      "sourceSha256": "30fc8e5d010860612c9a6ed81a4845c0e25d92501d0aed0d43e1fabd0d2cef3b",
+      "outputSha256": "7c687ea13d6d69096118e0296076a93c5e9c742b37b19daf5bf399cebefeff45",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "longtan-park",
+      "source": "data/processed/place-display-images/longtan-park-stamp-square.png",
+      "output": "/places/longtan-park.webp",
+      "sourceSha256": "d1826b1fbcdebafc7e0d98940ebb9701ddf5b4d69a947448152b139e1bd301c6",
+      "outputSha256": "32de581af6d299ae3a43c7218be8441799cea41492245d42438c20ac4349bc8d",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "mao-chairman-memorial-hall",
+      "source": "data/processed/place-display-images/mao-chairman-memorial-hall-stamp-square.jpg",
+      "output": "/places/mao-chairman-memorial-hall.webp",
+      "sourceSha256": "841353cac3449bfb8d6528025e11f6327d66ab9547ce511870bf2574a060b685",
+      "outputSha256": "16d82ef3f02d66001e0c8198b6c52ed4392f24cd3e789fbff24aef1884258a7c",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "mei-lanfang-memorial-museum",
+      "source": "data/processed/place-display-images/mei-lanfang-memorial-museum-stamp-square.png",
+      "output": "/places/mei-lanfang-memorial-museum.webp",
+      "sourceSha256": "b9209adc8f0deb4afccaf7a7576b181a4f83d7c86b1bbb597d3a8dc461624dc7",
+      "outputSha256": "a2dcedd2e191642209f77db64400d48512088e70eb11a128034b08e7882184b7",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "ming-city-wall-ruins",
+      "source": "data/processed/place-display-images/ming-city-wall-ruins-stamp-square.png",
+      "output": "/places/ming-city-wall-ruins.webp",
+      "sourceSha256": "76d7d5e6fd742cf51d417c025fc591080297ddadb9022b591cb0b1813ef223d6",
+      "outputSha256": "f89f03f9412ea9a1c8e1a9502d69589f767029e4d4ce716d62c3e637bd58da51",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "nanluoguxiang",
+      "source": "data/processed/place-display-images/nanluoguxiang-stamp-square.png",
+      "output": "/places/nanluoguxiang.webp",
+      "sourceSha256": "ec2cb1b2731625a8700ba8a59b6bb4b44f6cc7b7a121ff2ad699410e1bfa8109",
+      "outputSha256": "42a2695ceb7f468d205d5fb5839508c3d66af9366a1bc6541d197a335d6e2d91",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "national-art-museum-of-china",
+      "source": "data/processed/place-display-images/national-art-museum-of-china-stamp-square.png",
+      "output": "/places/national-art-museum-of-china.webp",
+      "sourceSha256": "00ad1143bc5dbab84dfe40424f3ade7e6c7b7ba4a81b22c1491c97f563e638af",
+      "outputSha256": "c7b7e87b30924e0c2728f74bc5169976bbcead59dec2f613af69087ddca819af",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "national-museum-of-china",
+      "source": "data/processed/place-display-images/national-museum-of-china-stamp-square.png",
+      "output": "/places/national-museum-of-china.webp",
+      "sourceSha256": "98a2bc7c34c402864d87223dc08d7108ca9dd5ef7cd5b14168d07e58dcb6793b",
+      "outputSha256": "ec33c465f757fd9c34c9cacef65c0608b4c6dbe8698896566e9c92722fb1eeaf",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "prince-gong-mansion",
+      "source": "data/processed/place-display-images/prince-gong-mansion-stamp-square.png",
+      "output": "/places/prince-gong-mansion.webp",
+      "sourceSha256": "62d05b585fdfca9d4d2f3fac17514b4004fd2cb45eaeb051107b131194be2984",
+      "outputSha256": "2de6b2af5507aa80e4eb508c539d217ddb33fd98890bb29b5731929be640cb6b",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "qingnianhu-park",
+      "source": "data/processed/place-display-images/qingnianhu-park-stamp-square.png",
+      "output": "/places/qingnianhu-park.webp",
+      "sourceSha256": "2a4f738af02895d07e9641406acfb66c7dce27fd507ccf20008bf701015e4886",
+      "outputSha256": "28029da3ddf922848bcdf7aa1c012ea18a385b0f1a425e8eace8dcb191924056",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "rendihu-park",
+      "source": "data/processed/place-display-images/rendihu-park-stamp-square.png",
+      "output": "/places/rendihu-park.webp",
+      "sourceSha256": "aea570f39dbe4e2c60544a6a8007322bc96b4f3c8a612aea743fb7edc709477d",
+      "outputSha256": "a8d26ba6914f5b0fee038baca0a4f514f8955ada5dc856b97fa5f62889df8613",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "taoranting-park",
+      "source": "data/processed/place-display-images/taoranting-park-stamp-square.png",
+      "output": "/places/taoranting-park.webp",
+      "sourceSha256": "c226dfe69ca4c221df2f5f943993c6e39d4650c7bb7b953954f30be0ce5a80ed",
+      "outputSha256": "f5e481458f0a5db8659d38035c5c532f567e49d877782ddfbdec3b54a4c003b8",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "temple-of-heaven",
+      "source": "data/processed/place-display-images/temple-of-heaven-stamp-square.png",
+      "output": "/places/temple-of-heaven.webp",
+      "sourceSha256": "977793dca8fd63e4f7d623a2d5b9a47d987e579238f93f138a6775f4c4497fc8",
+      "outputSha256": "6e17d3eb29a3ea71b40741dc00467bb66d9f86b83ee46bd257aa24da2bcd4812",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "tiananmen",
+      "source": "data/processed/place-display-images/tiananmen-stamp-square.png",
+      "output": "/places/tiananmen.webp",
+      "sourceSha256": "c6a78531a87aa0a402d33f2feff7dc310f464a4263e742b266f7a1e2c22f4aec",
+      "outputSha256": "7d6b45d30e24686ab872722d4602b3b9395bfcab89e99704b84f828f5d93b074",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "tianning-temple-pagoda",
+      "source": "data/processed/place-display-images/tianning-temple-pagoda-stamp-square.png",
+      "output": "/places/tianning-temple-pagoda.webp",
+      "sourceSha256": "695ab315770d2456cef824cf96abe8a43dc18568c57e66bf1118b1c9953f74f2",
+      "outputSha256": "7c52901de8feef35991d40303c723695d72fa3bfd82dfbdef9d4f7910e0b7f76",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "wanshou-park",
+      "source": "data/processed/place-display-images/wanshou-park-stamp-square.png",
+      "output": "/places/wanshou-park.webp",
+      "sourceSha256": "ac3a2371750cd9977e04a595a5931d5795787de80ed3c248ca457a992c51e55f",
+      "outputSha256": "56595a89bff9854922280a56c9b98f548da22b7fb49fe3c9b20fbe10c7ff12b6",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "white-pagoda-temple",
+      "source": "data/processed/place-display-images/white-pagoda-temple-stamp-square.png",
+      "output": "/places/white-pagoda-temple.webp",
+      "sourceSha256": "e4805e3d1246ed5d5ea51cd0777586f3c36e80fd60854a3fc5b60025f69efd0d",
+      "outputSha256": "cdb7ee3d48274d8cfd4e73a24d4fa7f4a21b9ab8eab2126db25ca9b45c512f6f",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "workers-stadium",
+      "source": "data/processed/place-display-images/workers-stadium-stamp-square.png",
+      "output": "/places/workers-stadium.webp",
+      "sourceSha256": "61867c5286470487969312e016206eb303d355fed8696955b55938eff9a1079e",
+      "outputSha256": "14c2f72eb56d87a6b9f1654998eee5d34c0f52a421eb8fbf77e5f0ab32f8c226",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "wudaoying-hutong",
+      "source": "data/processed/place-display-images/wudaoying-hutong-stamp-square.png",
+      "output": "/places/wudaoying-hutong.webp",
+      "sourceSha256": "2e7633b63b39d68090e6e35449d67245f7583629019164755b973cfc5251aee7",
+      "outputSha256": "80a9dd70979a2b717e909da92337e5fa7c2ea7a8ad105e7fac8f9e6aaa1e40d9",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "xiannongtan",
+      "source": "data/processed/place-display-images/xiannongtan-stamp-square.png",
+      "output": "/places/xiannongtan.webp",
+      "sourceSha256": "b1cc4e6b2ce6ec2c70ff95044bbcf37180d6d14ce4b88db4810f459232fe8f4c",
+      "outputSha256": "b7d582b79d7a7f179b6eb80b829f9218760c4c33b630ab04bb30e489a888fd6a",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "xishiku-church",
+      "source": "data/processed/place-display-images/xishiku-church-stamp-square.png",
+      "output": "/places/xishiku-church.webp",
+      "sourceSha256": "da6d45c17480fdf52b96b4480fb117e72812330f7d25ce292696ba25c8f5d1c3",
+      "outputSha256": "23b5e7c16974a2bc98657589130f66e0eb40e8bd91dc7602ff115e2f01907db7",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "xuanwu-yiyuan",
+      "source": "data/processed/place-display-images/xuanwu-yiyuan-stamp-square.png",
+      "output": "/places/xuanwu-yiyuan.webp",
+      "sourceSha256": "d10ab7916c4bbc4bf95883c000a98826f0d4ab5b8a98ede0c6789c4d2f80b01e",
+      "outputSha256": "2293dc208dc02f40d7f59926d48f44e9a6b03eabf1ad97b190397d07ef231935",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "xuanwumen-church",
+      "source": "data/processed/place-display-images/xuanwumen-church-stamp-square.png",
+      "output": "/places/xuanwumen-church.webp",
+      "sourceSha256": "bc1a344a2cd463e1fff40ecc992fd9fda2a9b14a803c3ef010b68b1650477937",
+      "outputSha256": "bb13ecdd3f38dda60320ad98fcddc94b9f585145b4de2dac6ae797100d1505a6",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "yandai-xiejie",
+      "source": "data/processed/place-display-images/yandai-xiejie-stamp-square.png",
+      "output": "/places/yandai-xiejie.webp",
+      "sourceSha256": "c7f46c4e8ac3c9cb30e02128f1d84c459c5ff577f83ec1f48c9e639b431b67a7",
+      "outputSha256": "67e4ef408b5497eaf751d274444ea5a0212fd111fba7e14e0924a53627f6f6e7",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "yongdingmen",
+      "source": "data/processed/place-display-images/yongdingmen-stamp-square.png",
+      "output": "/places/yongdingmen.webp",
+      "sourceSha256": "19689452a814d9cadf4b8da973a58881e25189cb74b1b959ee9adfc21c6ba0dc",
+      "outputSha256": "432075e53eeb9dcfc3c5d26b3c9dabcb479f98e4eba261079d58d01e36c40a51",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "yuetan-park",
+      "source": "data/processed/place-display-images/yuetan-park-stamp-square.png",
+      "output": "/places/yuetan-park.webp",
+      "sourceSha256": "5d5a053a20dd8c015bd0b47aeb6dd9bfe52844ef63917059d1af56c91981aa99",
+      "outputSha256": "40494165306767611887566b35b5b1f9a865841a7907fe557bfc111b035111b4",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "zhengyangmen",
+      "source": "data/processed/place-display-images/zhengyangmen-stamp-square.png",
+      "output": "/places/zhengyangmen.webp",
+      "sourceSha256": "b37ad1714cf86657d909fe9ddf006f6055293a1818eff189c4a45505fd3768bb",
+      "outputSha256": "fd0a8bd7be80b20a908e37e38ad1c12f5dfd4517e94a6872112567fabff65d88",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    },
+    {
+      "placeId": "zhihua-temple",
+      "source": "data/processed/place-display-images/zhihua-temple-stamp-square.png",
+      "output": "/places/zhihua-temple.webp",
+      "sourceSha256": "aa0ca6e867fa5ce19cfe64a36888aa328b189afe111794f5f30b206a9927b924",
+      "outputSha256": "4b36b0d02c57488ee45de58ca1c421af7a46d35f145d5290d1af198eeb4ae637",
+      "width": 960,
+      "height": 960,
+      "format": "webp"
+    }
+  ]
+}

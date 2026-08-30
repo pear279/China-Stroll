@@ -56,6 +56,10 @@ supabase db reset
 docker exec -i "$db_container" \
   psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 <<'SQL'
 do $$
+declare
+  published_place_count integer;
+  published_localization_count integer;
+  published_visit_count integer;
 begin
   if to_regclass('public.trips') is null
     or to_regclass('public.trip_days') is null
@@ -67,8 +71,59 @@ begin
   then
     raise exception 'core MVP schema objects are missing after the second reset';
   end if;
+
+  select count(*) into published_place_count
+  from public.places
+  where status = 'published'
+    and coordinate_system = 'WGS84'
+    and coordinates_checked_at is not null;
+
+  select count(*) into published_localization_count
+  from public.place_localizations
+  where review_status = 'published';
+
+  select count(*) into published_visit_count
+  from public.place_visit_information
+  where status = 'published'
+    and checked_at is not null
+    and review_due_at is not null;
+
+  if published_place_count <> 20
+    or published_localization_count <> 40
+    or published_visit_count <> 40
+  then
+    raise exception 'curated place counts are invalid: places %, localizations %, visit information %',
+      published_place_count, published_localization_count, published_visit_count;
+  end if;
+
+  if exists (
+    select 1
+    from public.place_visit_information visit
+    where visit.status = 'published'
+      and not exists (
+        select 1
+        from public.place_visit_information_sources source_link
+        where source_link.place_id = visit.place_id
+          and source_link.locale = visit.locale
+      )
+  ) then
+    raise exception 'published visit information is missing a source link';
+  end if;
 end;
 $$;
+
+set role anon;
+do $$
+begin
+  if (select count(*) from public.places) <> 20
+    or (select count(*) from public.place_localizations) <> 40
+    or (select count(*) from public.place_visit_information) <> 40
+  then
+    raise exception 'anonymous role cannot read the complete curated place set';
+  end if;
+end;
+$$;
+reset role;
 SQL
 
 echo "Local Supabase migrations and rollback tests passed"

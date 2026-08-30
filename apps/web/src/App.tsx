@@ -355,7 +355,7 @@ function WelcomeScreen({
       </section>
       <section className="welcome-card" aria-labelledby="start-title">
         <div className="postcard-stack" aria-hidden="true">
-          <img src="/places/palace-museum.png" alt="" />
+          <img src="/places/forbidden-city.webp" alt="" />
           <span>BEIJING · 北京</span>
         </div>
         <h2 id="start-title">Start your first stroll</h2>

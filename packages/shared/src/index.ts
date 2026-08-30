@@ -193,7 +193,7 @@ export const samplePlaces: SamplePlace[] = [
     shortIntro: "Walk through the heart of the former imperial city and its monumental palace courtyards.",
     durationMinutes: 240,
     coordinate: [116.3907694, 39.9172757],
-    image: "/places/palace-museum.png",
+    image: "/places/forbidden-city.webp",
   },
   {
     id: "jingshan-park",
@@ -202,7 +202,7 @@ export const samplePlaces: SamplePlace[] = [
     shortIntro: "Climb to the Central Axis viewpoint directly north of the Forbidden City.",
     durationMinutes: 90,
     coordinate: [116.3903973, 39.9244589],
-    image: "/places/jingshan-park.png",
+    image: "/places/jingshan-park.webp",
   },
   {
     id: "temple-of-heaven",
@@ -211,7 +211,7 @@ export const samplePlaces: SamplePlace[] = [
     shortIntro: "Explore the ceremonial spaces built for imperial rites and prayers for good harvests.",
     durationMinutes: 180,
     coordinate: [116.4028716, 39.8799066],
-    image: "/places/temple-of-heaven.png",
+    image: "/places/temple-of-heaven.webp",
   },
 ]
 
@@ -346,7 +346,7 @@ export function measureSpreadKilometres(stops: TripStop[]): number {
 }
 
 export function resolvePlaceImage(placeId: string): string {
-  return `/places/${placeId === "forbidden-city" ? "palace-museum" : placeId}.jpg`
+  return `/places/${placeId}.webp`
 }
 
 export function placeInitials(name: string): string {

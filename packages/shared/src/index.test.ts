@@ -130,8 +130,8 @@ describe("buildSampleSuggestion", () => {
 
 describe("place display helpers", () => {
   it("returns the optimized display image path for every place", () => {
-    expect(resolvePlaceImage("forbidden-city")).toBe("/places/palace-museum.jpg")
-    expect(resolvePlaceImage("summer-palace")).toBe("/places/summer-palace.jpg")
+    expect(resolvePlaceImage("forbidden-city")).toBe("/places/forbidden-city.webp")
+    expect(resolvePlaceImage("summer-palace")).toBe("/places/summer-palace.webp")
   })
 
   it("builds readable initials for a placeholder tile", () => {
