@@ -31,7 +31,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         globIgnores: ["assets/TravelMap-*.js", "assets/maplibre-gl-worker-*.js"],
         runtimeCaching: [{
-          urlPattern: ({ url }) => url.pathname.startsWith("/places/") && url.pathname.endsWith(".jpg"),
+          urlPattern: ({ url }) => url.pathname.startsWith("/places/") && url.pathname.endsWith(".webp"),
           handler: "CacheFirst",
           options: {
             cacheName: "reviewed-place-images",

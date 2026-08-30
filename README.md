@@ -16,6 +16,17 @@ npm run dev:web
 
 浏览器打开 `http://localhost:5173`。没有后端密钥时可以使用三景点预览，预览数据只保存在当前浏览器。
 
+创建或恢复行程后，应用使用四个可直达模块：
+
+- `/attractions`：已审核景点、附近筛选、收藏、详情和加入行程；
+- `/map`：行程/附近景点地图、同步列表和第三方导航入口；
+- `/tools`：导航说明、支付提示、汇率/翻译接入状态和紧急电话；
+- `/me`：个人行程、日期、AI 行程建议、预约与成员状态。
+
+本地 Vite 和 Cloudflare Pages 都支持直接打开这些路径。Pages 使用无顶层 `404.html` 时的默认 SPA 回退；`/health` 与 `/v1/*` 仍由 Pages Functions 处理，不需要额外的 `_redirects` 文件。
+
+景点展示图只使用 `data/processed/place-display-images` 中的非真实照片风格图片。首次取得或更新该目录后运行 `npm run images:prepare`，它会校验 52 个地点映射并生成网页使用的 WebP；`npm run build:web` 会先执行 `npm run images:verify`，防止真实照片或未映射文件进入构建。
+
 当前生产构建暂时开启测试登录。用户填写邮箱后会创建 Supabase 匿名会话，不发送邮件，也不验证邮箱。邮箱只在当前标签页保存为遮罩后的显示文字。退出登录或清除浏览器数据后，该匿名账号无法恢复。公开发布前应关闭 `VITE_ENABLE_TEST_LOGIN`，恢复正式账号登录，并为匿名入口增加 Turnstile。
 
 单独调试 Worker 时需要设置 Supabase 服务端密钥。
