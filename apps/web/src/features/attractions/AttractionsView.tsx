@@ -65,7 +65,7 @@ export function AttractionsView({
       <header className="module-heading">
         <div>
           <span className="eyebrow">Explore Beijing</span>
-          <h1 id="attractions-heading">Attractions</h1>
+          <h1 id="attractions-heading">Reviewed attractions</h1>
           <p>Reviewed places, practical visit lengths, and one clear route into your day.</p>
         </div>
         <span className="count-chip">{visiblePlaces.length} shown</span>
