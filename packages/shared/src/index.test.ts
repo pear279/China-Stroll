@@ -3,6 +3,7 @@ import coordinateReviews from "../../../data/coordinate-reviews.json"
 import {
   buildSampleSuggestion,
   collectPlaceCategories,
+  filterPlaceSummaries,
   formatCategoryLabel,
   formatDurationHours,
   haversineKilometres,
@@ -166,8 +167,9 @@ describe("place display helpers", () => {
 })
 
 describe("shared package entry point", () => {
-  it("re-exports the place contract schemas", () => {
+  it("re-exports the place contract schemas and discovery helpers", () => {
     expect(placeCatalogSchema.safeParse).toBeTypeOf("function")
     expect(placeQuestionResponseSchema.safeParse).toBeTypeOf("function")
+    expect(filterPlaceSummaries).toBeTypeOf("function")
   })
 })

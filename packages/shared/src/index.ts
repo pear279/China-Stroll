@@ -1,6 +1,8 @@
 import type { PlaceSummary } from "./place-contracts"
+import { haversineKilometres } from "./place-discovery"
 
 export * from "./place-contracts"
+export * from "./place-discovery"
 
 export type Coordinate = [longitude: number, latitude: number]
 
@@ -118,17 +120,6 @@ const TRANSFER_MINUTES = 30
 const LUNCH_START_MINUTES = 12 * 60
 const LUNCH_MINUTES = 60
 const DAY_END_MINUTES = 18 * 60
-
-export function haversineKilometres(from: Coordinate, to: Coordinate): number {
-  const radius = 6371
-  const toRadians = (value: number) => (value * Math.PI) / 180
-  const deltaLatitude = toRadians(to[1] - from[1])
-  const deltaLongitude = toRadians(to[0] - from[0])
-  const a =
-    Math.sin(deltaLatitude / 2) ** 2
-    + Math.cos(toRadians(from[1])) * Math.cos(toRadians(to[1])) * Math.sin(deltaLongitude / 2) ** 2
-  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(a)))
-}
 
 export function orderStopsByProximity(stops: TripStop[]): TripStop[] {
   const located = stops.filter((stop) => stop.coordinate)
