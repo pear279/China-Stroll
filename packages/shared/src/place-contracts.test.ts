@@ -1,3 +1,6 @@
+/// <reference types="node" />
+// @vitest-environment node
+import { readFile } from "node:fs/promises"
 import { describe, expect, it } from "vitest"
 import {
   placeCatalogEntrySchema,
@@ -126,6 +129,15 @@ function buildCatalog() {
 }
 
 describe("place contracts", () => {
+  it("validates the generated browser catalog", async () => {
+    const url = new URL("../../../apps/web/public/data/places-v1.json", import.meta.url)
+    const payload = JSON.parse(await readFile(url, "utf8"))
+    const catalog = placeCatalogSchema.parse(payload)
+    expect(catalog.locales.en).toHaveLength(20)
+    expect(catalog.locales["zh-CN"]).toHaveLength(20)
+    expect(catalog.locales.en.every((entry) => entry.displayImage.startsWith("/places/"))).toBe(true)
+  })
+
   it("rejects a web-grounded answer without clickable citations", () => {
     expect(() =>
       placeQuestionResponseSchema.parse({

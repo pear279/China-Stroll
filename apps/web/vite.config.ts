@@ -28,7 +28,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        globPatterns: ["**/*.{js,css,html,json,svg,png,woff2}"],
         globIgnores: ["assets/TravelMap-*.js", "assets/maplibre-gl-worker-*.js"],
         runtimeCaching: [{
           urlPattern: ({ url }) => url.pathname.startsWith("/places/") && url.pathname.endsWith(".webp"),
