@@ -757,6 +757,79 @@ export type Database = {
           },
         ]
       }
+      trip_location_sharing_preferences: {
+        Row: {
+          enabled: boolean
+          enabled_at: string | null
+          expires_at: string
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          enabled_at?: string | null
+          expires_at: string
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          enabled_at?: string | null
+          expires_at?: string
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_location_sharing_preferences_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_member_locations: {
+        Row: {
+          expires_at: string
+          latitude: number
+          longitude: number
+          sharing_enabled: boolean
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          latitude: number
+          longitude: number
+          sharing_enabled?: boolean
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          latitude?: number
+          longitude?: number
+          sharing_enabled?: boolean
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_member_locations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_members: {
         Row: {
           created_at: string
@@ -1014,6 +1087,23 @@ export type Database = {
           p_locale?: string
           p_name: string
           p_start_date?: string
+        }
+        Returns: Json
+      }
+      set_mvp_location_sharing: {
+        Args: {
+          p_actor_id: string
+          p_enabled: boolean
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      upsert_mvp_current_location: {
+        Args: {
+          p_actor_id: string
+          p_latitude: number
+          p_longitude: number
+          p_trip_id: string
         }
         Returns: Json
       }

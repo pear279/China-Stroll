@@ -430,4 +430,133 @@ begin
 end;
 $$;
 
+do $$
+declare
+  v_actor constant uuid := '44444444-4444-4444-8444-444444444444';
+  v_peer constant uuid := '77777777-7777-4777-8777-777777777777';
+  v_removed_member constant uuid := '99999999-9999-4999-8999-999999999999';
+  v_outsider constant uuid := '88888888-8888-4888-8888-888888888888';
+  v_trip uuid;
+  v_other_trip uuid;
+begin
+  if has_function_privilege(
+    'authenticated',
+    'public.set_mvp_location_sharing(uuid,uuid,boolean)',
+    'execute'
+  ) then
+    raise exception 'authenticated must not execute set_mvp_location_sharing';
+  end if;
+
+  if has_function_privilege(
+    'authenticated',
+    'public.upsert_mvp_current_location(uuid,uuid,double precision,double precision)',
+    'execute'
+  ) then
+    raise exception 'authenticated must not execute upsert_mvp_current_location';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.trip_member_locations', 'insert, update, delete') then
+    raise exception 'authenticated must not mutate trip member locations directly';
+  end if;
+
+  insert into auth.users (id, aud, role, email, created_at, updated_at)
+  values
+    (v_peer, 'authenticated', 'authenticated', 'mvp-location-peer@example.invalid', now(), now()),
+    (v_removed_member, 'authenticated', 'authenticated', 'mvp-location-removed@example.invalid', now(), now()),
+    (v_outsider, 'authenticated', 'authenticated', 'mvp-location-outsider@example.invalid', now(), now());
+
+  v_trip := (
+    public.create_mvp_trip(
+      v_actor,
+      '55555555-5555-4555-8555-555555555581',
+      'Location sharing test trip',
+      current_date,
+      'en'
+    ) ->> 'tripId'
+  )::uuid;
+
+  v_other_trip := (
+    public.create_mvp_trip(
+      v_actor,
+      '55555555-5555-4555-8555-555555555582',
+      'Other location sharing test trip',
+      current_date,
+      'en'
+    ) ->> 'tripId'
+  )::uuid;
+
+  insert into public.trip_members (trip_id, user_id, role, status, invited_by, joined_at)
+  values
+    (v_trip, v_peer, 'editor', 'active', v_actor, now()),
+    (v_trip, v_removed_member, 'viewer', 'removed', v_actor, null);
+
+  perform public.set_mvp_location_sharing(v_actor, v_trip, true);
+  perform public.upsert_mvp_current_location(v_actor, v_trip, 39.9163, 116.3972);
+
+  if not exists (
+    select 1
+    from public.trip_member_locations
+    where trip_id = v_trip
+      and user_id = v_actor
+      and expires_at > now()
+  ) then
+    raise exception 'enabled sharing must retain one unexpired current point';
+  end if;
+
+  perform public.set_mvp_location_sharing(v_actor, v_other_trip, true);
+  perform public.upsert_mvp_current_location(v_actor, v_other_trip, 39.9164, 116.3973);
+
+  perform set_config('request.jwt.claim.sub', v_peer::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_peer, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  if (select count(*) from public.trip_member_locations where trip_id = v_trip) <> 1 then
+    raise exception 'an active same-trip peer must read an enabled unexpired current point';
+  end if;
+
+  if exists (select 1 from public.trip_member_locations where trip_id = v_other_trip) then
+    raise exception 'a member cannot read another trip''s location rows';
+  end if;
+
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_removed_member::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_removed_member, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  if exists (select 1 from public.trip_member_locations) then
+    raise exception 'a removed member must not read current locations';
+  end if;
+
+  reset role;
+  update public.trip_member_locations
+  set expires_at = now() - interval '1 second'
+  where trip_id = v_trip and user_id = v_actor;
+
+  set local role authenticated;
+  if exists (select 1 from public.trip_member_locations where trip_id = v_trip) then
+    raise exception 'an expired current point must not be selected by an active peer';
+  end if;
+
+  reset role;
+  perform public.upsert_mvp_current_location(v_actor, v_trip, 39.9163, 116.3972);
+  perform public.set_mvp_location_sharing(v_actor, v_trip, false);
+
+  if exists (
+    select 1 from public.trip_member_locations where trip_id = v_trip and user_id = v_actor
+  ) then
+    raise exception 'disabling sharing must revoke the current point';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_outsider::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_outsider, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  if exists (select 1 from public.trip_member_locations) then
+    raise exception 'a non-member must not read any trip member locations';
+  end if;
+
+  reset role;
+end;
+$$;
+
 rollback;
