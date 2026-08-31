@@ -1,17 +1,17 @@
 import { Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send, X } from "lucide-react"
-import { FormEvent, useEffect, useRef, useState } from "react"
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react"
 import {
+  type GuideSource,
   resolvePlaceImage,
   type PlaceDetail,
   type PlaceGuideResponse,
   type PlaceQuestionResponse,
-  type PlaceSourceCitation,
   type PlaceSummary,
   type TripDay,
 } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 import { amapSearchUrl, appleMapsUrl, googleMapsUrl } from "../lib/navigation"
-import { PlaceSources } from "./PlaceSources"
+import { PlaceSources, type PlaceDisplaySource } from "./PlaceSources"
 
 type Props = {
   place: PlaceSummary
@@ -45,8 +45,10 @@ export function PlaceDetailPanel({
   const [busy, setBusy] = useState<string | null>(null)
   const detailRequestId = useRef(0)
   const questionRequestId = useRef(0)
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  function toGuideCitations(sources: PlaceGuideResponse["sources"]): PlaceSourceCitation[] {
+  function toGuideDisplaySources(sources: GuideSource[]): PlaceDisplaySource[] {
     return sources
       .filter((source): source is PlaceGuideResponse["sources"][number] & { url: string } => Boolean(source.url))
       .map((source) => ({
@@ -54,15 +56,11 @@ export function PlaceDetailPanel({
         name: source.name,
         url: source.url,
         publishedAt: null,
-        checkedAt: source.checkedAt ?? source.reviewDueAt ?? new Date().toISOString(),
+        checkedAt: source.checkedAt,
         reviewDueAt: source.reviewDueAt,
         needsRecheck: source.needsRecheck,
         sourceType: "reviewed-reference",
       }))
-  }
-
-  function formatDate(value: string | null) {
-    return value ? value.slice(0, 10) : "date unavailable"
   }
 
   function formatDateTime(value: string | null) {
@@ -113,6 +111,10 @@ export function PlaceDetailPanel({
     }
   }, [audience, place.id, repository])
 
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+  }, [])
+
   async function run(label: string, task: () => Promise<void>) {
     setBusy(label)
     try { await task() } finally { setBusy(null) }
@@ -141,7 +143,36 @@ export function PlaceDetailPanel({
     })
   }
 
-  const guideCitations = guide ? toGuideCitations(guide.sources) : []
+  function trapFocus(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== "Tab" || !dialogRef.current) {
+      return
+    }
+
+    const focusableElements = [...dialogRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )]
+
+    if (focusableElements.length === 0) {
+      event.preventDefault()
+      return
+    }
+
+    const first = focusableElements[0]
+    const last = focusableElements[focusableElements.length - 1]
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+      return
+    }
+
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  const guideSources = guide ? toGuideDisplaySources(guide.sources) : []
   const detailSections = detail ? [
     { title: "History", content: detail.history },
     { title: "Visit advice", content: detail.visitorTips },
@@ -152,8 +183,15 @@ export function PlaceDetailPanel({
 
   return (
     <div className="detail-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="place-detail-title">
-        <button className="detail-close" type="button" onClick={onClose} aria-label="Close place details"><X size={20} /></button>
+      <section
+        ref={dialogRef}
+        className="detail-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="place-detail-title"
+        onKeyDown={trapFocus}
+      >
+        <button ref={closeButtonRef} className="detail-close" type="button" onClick={onClose} aria-label="Close place details"><X size={20} /></button>
         <img className="detail-hero" src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
         <div className="detail-content">
           <span className="eyebrow">Reviewed place guide</span>
@@ -224,12 +262,10 @@ export function PlaceDetailPanel({
           {status === "loading" && <p className="detail-state"><LoaderCircle className="spin" size={18} />Loading reviewed guide…</p>}
           {status === "failed" && <p className="detail-state">The detailed guide is unavailable. The place summary and navigation still work.</p>}
           {guide?.segments.map((segment) => <article className="guide-segment" key={segment.id}><h4>{segment.title ?? segment.type}</h4><p>{segment.content}</p></article>)}
-          {guideCitations.length > 0 && (
+          {guideSources.length > 0 && (
             <div className="guide-sources-block">
-              <p className="guide-source">
-                Reviewed sources checked {guideCitations.map((source) => formatDate(source.checkedAt)).join(" · ")}
-              </p>
-              <PlaceSources sources={guideCitations} />
+              <p className="guide-source">Reviewed sources</p>
+              <PlaceSources sources={guideSources} />
             </div>
           )}
 

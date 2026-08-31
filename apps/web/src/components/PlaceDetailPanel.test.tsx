@@ -88,6 +88,14 @@ const guide: PlaceGuideResponse = {
 
 const days: TripDay[] = [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null }]
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
+}
+
 function createAnswer(overrides: Partial<PlaceQuestionResponse> = {}): PlaceQuestionResponse {
   return {
     answer: "Start at Meridian Gate and look up for the layered roof details.",
@@ -150,6 +158,27 @@ describe("PlaceDetailPanel", () => {
     expect(await screen.findByRole("heading", { name: "Practical notes" })).toBeTruthy()
     expect(screen.getByText("Opening information needs rechecking")).toBeTruthy()
     expect(screen.getByRole("link", { name: /Palace Museum official source/i }).getAttribute("href")).toBe("https://www.dpm.org.cn/")
+  })
+
+  it("shows an explicit unknown check-date label for guide sources with no checkedAt", async () => {
+    const repository = createRepository()
+    repository.getGuide = vi.fn(async () => ({
+      ...guide,
+      sources: [
+        {
+          ...guide.sources[0],
+          checkedAt: null,
+          reviewDueAt: "2026-09-01T00:00:00.000Z",
+          needsRecheck: false,
+        },
+      ],
+    }))
+
+    renderPanel(repository)
+
+    expect(await screen.findByRole("heading", { name: "Practical notes" })).toBeTruthy()
+    expect(screen.getByText("Check date unavailable")).toBeTruthy()
+    expect(screen.queryByText("Checked 2026-09-01")).toBeNull()
   })
 
   it("allows signed-out preview questions and labels reviewed answers", async () => {
@@ -257,6 +286,60 @@ describe("PlaceDetailPanel", () => {
 
     await waitFor(() => {
       expect((input as HTMLInputElement).value).toBe("What should I notice first?")
+    })
+  })
+
+  it("moves initial focus into the dialog and traps Tab navigation", async () => {
+    const repository = createRepository()
+    const user = userEvent.setup()
+
+    renderPanel(repository)
+
+    const closeButton = await screen.findByRole("button", { name: "Close place details" })
+    expect(document.activeElement).toBe(closeButton)
+
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Amap search" }))
+
+    await user.tab()
+    expect(document.activeElement).toBe(closeButton)
+  })
+
+  it("ignores stale guide responses after the audience changes", async () => {
+    const childGuide = {
+      ...guide,
+      audience: "child" as const,
+      segments: [
+        {
+          id: 2,
+          type: "family" as const,
+          audience: "child" as const,
+          title: "Family route",
+          content: "Look for the guardian lions before the long courtyard walk.",
+          sequence: 0,
+          updatedAt: "2026-08-30T00:00:00.000Z",
+        },
+      ],
+    }
+    const generalGuideDeferred = createDeferred<PlaceGuideResponse>()
+    const childGuideDeferred = createDeferred<PlaceGuideResponse>()
+    const repository = createRepository()
+
+    repository.getGuide = vi.fn((_, __, audience) => (
+      audience === "child" ? childGuideDeferred.promise : generalGuideDeferred.promise
+    ))
+
+    renderPanel(repository)
+
+    const user = userEvent.setup()
+    await user.selectOptions(screen.getByRole("combobox", { name: "Guide audience" }), "child")
+
+    childGuideDeferred.resolve(childGuide)
+    expect(await screen.findByText("Look for the guardian lions before the long courtyard walk.")).toBeTruthy()
+
+    generalGuideDeferred.resolve(guide)
+    await waitFor(() => {
+      expect(screen.queryByText("The palace remained the imperial center for almost five centuries.")).toBeNull()
     })
   })
 })

@@ -1,6 +1,10 @@
 import { ExternalLink } from "lucide-react"
 import type { PlaceSourceCitation } from "../../../../packages/shared/src"
 
+export type PlaceDisplaySource = Omit<PlaceSourceCitation, "checkedAt"> & {
+  checkedAt: string | null
+}
+
 function formatReviewDate(value: string | null) {
   return value ? value.slice(0, 10) : "date unavailable"
 }
@@ -16,7 +20,16 @@ function sourceTypeLabel(sourceType: PlaceSourceCitation["sourceType"]) {
   }
 }
 
-export function PlaceSources({ sources }: { sources: PlaceSourceCitation[] }) {
+function sourceStatusLabel(source: PlaceDisplaySource) {
+  if (!source.checkedAt) {
+    return source.needsRecheck
+      ? "Check date unavailable; recheck before visiting"
+      : "Check date unavailable"
+  }
+  return source.needsRecheck ? "Recheck before visiting" : `Checked ${formatReviewDate(source.checkedAt)}`
+}
+
+export function PlaceSources({ sources }: { sources: PlaceDisplaySource[] }) {
   return (
     <ul className="place-sources">
       {sources.map((source) => (
@@ -30,7 +43,7 @@ export function PlaceSources({ sources }: { sources: PlaceSourceCitation[] }) {
             <span className="place-source-name">{source.name}</span>
           )}
           <span className="place-source-type">{sourceTypeLabel(source.sourceType)}</span>
-          <small>{source.needsRecheck ? "Recheck before visiting" : `Checked ${formatReviewDate(source.checkedAt)}`}</small>
+          <small>{sourceStatusLabel(source)}</small>
         </li>
       ))}
     </ul>
