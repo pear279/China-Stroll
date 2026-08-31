@@ -12,6 +12,7 @@ import {
   type PlaceGuideResponse,
   type PlaceLibraryItem,
   type PlaceQuestionResponse,
+  type PlaceSourceCitation,
   type PlaceSummary,
   type TripSnapshot,
 } from "../../../packages/shared/src"
@@ -37,7 +38,9 @@ import {
   suggestionStatusSchema,
   tripCommandResultSchema,
 } from "./contracts"
-import { generatePlaceAnswer, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { answerPlaceQuestion } from "./placeIntelligence"
+import { TavilyWebSearchProvider } from "./webSearch"
 
 type WorkerSecretBindings = {
   SUPABASE_SERVICE_ROLE_KEY: string
@@ -487,7 +490,7 @@ app.post("/v1/places/:placeId/questions", async (context) => {
       .eq("locale", parsed.data.locale)
       .eq("status", "published"),
     client.from("place_sources")
-      .select("id")
+      .select("id,source_name,source_url,source_type,published_at,checked_at,review_due_at")
       .eq("place_id", placeId.data)
       .eq("status", "published"),
   ])
@@ -495,78 +498,47 @@ app.post("/v1/places/:placeId/questions", async (context) => {
     return mapDatabaseError(context, placeResult.error ?? documentResult.error ?? sourceResult.error as { message: string })
   }
   if (!placeResult.data) return context.json(apiError("NOT_FOUND", "Guide not found."), 404)
-  const publishedSourceIds = new Set((sourceResult.data ?? []).map((source) => source.id))
-  const terms = parsed.data.question.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+  const sources: PlaceSourceCitation[] = (sourceResult.data ?? []).flatMap((source) => {
+    if (!source.source_url?.startsWith("https://") || !source.checked_at) return []
+    return [{
+      id: String(source.id),
+      name: source.source_name,
+      url: source.source_url,
+      publishedAt: source.published_at,
+      checkedAt: source.checked_at,
+      reviewDueAt: source.review_due_at,
+      needsRecheck: isReviewOverdue(source.review_due_at),
+      sourceType: source.source_type === "official" ? "official" : "reviewed-reference",
+    }]
+  })
   const documents = (documentResult.data ?? []).map((document) => ({
-    ...document,
-    score: terms.filter((term) => `${document.section} ${document.content}`.toLocaleLowerCase().includes(term)).length,
-  })).sort((left, right) => right.score - left.score || right.updated_at.localeCompare(left.updated_at)).slice(0, 4)
-  const passages = documents.map((document) => ({
-    id: document.id,
-    sourceIds: document.source_ids.filter((sourceId) => publishedSourceIds.has(sourceId)),
-    title: document.section,
+    id: String(document.id),
+    section: document.section,
     content: document.content,
+    sourceIds: document.source_ids.map(String),
+    updatedAt: document.updated_at,
   }))
-  const sourceIds = [...new Set(passages.flatMap((passage) => passage.sourceIds))]
-  const siliconFlow = siliconFlowConfigFromBindings(context.env)
-  let modelAnswer = null
-  if (siliconFlow.apiKey && passages.length > 0) {
+  const hasLocalMatch = documents.some((document) => {
+    const terms = parsed.data.question.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []
+    const text = `${document.section} ${document.content}`.toLocaleLowerCase()
+    return terms.some((term) => text.includes(term))
+  })
+  if (!hasLocalMatch && context.env.TAVILY_API_KEY) {
     const limit = await consumePlaceIntelligenceLimit(context)
-    if (limit === "unauthenticated") {
-      return context.json(apiError("UNAUTHENTICATED", "Sign in before using external place intelligence."), 401)
-    }
-    if (limit === "rate-limited") {
-      return context.json(apiError("RATE_LIMITED", "Please wait before asking another external place question."), 429)
-    }
-    if (limit === "dependency-unavailable") {
-      return context.json(apiError("DEPENDENCY_UNAVAILABLE", "External place intelligence is temporarily unavailable."), 503)
-    }
-    modelAnswer = await generatePlaceAnswer(siliconFlow, {
-      question: parsed.data.question,
-      locale: parsed.data.locale,
-      placeName: placeResult.data.name,
-      passages,
-    }).catch((error) => {
-      console.error(JSON.stringify({ message: "siliconflow_place_answer_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
-      return null
-    })
+    if (limit === "unauthenticated") return context.json(apiError("UNAUTHENTICATED", "Sign in before using external place intelligence."), 401)
+    if (limit === "rate-limited") return context.json(apiError("RATE_LIMITED", "Please wait before asking another external place question."), 429)
+    if (limit === "dependency-unavailable") return context.json(apiError("DEPENDENCY_UNAVAILABLE", "External place intelligence is temporarily unavailable."), 503)
   }
-  const fallbackPassages = passages.slice(0, 2)
-  let response: PlaceQuestionResponse
-  if (modelAnswer) {
-    response = {
-      answer: modelAnswer.answer,
-      answerMode: "model-grounded-local",
-      sources: [],
-      sourceIds: modelAnswer.sourceIds,
-      generatedBy: "model",
-      searchedAt: null,
-      dependencyStatus: "ready",
-      updatedAt: documents[0]?.updated_at ?? null,
-    }
-  } else if (fallbackPassages.length > 0) {
-    response = {
-      answer: `The reviewed guide currently says ${fallbackPassages.map((passage) => passage.content).join(" ")}`,
-      answerMode: "reviewed-local",
-      sources: [],
-      sourceIds,
-      generatedBy: "deterministic-retrieval",
-      searchedAt: null,
-      dependencyStatus: "ai-unavailable",
-      updatedAt: documents[0]?.updated_at ?? null,
-    }
-  } else {
-    response = {
-      answer: "The available reviewed guide cannot confirm this yet.",
-      answerMode: "unable-to-confirm",
-      sources: [],
-      sourceIds: [],
-      generatedBy: "none",
-      searchedAt: null,
-      dependencyStatus: "no-reliable-sources",
-      updatedAt: documents[0]?.updated_at ?? null,
-    }
-  }
+  const response: PlaceQuestionResponse = await answerPlaceQuestion({
+    placeName: placeResult.data.name,
+    question: parsed.data.question,
+    locale: parsed.data.locale,
+    documents,
+    sources,
+    search: !hasLocalMatch && context.env.TAVILY_API_KEY
+      ? new TavilyWebSearchProvider(context.env.TAVILY_API_KEY)
+      : undefined,
+  })
   return context.json(response)
 })
 
