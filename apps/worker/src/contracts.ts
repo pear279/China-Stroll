@@ -94,6 +94,17 @@ export const placeQuestionSchema = z.object({
   question: z.string().trim().min(2).max(500),
 })
 
+export const placeRecommendationSchema = z.object({
+  preferences: z.array(z.enum(["family", "history", "relaxed", "photography", "half-day"])).max(5),
+  context: z.string().trim().max(300),
+  locale: localeSchema.default("en"),
+  coordinate: z.tuple([z.number().finite(), z.number().finite()]).nullable(),
+  radiusKm: z.union([z.literal(1), z.literal(3), z.literal(5), z.null()]),
+  availableMinutes: z.number().int().min(30).max(720).nullable(),
+  candidatePlaceIds: z.array(placeIdSchema).min(1).max(20),
+  plannedPlaceIds: z.array(placeIdSchema).max(20),
+})
+
 export const savePlaceSchema = z.object({
   placeId: placeIdSchema,
   collectionName: z.string().trim().min(1).max(80).nullable().optional(),

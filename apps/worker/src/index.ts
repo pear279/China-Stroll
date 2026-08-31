@@ -12,6 +12,8 @@ import {
   type PlaceGuideResponse,
   type PlaceLibraryItem,
   type PlaceQuestionResponse,
+  type PlaceRecommendationInput,
+  type PlaceRecommendationResponse,
   type PlaceSourceCitation,
   type PlaceSummary,
   type TripSnapshot,
@@ -32,6 +34,7 @@ import {
   placeIdSchema,
   placeListQuerySchema,
   placeQuestionSchema,
+  placeRecommendationSchema,
   savePlaceSchema,
   suggestionRisksSchema,
   suggestionRequestSchema,
@@ -41,6 +44,7 @@ import {
 import { generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 import { answerPlaceQuestion } from "./placeIntelligence"
 import { TavilyWebSearchProvider } from "./webSearch"
+import { rankPlaceRecommendations } from "../../../packages/shared/src/place-discovery"
 
 type WorkerSecretBindings = {
   SUPABASE_SERVICE_ROLE_KEY: string
@@ -539,6 +543,51 @@ app.post("/v1/places/:placeId/questions", async (context) => {
       ? new TavilyWebSearchProvider(context.env.TAVILY_API_KEY)
       : undefined,
   })
+  return context.json(response)
+})
+
+app.post("/v1/place-recommendations", async (context) => {
+  const parsed = placeRecommendationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the recommendation preferences and place list."), 400)
+  }
+  const client = createPublicClient(context.env)
+  if (!client) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "The place service is temporarily unavailable."), 503)
+  const candidateIds = [...new Set(parsed.data.candidatePlaceIds)]
+  const { data, error } = await client
+    .from("places")
+    .select("id,category_code,latitude,longitude,recommended_duration_minutes,coordinates_checked_at,place_localizations!inner(locale,name,short_intro,tags)")
+    .eq("status", "published")
+    .eq("place_localizations.locale", parsed.data.locale)
+    .eq("place_localizations.review_status", "published")
+    .eq("coordinate_system", "WGS84")
+    .in("id", candidateIds)
+  if (error) return mapDatabaseError(context, error)
+  const places = (data ?? []).flatMap((place) => {
+    const localization = Array.isArray(place.place_localizations) ? place.place_localizations[0] : place.place_localizations
+    if (!localization || place.latitude == null || place.longitude == null) return []
+    return [{
+      id: place.id,
+      locale: parsed.data.locale,
+      name: localization.name,
+      shortIntro: localization.short_intro,
+      categoryCode: place.category_code,
+      tags: localization.tags ?? [],
+      coordinate: [place.longitude, place.latitude] as [number, number],
+      durationMinutes: place.recommended_duration_minutes,
+      coordinatesCheckedAt: place.coordinates_checked_at,
+    }]
+  })
+  if (places.length !== candidateIds.length) {
+    return context.json(apiError("VALIDATION_FAILED", "One or more requested places are not published in this locale."), 400)
+  }
+  const input: PlaceRecommendationInput = { ...parsed.data, candidatePlaceIds: candidateIds, plannedPlaceIds: [...new Set(parsed.data.plannedPlaceIds)] }
+  const results = rankPlaceRecommendations(places, input)
+  const response: PlaceRecommendationResponse = {
+    results,
+    generatedBy: "deterministic",
+    updatedAt: new Date().toISOString(),
+  }
   return context.json(response)
 })
 
