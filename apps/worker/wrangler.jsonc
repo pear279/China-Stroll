@@ -16,6 +16,12 @@
     "SILICONFLOW_BASE_URL": "https://api.siliconflow.cn/v1",
     "SILICONFLOW_CHAT_MODEL": "deepseek-ai/DeepSeek-V4-Flash",
     "SILICONFLOW_EMBEDDING_MODEL": "BAAI/bge-m3",
-    "SILICONFLOW_TIMEOUT_MS": "15000"
-  }
+    "SILICONFLOW_TIMEOUT_MS": "15000",
+    "ALLOW_ANONYMOUS_PLACE_AI": "true"
+  },
+  "ratelimits": [{
+    "name": "PLACE_AI_RATE_LIMITER",
+    "namespace_id": "1001",
+    "simple": { "limit": 10, "period": 60 }
+  }]
 }

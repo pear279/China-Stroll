@@ -144,6 +144,7 @@ export type ApiErrorCode =
   | "VERSION_CONFLICT"
   | "DUPLICATE_COMMAND"
   | "SUGGESTION_EXPIRED"
+  | "RATE_LIMITED"
   | "DEPENDENCY_UNAVAILABLE"
 
 export function apiError(code: ApiErrorCode, message: string, details?: unknown) {

@@ -85,6 +85,7 @@ Implemented:
 
 - Public places: list, detail and guide.
 - Authenticated place question and place-library endpoints.
+- Place intelligence: reviewed local answers are public; paid SiliconFlow/Tavily calls are separately rate-limited per authenticated user or `CF-Connecting-IP`. The Tavily adapter validates the API payload and exposes only safe public HTTPS citations; it does not fetch search-result pages.
 - Trip create/read, add day, add stop, create suggestion and confirm suggestion.
 
 Next required endpoints:

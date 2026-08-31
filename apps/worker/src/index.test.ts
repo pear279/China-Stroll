@@ -56,9 +56,9 @@ describe("authentication boundary", () => {
     expect(requiresAuthentication("/v1/places/forbidden-city/guide")).toBe(false)
   })
 
-  it("protects saved places and place questions", () => {
+  it("protects saved places while keeping reviewed place questions public", () => {
     expect(requiresAuthentication("/v1/place-library")).toBe(true)
-    expect(requiresAuthentication("/v1/places/forbidden-city/questions")).toBe(true)
+    expect(requiresAuthentication("/v1/places/forbidden-city/questions")).toBe(false)
   })
 
   it("does not let a lookalike prefix bypass authentication", () => {

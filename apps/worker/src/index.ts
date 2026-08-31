@@ -39,16 +39,19 @@ import {
 } from "./contracts"
 import { generatePlaceAnswer, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 
-export type WorkerBindings = {
-  SUPABASE_URL: string
+type WorkerSecretBindings = {
   SUPABASE_SERVICE_ROLE_KEY: string
-  SUPABASE_PUBLISHABLE_KEY?: string
-  WEB_ORIGIN: string
   SILICONFLOW_API_KEY?: string
-  SILICONFLOW_BASE_URL?: string
-  SILICONFLOW_CHAT_MODEL?: string
-  SILICONFLOW_EMBEDDING_MODEL?: string
-  SILICONFLOW_TIMEOUT_MS?: string
+  TAVILY_API_KEY?: string
+}
+
+type WidenConfiguredBindings = {
+  [Key in keyof Cloudflare.Env]?: Cloudflare.Env[Key] extends string ? string : Cloudflare.Env[Key]
+}
+
+export type WorkerBindings = WidenConfiguredBindings & WorkerSecretBindings & {
+  SUPABASE_URL: string
+  WEB_ORIGIN: string
 }
 
 type Variables = {
@@ -63,7 +66,7 @@ export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/pla
 export function requiresAuthentication(pathname: string) {
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  ) || /^\/v1\/places\/[^/]+\/questions$/.test(pathname)
+  )
 }
 
 
@@ -101,6 +104,27 @@ function createPublicClient(env: WorkerBindings) {
   return createClient<Database>(env.SUPABASE_URL, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
+}
+
+export async function consumePlaceIntelligenceLimit(context: {
+  env: WorkerBindings
+  req: { header: (name: string) => string | undefined }
+}) {
+  const authorization = context.req.header("Authorization")
+  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : undefined
+  let userId: string | undefined
+  if (token && context.env.SUPABASE_URL && context.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const authClient = createClient<Database>(context.env.SUPABASE_URL, context.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const { data } = await authClient.auth.getUser(token)
+    userId = data.user?.id
+  }
+  if (context.env.ALLOW_ANONYMOUS_PLACE_AI !== "true" && !userId) return "unauthenticated" as const
+  const limiter = context.env.PLACE_AI_RATE_LIMITER
+  if (!limiter) return "dependency-unavailable" as const
+  const key = userId ?? context.req.header("CF-Connecting-IP") ?? "anonymous"
+  return (await limiter.limit({ key })).success ? "ok" as const : "rate-limited" as const
 }
 
 app.get("/v1/places", async (context) => {
@@ -484,15 +508,29 @@ app.post("/v1/places/:placeId/questions", async (context) => {
     content: document.content,
   }))
   const sourceIds = [...new Set(passages.flatMap((passage) => passage.sourceIds))]
-  const modelAnswer = await generatePlaceAnswer(siliconFlowConfigFromBindings(context.env), {
-    question: parsed.data.question,
-    locale: parsed.data.locale,
-    placeName: placeResult.data.name,
-    passages,
-  }).catch((error) => {
-    console.error(JSON.stringify({ message: "siliconflow_place_answer_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
-    return null
-  })
+  const siliconFlow = siliconFlowConfigFromBindings(context.env)
+  let modelAnswer = null
+  if (siliconFlow.apiKey && passages.length > 0) {
+    const limit = await consumePlaceIntelligenceLimit(context)
+    if (limit === "unauthenticated") {
+      return context.json(apiError("UNAUTHENTICATED", "Sign in before using external place intelligence."), 401)
+    }
+    if (limit === "rate-limited") {
+      return context.json(apiError("RATE_LIMITED", "Please wait before asking another external place question."), 429)
+    }
+    if (limit === "dependency-unavailable") {
+      return context.json(apiError("DEPENDENCY_UNAVAILABLE", "External place intelligence is temporarily unavailable."), 503)
+    }
+    modelAnswer = await generatePlaceAnswer(siliconFlow, {
+      question: parsed.data.question,
+      locale: parsed.data.locale,
+      placeName: placeResult.data.name,
+      passages,
+    }).catch((error) => {
+      console.error(JSON.stringify({ message: "siliconflow_place_answer_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+      return null
+    })
+  }
   const fallbackPassages = passages.slice(0, 2)
   let response: PlaceQuestionResponse
   if (modelAnswer) {
@@ -783,8 +821,8 @@ function mapDatabaseError(context: Parameters<typeof apiErrorResponse>[0], error
 }
 
 function apiErrorResponse(
-  context: { json: (body: ReturnType<typeof apiError>, status: 400 | 401 | 403 | 404 | 409 | 410 | 503) => Response },
-  status: 400 | 401 | 403 | 404 | 409 | 410 | 503,
+  context: { json: (body: ReturnType<typeof apiError>, status: 400 | 401 | 403 | 404 | 409 | 410 | 429 | 503) => Response },
+  status: 400 | 401 | 403 | 404 | 409 | 410 | 429 | 503,
   code: Parameters<typeof apiError>[0],
   message: string,
 ) {
