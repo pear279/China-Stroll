@@ -66,6 +66,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: trip/stop/reservation endpoints, database commands, Mine screens and tests.
   - Acceptance: add, edit, move and remove stops; create/update/delete reservations; version, role and idempotency rules hold; AI only drafts reservation fields.
   - Test: SQL rollback tests, API tests and mobile UI flow.
+  - Progress 2026-08-31: preview itinerary helpers now accept the full reviewed place catalog rather than the legacy three-place sample, and support pure remove/reorder state transitions with version increments. The account transport now has a versioned `PATCH` client boundary ready for the Worker route. Focused preview tests and typecheck passed in the Attractions worktree.
 
 - [ ] Task 8 — Complete Map 1.0
   - Goal: provide a map-first trip and nearby-place workflow.

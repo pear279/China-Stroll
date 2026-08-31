@@ -138,7 +138,8 @@ export function App() {
   async function addPlace(placeId: string, dayNumber = 1) {
     if (!trip) return
     if (mode === "preview") {
-      setTrip(addDemoStop(trip, placeId, dayNumber))
+      const place = places.find((item) => item.id === placeId)
+      if (place) setTrip(addDemoStop(trip, place, dayNumber))
       return
     }
     if (!session) return

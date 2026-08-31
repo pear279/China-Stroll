@@ -1,5 +1,6 @@
 import type {
   AgentSuggestion,
+  AgentChange,
   Locale,
   PlaceDetail,
   PlaceGuideResponse,
@@ -147,6 +148,12 @@ export const api = {
         expectedVersion: trip.version,
         commandId: crypto.randomUUID(),
       }),
+    })
+  },
+  applyTripChanges(accessToken: string, trip: TripSnapshot, changes: AgentChange[]) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/stops`, accessToken, {
+      method: "PATCH",
+      body: JSON.stringify({ expectedVersion: trip.version, commandId: crypto.randomUUID(), changes }),
     })
   },
   addTripDay(accessToken: string, trip: TripSnapshot, date: string | null = null) {

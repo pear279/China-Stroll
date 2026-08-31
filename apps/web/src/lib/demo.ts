@@ -2,6 +2,7 @@ import {
   buildSampleSuggestion,
   samplePlaces,
   type AgentSuggestion,
+  type PlaceSummary,
   type TripSnapshot,
 } from "../../../../packages/shared/src"
 
@@ -19,9 +20,8 @@ export function createDemoTrip(name: string, startDate: string | null): TripSnap
   }
 }
 
-export function addDemoStop(trip: TripSnapshot, placeId: string, dayNumber = 1): TripSnapshot {
-  const place = samplePlaces.find((item) => item.id === placeId)
-  if (!place || trip.stops.some((stop) => stop.placeId === placeId)) return trip
+export function addDemoStop(trip: TripSnapshot, place: PlaceSummary, dayNumber = 1): TripSnapshot {
+  if (trip.stops.some((stop) => stop.placeId === place.id)) return trip
 
   return {
     ...trip,
@@ -40,6 +40,27 @@ export function addDemoStop(trip: TripSnapshot, placeId: string, dayNumber = 1):
         sortOrder: trip.stops.filter((stop) => stop.dayNumber === dayNumber).length,
       },
     ],
+  }
+}
+
+export function removeDemoStop(trip: TripSnapshot, stopId: string): TripSnapshot {
+  const stops = trip.stops.filter((stop) => stop.id !== stopId)
+  if (stops.length === trip.stops.length) return trip
+  return { ...trip, version: trip.version + 1, stops }
+}
+
+export function reorderDemoStops(trip: TripSnapshot, stopId: string, targetIndex: number): TripSnapshot {
+  const moving = trip.stops.find((stop) => stop.id === stopId)
+  if (!moving) return trip
+  const dayNumber = moving.dayNumber ?? 1
+  const dayStops = trip.stops.filter((stop) => (stop.dayNumber ?? 1) === dayNumber).sort((left, right) => left.sortOrder - right.sortOrder)
+  const reordered = dayStops.filter((stop) => stop.id !== stopId)
+  reordered.splice(Math.max(0, Math.min(targetIndex, reordered.length)), 0, moving)
+  const sortOrders = new Map(reordered.map((stop, index) => [stop.id, index]))
+  return {
+    ...trip,
+    version: trip.version + 1,
+    stops: trip.stops.map((stop) => sortOrders.has(stop.id) ? { ...stop, sortOrder: sortOrders.get(stop.id)! } : stop),
   }
 }
 
