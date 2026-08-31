@@ -28,7 +28,7 @@
 - Modify: `apps/web/src/lib/demo.test.ts`
 
 **Interfaces:**
-- Consumes: `TripSnapshot`, `AgentChange`, `apply_mvp_trip_changes` Worker route.
+- Consumes: `TripSnapshot`, current published `PlaceSummary`, `AgentChange`, `apply_mvp_trip_changes` Worker route.
 - Produces: `api.applyTripChanges(accessToken, trip, changes)` and pure `removeDemoStop`, `reorderDemoStops` helpers.
 
 - [ ] **Step 1: Write failing preview-helper tests**
@@ -64,7 +64,7 @@ export function reorderDemoStops(trip: TripSnapshot, stopId: string, targetIndex
 }
 ```
 
-Implement `removeDemoStop` by filtering the ID and incrementing preview version only when an item was removed. Add `api.applyTripChanges` that sends `PATCH /v1/trips/:tripId/stops` with `{ expectedVersion, commandId, changes }`.
+Change `addDemoStop` to accept the current `PlaceSummary` rather than looking only in the three legacy `samplePlaces`; this keeps preview Day 2 additions aligned with the full reviewed selector. Implement `removeDemoStop` by filtering the ID and incrementing preview version only when an item was removed. Add `api.applyTripChanges` that sends `PATCH /v1/trips/:tripId/stops` with `{ expectedVersion, commandId, changes }`.
 
 - [ ] **Step 4: Run focused verification**
 
