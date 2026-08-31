@@ -105,6 +105,10 @@ All trip writes use a command id, expected trip version, permission check and ch
 
 Attractions list → place detail → choose day → add stop command → new trip version → Mine itinerary and Map update from the same snapshot.
 
+### Mine itinerary editing
+
+Mine adds only reviewed, not-yet-scheduled places to the selected day. Reordering normalizes the selected day's `sortOrder` values and writes the complete move set as one versioned command; deletion uses the same command boundary. The preview applies equivalent deterministic local transitions.
+
 ### Map navigation
 
 Map/list selection → set `selectedPlaceId` → action sheet → user chooses Apple Maps, Google Maps or a China-local provider → external app/browser handles navigation. The internal map never claims its dotted visit-order line is a calculated route.

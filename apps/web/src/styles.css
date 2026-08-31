@@ -96,6 +96,16 @@ input:focus { border-color: #b33a2e; }
 .timeline-number { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border-radius: 50%; color: #fff8eb; background: #b33a2e; font-family: "Stroll Serif", Georgia, serif; font-weight: 800; }
 .timeline-copy { display: grid; gap: .3rem; }
 .timeline-copy span { display: flex; align-items: center; gap: .35rem; color: #776e64; font-size: .75rem; }
+.itinerary-editor { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .7rem; margin: -.35rem 0 1.15rem; padding: .8rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.itinerary-editor label { display: grid; gap: .35rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.itinerary-editor select { width: 100%; min-height: 2.65rem; padding: .45rem .65rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; }
+.itinerary-editor .primary-button { min-height: 2.65rem; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; padding-inline: .85rem; white-space: nowrap; }
+.timeline li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .45rem; }
+.timeline li.is-dragging { opacity: .48; }
+.stop-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: .15rem; }
+.stop-actions button, .drag-handle { width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid #d7cfc2; border-radius: .3rem; color: #625a52; background: #fffdf8; }
+.drag-handle { cursor: grab; color: #958a7d; }
+.stop-actions .remove-stop { color: #9b342a; }
 .assistant-card { position: relative; margin-top: 1rem; padding: 1.2rem 1.2rem 1.2rem 4.6rem; border: 1px solid #d6caa9; background: #fff9e9; }
 .assistant-icon { position: absolute; top: 1.15rem; left: 1.15rem; width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border-radius: 50%; color: #7f4d08; background: #f0dca5; }
 .assistant-card h2 { margin: .3rem 0 .65rem; }
@@ -346,6 +356,10 @@ input:focus { border-color: #b33a2e; }
   .detail-facts { grid-template-columns: 1fr; }
   .place-question > div { grid-template-columns: 1fr; }
   .place-question button { width: 100%; min-height: 2.9rem; }
+  .itinerary-editor { grid-template-columns: 1fr; }
+  .itinerary-editor .primary-button { width: 100%; min-height: 2.9rem; }
+  .timeline li { grid-template-columns: minmax(0, 1fr); }
+  .stop-actions { justify-content: flex-end; }
 }
 
 @media (prefers-reduced-motion: reduce) {

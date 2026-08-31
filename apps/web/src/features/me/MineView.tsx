@@ -1,5 +1,6 @@
-import { CalendarDays, Check, Clock3, Compass, LoaderCircle, Plus, Sparkles, Users } from "lucide-react"
-import type { AgentSuggestion, TripSnapshot } from "../../../../../packages/shared/src"
+import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, Plus, Sparkles, Trash2, Users } from "lucide-react"
+import { useState } from "react"
+import type { AgentSuggestion, PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
 import type { AppMode } from "../../app-shell/types"
 
 export type MineViewProps = {
@@ -10,8 +11,12 @@ export type MineViewProps = {
   selectedPlaceId: string | null
   testIdentity: string | null
   trip: TripSnapshot
-  onAddDay: () => Promise<void>
+  places: PlaceSummary[]
+  onAddDay: () => Promise<number | null>
+  onAddPlace: (placeId: string, dayNumber?: number) => Promise<void>
   onConfirm: (suggestion: AgentSuggestion) => Promise<void>
+  onRemoveStop: (stopId: string) => Promise<void>
+  onReorderStop: (stopId: string, targetIndex: number) => Promise<void>
   onSelectDay: (dayNumber: number) => void
   onSelectPlace: (placeId: string) => void
   onSuggest: () => Promise<void>
@@ -25,16 +30,35 @@ export function MineView({
   selectedPlaceId,
   testIdentity,
   trip,
+  places,
   onAddDay,
+  onAddPlace,
   onConfirm,
+  onRemoveStop,
+  onReorderStop,
   onSelectDay,
   onSelectPlace,
   onSuggest,
 }: MineViewProps) {
+  const [placeToAdd, setPlaceToAdd] = useState("")
+  const [draggedStopId, setDraggedStopId] = useState<string | null>(null)
   const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
   const dayStops = [...trip.stops]
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
+  const plannedPlaceIds = new Set(trip.stops.map((stop) => stop.placeId).filter(Boolean))
+  const availablePlaces = places.filter((place) => !plannedPlaceIds.has(place.id))
+
+  async function handleAddDay() {
+    const dayNumber = await onAddDay()
+    if (dayNumber) onSelectDay(dayNumber)
+  }
+
+  async function handleAddPlace() {
+    if (!placeToAdd) return
+    await onAddPlace(placeToAdd, selectedDay)
+    setPlaceToAdd("")
+  }
 
   return (
     <section className="module-view mine-view" aria-labelledby="mine-heading">
@@ -44,7 +68,7 @@ export function MineView({
           <h1 id="mine-heading">My trip</h1>
           <p>{trip.name} · Version {trip.version}</p>
         </div>
-        <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void onAddDay()}>
+        <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void handleAddDay()}>
           <Plus aria-hidden="true" size={16} />Add day
         </button>
       </header>
@@ -70,12 +94,35 @@ export function MineView({
             <div><span className="eyebrow">Schedule</span><h2 id="itinerary-heading">Day {selectedDay} itinerary</h2></div>
             <span className="count-chip">{dayStops.length} stops</span>
           </div>
+          <div className="itinerary-editor">
+            <label>
+              Add reviewed attraction
+              <select value={placeToAdd} disabled={busy !== null || availablePlaces.length === 0} onChange={(event) => setPlaceToAdd(event.target.value)}>
+                <option value="">{availablePlaces.length === 0 ? "All reviewed attractions are scheduled" : "Choose a reviewed attraction"}</option>
+                {availablePlaces.map((place) => <option key={place.id} value={place.id}>{place.name}{place.aliases?.[0] ? ` · ${place.aliases[0]}` : ""}</option>)}
+              </select>
+            </label>
+            <button className="primary-button" type="button" disabled={!placeToAdd || busy !== null} onClick={() => void handleAddPlace()}>
+              <Plus aria-hidden="true" size={17} />Add to Day {selectedDay}
+            </button>
+          </div>
           {dayStops.length === 0 ? (
             <div className="empty-plan"><Compass aria-hidden="true" size={28} /><p>This day is open. Add a reviewed attraction when you are ready.</p></div>
           ) : (
             <ol className="timeline">
               {dayStops.map((stop, index) => (
-                <li key={stop.id}>
+                <li
+                  className={draggedStopId === stop.id ? "is-dragging" : undefined}
+                  draggable={busy === null}
+                  key={stop.id}
+                  onDragEnd={() => setDraggedStopId(null)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDragStart={() => setDraggedStopId(stop.id)}
+                  onDrop={() => {
+                    if (draggedStopId) void onReorderStop(draggedStopId, index)
+                    setDraggedStopId(null)
+                  }}
+                >
                   <button
                     className={selectedPlaceId === stop.placeId ? "timeline-card is-selected" : "timeline-card"}
                     type="button"
@@ -87,6 +134,12 @@ export function MineView({
                       <span><Clock3 aria-hidden="true" size={15} />{stop.startTime ? stop.startTime.slice(0, 5) : "Time open"} · {stop.durationMinutes ?? 90} min</span>
                     </span>
                   </button>
+                  <div className="stop-actions" aria-label={`${stop.name} itinerary controls`}>
+                    <span className="drag-handle" aria-label={`Drag ${stop.name} to reorder`} title="Drag to reorder"><GripVertical aria-hidden="true" size={17} /></span>
+                    <button type="button" disabled={busy !== null || index === 0} aria-label={`Move ${stop.name} up`} onClick={() => void onReorderStop(stop.id, index - 1)}><ArrowUp aria-hidden="true" size={16} /></button>
+                    <button type="button" disabled={busy !== null || index === dayStops.length - 1} aria-label={`Move ${stop.name} down`} onClick={() => void onReorderStop(stop.id, index + 1)}><ArrowDown aria-hidden="true" size={16} /></button>
+                    <button className="remove-stop" type="button" disabled={busy !== null} aria-label={`Remove ${stop.name}`} onClick={() => void onRemoveStop(stop.id)}><Trash2 aria-hidden="true" size={16} /></button>
+                  </div>
                 </li>
               ))}
             </ol>

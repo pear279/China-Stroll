@@ -68,6 +68,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Test: SQL rollback tests, API tests and mobile UI flow.
   - Progress 2026-08-31: preview itinerary helpers now accept the full reviewed place catalog rather than the legacy three-place sample, and support pure remove/reorder state transitions with version increments. The account transport now has a versioned `PATCH` client boundary ready for the Worker route. Focused preview tests and typecheck passed in the Attractions worktree.
   - Progress 2026-08-31: authenticated `PATCH /v1/trips/:tripId/stops` now sends bounded existing change operations through `apply_mvp_trip_changes` with `edit_itinerary` audit type, retaining role, command-id, expected-version, and change-log checks. Focused Worker contract/route tests, typecheck, and Worker dry run passed in the Attractions worktree.
+  - Progress 2026-08-31: Mine now lets a traveler select an unscheduled reviewed attraction for the active day, automatically focuses a newly created day, removes stops, and reorders stops with drag or accessible up/down controls. Preview persists these changes locally; account mode sends remove or normalized move commands through the versioned Worker endpoint. Focused Mine/AppShell/demo tests (16 assertions) and typecheck passed in the Attractions worktree.
 
 - [ ] Task 8 — Complete Map 1.0
   - Goal: provide a map-first trip and nearby-place workflow.

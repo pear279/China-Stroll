@@ -23,6 +23,8 @@ export function AppShell({
   testIdentity,
   onAddPlace,
   onAddDay,
+  onRemoveStop,
+  onReorderStop,
   onToggleSaved,
   onConfirm,
   onSuggest,
@@ -165,12 +167,16 @@ export function AppShell({
                 busy={busy}
                 message={message}
                 mode={mode}
+                places={places}
                 selectedDay={selectedDay}
                 selectedPlaceId={selectedPlaceId}
                 testIdentity={testIdentity}
                 trip={trip}
                 onAddDay={onAddDay}
+                onAddPlace={onAddPlace}
                 onConfirm={onConfirm}
+                onRemoveStop={onRemoveStop}
+                onReorderStop={onReorderStop}
                 onSelectDay={setSelectedDay}
                 onSelectPlace={setSelectedPlaceId}
                 onSuggest={onSuggest}

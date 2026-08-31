@@ -6,7 +6,7 @@ import { AppShell } from "./app-shell/AppShell"
 import { createPlaceRepository } from "./data/placeRepository"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
-import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates } from "./lib/demo"
+import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoStop, reorderDemoStops } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
@@ -106,11 +106,11 @@ export function App() {
     return () => { active = false }
   }, [mode, session])
 
-  async function run(label: string, task: () => Promise<void>) {
+  async function run<T>(label: string, task: () => Promise<T>): Promise<T | undefined> {
     setBusy(label)
     setMessage(null)
     try {
-      await task()
+      return await task()
     } catch (error) {
       setMessage(
         error instanceof ApiRequestError || error instanceof Error
@@ -149,16 +149,67 @@ export function App() {
     })
   }
 
-  async function addDay() {
+  async function addDay(): Promise<number | null> {
+    if (!trip) return null
+    if (mode === "preview") {
+      const nextTrip = addDemoDay(trip)
+      setTrip(nextTrip)
+      setMessage(`Day ${nextTrip.days.length} added. You can now build its itinerary.`)
+      return nextTrip.days.length
+    }
+    if (!session) return null
+    const nextTrip = await run("add-day", async () => {
+      await api.addTripDay(session.access_token, trip)
+      return loadTrip(session.access_token, trip.id)
+    })
+    if (!nextTrip) return null
+    setMessage(`Day ${nextTrip.days.length} added. You can now build its itinerary.`)
+    return nextTrip.days.length
+  }
+
+  async function removeStop(stopId: string) {
     if (!trip) return
     if (mode === "preview") {
-      setTrip(addDemoDay(trip))
+      setTrip(removeDemoStop(trip, stopId))
+      setMessage("Stop removed from this itinerary.")
       return
     }
     if (!session) return
-    await run("add-day", async () => {
-      await api.addTripDay(session.access_token, trip)
+    await run("remove-stop", async () => {
+      await api.applyTripChanges(session.access_token, trip, [{ op: "remove_stop", stopId }])
       await loadTrip(session.access_token, trip.id)
+      setMessage("Stop removed from this itinerary.")
+    })
+  }
+
+  async function reorderStop(stopId: string, targetIndex: number) {
+    if (!trip) return
+    const stop = trip.stops.find((item) => item.id === stopId)
+    const dayNumber = stop?.dayNumber ?? 1
+    const dayStops = [...trip.stops]
+      .filter((item) => (item.dayNumber ?? 1) === dayNumber)
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+    const currentIndex = dayStops.findIndex((item) => item.id === stopId)
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= dayStops.length || currentIndex === targetIndex) return
+
+    if (mode === "preview") {
+      setTrip(reorderDemoStops(trip, stopId, targetIndex))
+      setMessage("Itinerary order updated.")
+      return
+    }
+    if (!session) return
+    const ordered = [...dayStops]
+    const [moved] = ordered.splice(currentIndex, 1)
+    ordered.splice(targetIndex, 0, moved)
+    await run("reorder-stop", async () => {
+      await api.applyTripChanges(session.access_token, trip, ordered.map((item, index) => ({
+        op: "move_stop",
+        stopId: item.id,
+        dayNumber,
+        sortOrder: index,
+      })))
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Itinerary order updated.")
     })
   }
 
@@ -242,6 +293,8 @@ export function App() {
       trip={trip}
       onAddPlace={addPlace}
       onAddDay={addDay}
+      onRemoveStop={removeStop}
+      onReorderStop={reorderStop}
       onToggleSaved={toggleSavedPlace}
       onConfirm={confirmSuggestion}
       onSuggest={suggest}

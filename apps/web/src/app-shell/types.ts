@@ -18,7 +18,9 @@ export type AppShellProps = {
   trip: TripSnapshot
   testIdentity: string | null
   onAddPlace: (placeId: string, dayNumber?: number) => Promise<void>
-  onAddDay: () => Promise<void>
+  onAddDay: () => Promise<number | null>
+  onRemoveStop: (stopId: string) => Promise<void>
+  onReorderStop: (stopId: string, targetIndex: number) => Promise<void>
   onToggleSaved: (placeId: string) => Promise<void>
   onConfirm: (suggestion: AgentSuggestion) => Promise<void>
   onSuggest: () => Promise<void>

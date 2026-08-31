@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
-import type { TripSnapshot } from "../../../../../packages/shared/src"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import type { PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
 import { MineView, type MineViewProps } from "./MineView"
 
 const trip: TripSnapshot = {
@@ -29,6 +29,17 @@ const trip: TripSnapshot = {
   suggestions: [],
 }
 
+const places: PlaceSummary[] = [
+  {
+    id: "jingshan-park", locale: "en", name: "Jingshan Park", aliases: ["景山公园"], categoryCode: "park", tags: [], shortIntro: "A central-axis viewpoint.",
+    coordinate: [116.3903973, 39.9244589], durationMinutes: 90, coordinatesCheckedAt: null,
+  },
+  {
+    id: "beihai-park", locale: "en", name: "Beihai Park", aliases: ["北海公园"], categoryCode: "park", tags: [], shortIntro: "A historic imperial garden.",
+    coordinate: [116.383, 39.925], durationMinutes: 120, coordinatesCheckedAt: null,
+  },
+]
+
 function createProps(): MineViewProps {
   return {
     busy: null,
@@ -38,8 +49,12 @@ function createProps(): MineViewProps {
     selectedPlaceId: null,
     testIdentity: null,
     trip,
-    onAddDay: vi.fn(async () => undefined),
+    places,
+    onAddDay: vi.fn(async () => 3),
+    onAddPlace: vi.fn(async () => undefined),
     onConfirm: vi.fn(async () => undefined),
+    onRemoveStop: vi.fn(async () => undefined),
+    onReorderStop: vi.fn(async () => undefined),
     onSelectDay: vi.fn(),
     onSelectPlace: vi.fn(),
     onSuggest: vi.fn(async () => undefined),
@@ -47,12 +62,26 @@ function createProps(): MineViewProps {
 }
 
 describe("MineView", () => {
+  afterEach(cleanup)
+
   it("shows the selected day and forwards itinerary selection", async () => {
     const props = createProps()
     render(<MineView {...props} />)
 
     expect(screen.getByRole("heading", { name: "Day 2 itinerary" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /Jingshan Park/ }))
+    await userEvent.click(screen.getAllByRole("button", { name: /Jingshan Park/ })[0])
     expect(props.onSelectPlace).toHaveBeenCalledWith("jingshan-park")
+  })
+
+  it("adds a reviewed attraction to the selected day and exposes order controls", async () => {
+    const props = createProps()
+    render(<MineView {...props} />)
+    const user = userEvent.setup()
+
+    await user.selectOptions(screen.getByLabelText("Add reviewed attraction"), "beihai-park")
+    await user.click(screen.getByRole("button", { name: "Add to Day 2" }))
+    expect(props.onAddPlace).toHaveBeenCalledWith("beihai-park", 2)
+    expect(screen.getByRole("button", { name: "Remove Jingshan Park" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Move Jingshan Park down" })).toBeTruthy()
   })
 })
