@@ -178,7 +178,7 @@ export function MineView({
             busy={busy}
             days={trip.days}
             places={places}
-            reservations={trip.reservations ?? []}
+            reservations={(trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)}
             onCreate={onCreateReservation}
             onRemove={onRemoveReservation}
             onUpdate={onUpdateReservation}

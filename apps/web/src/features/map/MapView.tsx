@@ -22,6 +22,7 @@ export type MapViewProps = {
   onRadius: (radius: NearbyRadius) => void
   onRequestLocation: () => void
   onSelect: (placeId: string | null) => void
+  onSelectDay: (dayNumber: number) => void
 }
 
 export function MapView({
@@ -38,11 +39,13 @@ export function MapView({
   onRadius,
   onRequestLocation,
   onSelect,
+  onSelectDay,
 }: MapViewProps) {
   const selectedPlace = places.find((place) => place.id === selectedPlaceId) ?? null
   const dayStops = [...trip.stops]
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
+  const dayReservations = (trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)
 
   return (
     <section className="module-view map-view" aria-labelledby="map-heading">
@@ -73,6 +76,10 @@ export function MapView({
         {locationStatus === "failed" && <span>Location is unavailable. Map browsing still works.</span>}
       </div>
 
+      <div className="day-tabs" aria-label="Trip days">
+        {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}><span>Day {day.dayNumber}</span><small>{day.date ?? "Date open"}</small></button>)}
+      </div>
+
       <div className="map-module-grid">
         <div className="map-stage">
           <Suspense fallback={<div className="map-shell" role="status"><LoaderCircle className="spin" aria-hidden="true" size={22} />Preparing map…</div>}>
@@ -101,6 +108,7 @@ export function MapView({
           <section className="map-itinerary-panel" aria-labelledby="map-itinerary-heading">
             <div className="section-heading"><div><span className="eyebrow">Today’s route</span><h2 id="map-itinerary-heading">Day {selectedDay} itinerary</h2></div><span className="count-chip">{dayStops.length} stops</span></div>
             {dayStops.length === 0 ? <p>This day has no scheduled stops yet.</p> : <ol>{dayStops.map((stop, index) => <li key={stop.id}>{stop.placeId ? <button type="button" className={selectedPlaceId === stop.placeId ? "is-selected" : undefined} onClick={() => onSelect(stop.placeId!)}><span>{index + 1}</span><span><strong>{stop.name}</strong><small><Clock3 aria-hidden="true" size={13} />{stop.startTime ? stop.startTime.slice(0, 5) : "Time open"} · {stop.durationMinutes ?? 90} min</small></span></button> : <div className="map-itinerary-static"><span>{index + 1}</span><span><strong>{stop.name}</strong><small>No map marker is available for this stop.</small></span></div>}</li>)}</ol>}
+            <div className="map-reservation-list"><span className="eyebrow">Reservations</span>{dayReservations.length === 0 ? <p>No reservations for this day.</p> : <ul>{dayReservations.map((reservation) => <li key={reservation.id}><strong>{reservation.title}</strong><span>{reservation.status}{reservation.startsAt ? ` · ${reservation.startsAt.slice(11, 16)}` : ""}</span></li>)}</ul>}</div>
           </section>
           <section className="map-place-list" aria-label="Places shown on map">
             <div className="section-heading">

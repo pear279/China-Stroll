@@ -70,6 +70,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Progress 2026-08-31: authenticated `PATCH /v1/trips/:tripId/stops` now sends bounded existing change operations through `apply_mvp_trip_changes` with `edit_itinerary` audit type, retaining role, command-id, expected-version, and change-log checks. Focused Worker contract/route tests, typecheck, and Worker dry run passed in the Attractions worktree.
   - Progress 2026-08-31: Mine now lets a traveler select an unscheduled reviewed attraction for the active day, automatically focuses a newly created day, removes stops, and reorders stops with drag or accessible up/down controls. Preview persists these changes locally; account mode sends remove or normalized move commands through the versioned Worker endpoint. Focused Mine/AppShell/demo tests (16 assertions) and typecheck passed in the Attractions worktree.
   - Progress 2026-08-31: reservations are now included in trip snapshots and have versioned create/update/delete Worker boundaries backed by a new service-role-only reservation command migration. Mine supplies the full controlled reservation form and list in preview and account modes; AI remains absent from the write path. Focused web/Worker tests (36 assertions), typecheck, and Worker dry run passed. `db:verify` is pending because Docker/OrbStack is unavailable on this Mac.
+  - Progress 2026-08-31: Mine now filters the reservation list by its shared selected day, so selecting a date consistently shows that day’s itinerary and associated bookings.
 
 - [ ] Task 8 — Complete Map 1.0
   - Goal: provide a map-first trip and nearby-place workflow.
@@ -77,6 +78,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Acceptance: trip places, food and hotels share product place identity; marker selection shows Navigate/Cancel; nearby list and map remain synchronized; formal basemap passes license and Beijing network checks.
   - Test: component/browser tests and Beijing device navigation checks.
   - Progress 2026-08-31: Map now presents an independent selected-day itinerary panel above nearby reviewed places. It retains the shared day/place selection state, orders stops by `sortOrder`, highlights the matching stop, and leaves coordinate-less stops as explicit text rather than inventing markers. Focused Map/AppShell tests (11 assertions) and typecheck passed in the Attractions worktree.
+  - Progress 2026-08-31: Map date tabs now update the shared active day and show both the matching itinerary and associated reservations. Attractions adds an explicit target-day selector for new-place additions. Focused Attractions/Map/Mine/AppShell tests (19 assertions) and typecheck passed in the Attractions worktree.
 
 - [ ] Task 9 — Add opt-in associated-user location sharing
   - Goal: allow a member to explicitly share an expiring current location with accepted trip members.

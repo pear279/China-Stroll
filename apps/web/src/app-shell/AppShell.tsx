@@ -121,6 +121,7 @@ export function AppShell({
                 query={query}
                 savedPlaceIds={savedPlaceIds}
                 selectedDay={selectedDay}
+                tripDays={trip.days}
                 userCoordinate={userCoordinate}
                 visiblePlaces={visiblePlaces}
                 onAddPlace={onAddPlace}
@@ -139,6 +140,7 @@ export function AppShell({
                 }}
                 onShowOnMap={showOnMap}
                 onToggleSaved={onToggleSaved}
+                onSelectDay={setSelectedDay}
               />
             )}
           />
@@ -159,6 +161,7 @@ export function AppShell({
                 onRadius={setNearbyRadius}
                 onRequestLocation={requestLocation}
                 onSelect={setSelectedPlaceId}
+                onSelectDay={setSelectedDay}
               />
             )}
           />

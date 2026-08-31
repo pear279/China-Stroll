@@ -5,6 +5,7 @@ import type {
   PlaceRecommendationInput,
   PlaceRecommendationResponse,
   PlaceSummary,
+  TripDay,
 } from "../../../../../packages/shared/src"
 import { haversineKilometres } from "../../lib/navigation"
 import type { LocationStatus, NearbyRadius, PlacesState } from "../../app-shell/types"
@@ -26,6 +27,7 @@ export type AttractionsViewProps = {
   query: string
   savedPlaceIds: Set<string>
   selectedDay: number
+  tripDays: TripDay[]
   userCoordinate: Coordinate | null
   visiblePlaces: PlaceSummary[]
   onAddPlace: (placeId: string, dayNumber: number) => Promise<void>
@@ -39,6 +41,7 @@ export type AttractionsViewProps = {
   onResetFilters: () => void
   onShowOnMap: (placeId: string) => void
   onToggleSaved: (placeId: string) => Promise<void>
+  onSelectDay: (dayNumber: number) => void
 }
 
 export function AttractionsView({
@@ -55,6 +58,7 @@ export function AttractionsView({
   query,
   savedPlaceIds,
   selectedDay,
+  tripDays,
   userCoordinate,
   visiblePlaces,
   onAddPlace,
@@ -68,6 +72,7 @@ export function AttractionsView({
   onResetFilters,
   onShowOnMap,
   onToggleSaved,
+  onSelectDay,
 }: AttractionsViewProps) {
   const locationMessageId = "attractions-location-message"
   const nearest = userCoordinate && visiblePlaces.length
@@ -88,6 +93,13 @@ export function AttractionsView({
         </div>
         <span className="count-chip">{visiblePlaces.length} shown</span>
       </header>
+
+      <label className="attraction-day-picker">
+        Add new places to
+        <select value={selectedDay} onChange={(event) => onSelectDay(Number(event.target.value))}>
+          {tripDays.map((day) => <option key={day.id} value={day.dayNumber}>Day {day.dayNumber}{day.date ? ` · ${day.date}` : ""}</option>)}
+        </select>
+      </label>
 
       <div className="location-context">
         {nearest && userCoordinate ? (

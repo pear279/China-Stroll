@@ -55,6 +55,7 @@ function createProps(): AttractionsViewProps {
     plannedIds: new Set(),
     savedPlaceIds: new Set(),
     selectedDay: 1,
+    tripDays: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null }, { id: 2, dayNumber: 2, date: "2026-09-02", title: null }],
     userCoordinate: null,
     visiblePlaces: [palace, museum],
     query: "",
@@ -75,6 +76,7 @@ function createProps(): AttractionsViewProps {
     onResetFilters: vi.fn(),
     onShowOnMap: vi.fn(),
     onToggleSaved: vi.fn(async () => undefined),
+    onSelectDay: vi.fn(),
   }
 }
 
@@ -155,5 +157,12 @@ describe("AttractionsView", () => {
 
     await user.click(screen.getByRole("button", { name: "Reset search and filters" }))
     expect(screen.getAllByRole("article")).toHaveLength(2)
+  })
+
+  it("lets the traveler choose the target day before adding a place", async () => {
+    const props = createProps()
+    render(<AttractionsView {...props} />)
+    await userEvent.selectOptions(screen.getByLabelText("Add new places to"), "2")
+    expect(props.onSelectDay).toHaveBeenCalledWith(2)
   })
 })

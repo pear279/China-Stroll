@@ -105,6 +105,8 @@ All trip writes use a command id, expected trip version, permission check and ch
 
 Attractions list → place detail → choose day → add stop command → new trip version → Mine itinerary and Map update from the same snapshot.
 
+The active trip day is shared by Attractions, Map, and Mine. Attractions exposes it as the target-day selection for new stops; Map and Mine use it to filter both day stops and day-linked reservations.
+
 ### Mine itinerary editing
 
 Mine adds only reviewed, not-yet-scheduled places to the selected day. Reordering normalizes the selected day's `sortOrder` values and writes the complete move set as one versioned command; deletion uses the same command boundary. The preview applies equivalent deterministic local transitions.

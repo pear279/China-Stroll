@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
 import { MapView, type MapViewProps } from "./MapView"
 
@@ -49,16 +49,26 @@ function createProps(): MapViewProps {
     onRadius: vi.fn(),
     onRequestLocation: vi.fn(),
     onSelect: vi.fn(),
+    onSelectDay: vi.fn(),
   }
 }
 
 describe("MapView", () => {
+  afterEach(cleanup)
+
   it("shows the selected day itinerary and synchronizes its selection", async () => {
     const props = createProps()
     render(<MapView {...props} />)
     expect(screen.getByRole("heading", { name: "Day 1 itinerary" })).toBeTruthy()
     await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*09:00/ }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
+  })
+
+  it("switches the shared day from the map date tabs", async () => {
+    const props = createProps()
+    render(<MapView {...props} />)
+    await userEvent.click(screen.getByRole("button", { name: /Day 1/ }))
+    expect(props.onSelectDay).toHaveBeenCalledWith(1)
   })
 
   it("opens Details, Add, Navigate and Cancel for a selected marker", async () => {
