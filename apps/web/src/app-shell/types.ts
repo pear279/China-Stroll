@@ -8,7 +8,6 @@ export type NearbyRadius = 1 | 3 | 5
 export type ModulePath = "/attractions" | "/map" | "/tools" | "/me"
 
 export type AppShellProps = {
-  accessToken: string | null
   busy: string | null
   message: string | null
   mode: AppMode

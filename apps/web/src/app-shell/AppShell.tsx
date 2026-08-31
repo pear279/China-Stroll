@@ -1,5 +1,5 @@
 import { LogOut } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom"
 import { collectPlaceCategories, filterPlaceSummaries } from "../../../../packages/shared/src"
 import { PlaceDetailPanel } from "../components/PlaceDetailPanel"
@@ -12,7 +12,6 @@ import type { AppShellProps, NearbyRadius } from "./types"
 import { useCurrentLocation } from "./useCurrentLocation"
 
 export function AppShell({
-  accessToken,
   busy,
   message,
   mode,
@@ -37,6 +36,8 @@ export function AppShell({
   const [query, setQuery] = useState("")
   const [maxDuration, setMaxDuration] = useState<number | undefined>()
   const [nearbyRadius, setNearbyRadius] = useState<NearbyRadius>(3)
+  const detailOpenerRef = useRef<HTMLElement | null>(null)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
   const { coordinate: userCoordinate, status: locationStatus, requestLocation } = useCurrentLocation()
 
   const plannedIds = useMemo(() => new Set(trip.stops.map((stop) => stop.placeId)), [trip.stops])
@@ -57,11 +58,28 @@ export function AppShell({
     if (!selectedPlaceId && trip.stops[0]?.placeId) setSelectedPlaceId(trip.stops[0].placeId)
   }, [selectedPlaceId, trip.stops])
 
+  useEffect(() => {
+    if (!detailPlaceId && restoreFocusRef.current) {
+      restoreFocusRef.current.focus()
+      restoreFocusRef.current = null
+    }
+  }, [detailPlaceId])
+
   const detailPlace = places.find((place) => place.id === detailPlaceId) ?? null
 
   function showOnMap(placeId: string) {
     setSelectedPlaceId(placeId)
     navigate("/map")
+  }
+
+  function openDetails(placeId: string) {
+    detailOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDetailPlaceId(placeId)
+  }
+
+  function closeDetails() {
+    restoreFocusRef.current = detailOpenerRef.current
+    setDetailPlaceId(null)
   }
 
   return (
@@ -103,7 +121,7 @@ export function AppShell({
                 onAddPlace={onAddPlace}
                 onCategory={setCategory}
                 onDuration={setMaxDuration}
-                onOpenDetails={setDetailPlaceId}
+                onOpenDetails={openDetails}
                 onQuery={setQuery}
                 onRecommendPlaces={placeRepository.recommendPlaces.bind(placeRepository)}
                 onRadius={setNearbyRadius}
@@ -132,7 +150,7 @@ export function AppShell({
                 trip={trip}
                 userCoordinate={userCoordinate}
                 onAddPlace={onAddPlace}
-                onOpenDetails={setDetailPlaceId}
+                onOpenDetails={openDetails}
                 onRadius={setNearbyRadius}
                 onRequestLocation={requestLocation}
                 onSelect={setSelectedPlaceId}
@@ -166,12 +184,11 @@ export function AppShell({
       {detailPlace && (
         <PlaceDetailPanel
           place={detailPlace}
-          accessToken={accessToken}
           days={trip.days}
           planned={plannedIds.has(detailPlace.id)}
           repository={placeRepository}
           saved={savedPlaceIds.has(detailPlace.id)}
-          onClose={() => setDetailPlaceId(null)}
+          onClose={closeDetails}
           onAdd={onAddPlace}
           onToggleSaved={onToggleSaved}
         />

@@ -237,7 +237,6 @@ export function App() {
       places={places}
       placesState={placesState}
       savedPlaceIds={savedPlaceIds}
-      accessToken={session?.access_token ?? null}
       testIdentity={testIdentity}
       trip={trip}
       onAddPlace={addPlace}

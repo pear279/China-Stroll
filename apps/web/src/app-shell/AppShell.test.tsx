@@ -100,7 +100,6 @@ const repository: PlaceRepository = {
 }
 
 const props: AppShellProps = {
-  accessToken: null,
   busy: null,
   message: null,
   mode: "preview",
@@ -167,5 +166,19 @@ describe("AppShell", () => {
     expect(repository.recommendPlaces).toHaveBeenCalledWith(expect.objectContaining({
       candidatePlaceIds: ["national-museum-of-china"],
     }))
+  })
+
+  it("restores focus to the opener after closing place details", async () => {
+    render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
+
+    const user = userEvent.setup()
+    const opener = screen.getByRole("button", { name: "Details for The Palace Museum" })
+
+    await user.click(opener)
+    expect(await screen.findByRole("dialog", { name: "The Palace Museum" })).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Close place details" }))
+
+    expect(document.activeElement).toBe(opener)
   })
 })
