@@ -69,6 +69,27 @@ export const addTripDaySchema = z.object({
   commandId: z.uuid(),
 })
 
+const reservationFieldsSchema = z.object({
+  category: z.enum(["accommodation", "transport", "restaurant", "attraction", "activity"]),
+  title: z.string().trim().min(1).max(200),
+  dayNumber: z.int().positive().nullable(),
+  placeId: placeIdSchema.nullable(),
+  startsAt: z.iso.datetime().nullable(),
+  endsAt: z.iso.datetime().nullable(),
+  status: z.enum(["planned", "confirmed", "cancelled", "completed"]),
+  provider: z.string().trim().max(200).nullable(),
+  confirmationCode: z.string().trim().max(200).nullable(),
+  notes: z.string().trim().max(4000),
+}).refine((value) => !value.startsAt || !value.endsAt || value.endsAt >= value.startsAt, { message: "Reservation end time must follow its start time.", path: ["endsAt"] })
+
+export const createReservationSchema = reservationFieldsSchema.extend({
+  expectedVersion: z.int().positive(),
+  commandId: z.uuid(),
+})
+
+export const updateReservationSchema = createReservationSchema
+export const deleteReservationSchema = z.object({ expectedVersion: z.int().positive(), commandId: z.uuid() })
+
 export const suggestionRequestSchema = z.object({
   intent: z.string().trim().min(1).max(100).default("Make day one easier to follow"),
 })

@@ -1,12 +1,12 @@
 import type { Session } from "@supabase/supabase-js"
 import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
-import { type AgentSuggestion, type PlaceSummary, type TripSnapshot } from "../../../packages/shared/src"
+import { type AgentSuggestion, type PlaceSummary, type ReservationInput, type TripSnapshot } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
 import { createPlaceRepository } from "./data/placeRepository"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
-import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoStop, reorderDemoStops } from "./lib/demo"
+import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
@@ -213,6 +213,51 @@ export function App() {
     })
   }
 
+  async function createReservation(input: ReservationInput) {
+    if (!trip) return
+    if (mode === "preview") {
+      setTrip(createDemoReservation(trip, input))
+      setMessage("Reservation saved in this preview.")
+      return
+    }
+    if (!session) return
+    await run("create-reservation", async () => {
+      await api.createReservation(session.access_token, trip, input)
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Reservation saved for your travel group.")
+    })
+  }
+
+  async function updateReservation(reservationId: string, input: ReservationInput) {
+    if (!trip) return
+    if (mode === "preview") {
+      setTrip(updateDemoReservation(trip, reservationId, input))
+      setMessage("Reservation updated in this preview.")
+      return
+    }
+    if (!session) return
+    await run("update-reservation", async () => {
+      await api.updateReservation(session.access_token, trip, reservationId, input)
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Reservation updated for your travel group.")
+    })
+  }
+
+  async function removeReservation(reservationId: string) {
+    if (!trip) return
+    if (mode === "preview") {
+      setTrip(removeDemoReservation(trip, reservationId))
+      setMessage("Reservation removed from this preview.")
+      return
+    }
+    if (!session) return
+    await run("remove-reservation", async () => {
+      await api.removeReservation(session.access_token, trip, reservationId)
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Reservation removed from your travel group.")
+    })
+  }
+
   async function toggleSavedPlace(placeId: string) {
     const saved = savedPlaceIds.has(placeId)
     if (mode === "preview") {
@@ -295,6 +340,9 @@ export function App() {
       onAddDay={addDay}
       onRemoveStop={removeStop}
       onReorderStop={reorderStop}
+      onCreateReservation={createReservation}
+      onUpdateReservation={updateReservation}
+      onRemoveReservation={removeReservation}
       onToggleSaved={toggleSavedPlace}
       onConfirm={confirmSuggestion}
       onSuggest={suggest}

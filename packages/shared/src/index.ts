@@ -37,6 +37,26 @@ export type TripDay = {
   title: string | null
 }
 
+export type ReservationCategory = "accommodation" | "transport" | "restaurant" | "attraction" | "activity"
+export type ReservationStatus = "planned" | "confirmed" | "cancelled" | "completed"
+
+export type TripReservation = {
+  id: string
+  tripId: string
+  dayNumber: number | null
+  placeId: string | null
+  category: ReservationCategory
+  title: string
+  startsAt: string | null
+  endsAt: string | null
+  status: ReservationStatus
+  provider: string | null
+  confirmationCode: string | null
+  notes: string
+}
+
+export type ReservationInput = Omit<TripReservation, "id" | "tripId">
+
 export type AgentChange =
   | {
       op: "add_stop"
@@ -81,6 +101,7 @@ export type TripSnapshot = {
   version: number
   days: TripDay[]
   stops: TripStop[]
+  reservations?: TripReservation[]
   suggestions: AgentSuggestion[]
 }
 

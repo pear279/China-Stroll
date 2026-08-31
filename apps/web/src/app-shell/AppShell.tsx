@@ -25,6 +25,9 @@ export function AppShell({
   onAddDay,
   onRemoveStop,
   onReorderStop,
+  onCreateReservation,
+  onUpdateReservation,
+  onRemoveReservation,
   onToggleSaved,
   onConfirm,
   onSuggest,
@@ -177,6 +180,9 @@ export function AppShell({
                 onConfirm={onConfirm}
                 onRemoveStop={onRemoveStop}
                 onReorderStop={onReorderStop}
+                onCreateReservation={onCreateReservation}
+                onUpdateReservation={onUpdateReservation}
+                onRemoveReservation={onRemoveReservation}
                 onSelectDay={setSelectedDay}
                 onSelectPlace={setSelectedPlaceId}
                 onSuggest={onSuggest}

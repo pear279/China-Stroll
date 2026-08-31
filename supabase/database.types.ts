@@ -985,6 +985,18 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_mvp_reservation_command: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_expected_version: number
+          p_input?: Json
+          p_operation: string
+          p_reservation_id?: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
       confirm_mvp_agent_suggestion: {
         Args: {
           p_actor_id: string

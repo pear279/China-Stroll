@@ -16,12 +16,16 @@ import {
   type PlaceRecommendationResponse,
   type PlaceSourceCitation,
   type PlaceSummary,
+  type ReservationCategory,
+  type ReservationStatus,
   type TripSnapshot,
 } from "../../../packages/shared/src"
 import type { Database } from "../../../supabase/database.types"
 import {
   addStopSchema,
   addTripDaySchema,
+  createReservationSchema,
+  deleteReservationSchema,
   agentChangesSchema,
   apiError,
   confirmSuggestionSchema,
@@ -41,6 +45,7 @@ import {
   suggestionRequestSchema,
   suggestionStatusSchema,
   tripCommandResultSchema,
+  updateReservationSchema,
 } from "./contracts"
 import { generateRecommendationExplanations, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 import { answerPlaceQuestion } from "./placeIntelligence"
@@ -654,10 +659,11 @@ app.post("/v1/trips/:tripId/days", async (context) => {
 app.get("/v1/trips/:tripId", async (context) => {
   const tripId = context.req.param("tripId")
   const client = context.get("userClient")
-  const [tripResult, dayResult, stopResult, suggestionResult] = await Promise.all([
+  const [tripResult, dayResult, stopResult, reservationResult, suggestionResult] = await Promise.all([
     client.from("trips").select("id,name,start_date,end_date,locale,version").eq("id", tripId).maybeSingle(),
     client.from("trip_days").select("id,day_number,day_date,title").eq("trip_id", tripId).order("day_number"),
     client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,sort_order").eq("trip_id", tripId).order("sort_order"),
+    client.from("reservations").select("id,trip_id,trip_day_id,place_id,category,title,starts_at,ends_at,status,provider,confirmation_code,notes").eq("trip_id", tripId).order("starts_at", { ascending: true }),
     client.from("agent_suggestions").select("id,trip_id,base_version,intent,reason,changes,risks,status,expires_at").eq("trip_id", tripId).order("created_at", { ascending: false }).limit(5),
   ])
 
@@ -690,6 +696,20 @@ app.get("/v1/trips/:tripId", async (context) => {
       startTime: stop.start_time,
       durationMinutes: stop.duration_minutes,
       sortOrder: stop.sort_order,
+    })),
+    reservations: (reservationResult.data ?? []).map((reservation) => ({
+      id: reservation.id,
+      tripId: reservation.trip_id,
+      dayNumber: reservation.trip_day_id ? dayById.get(reservation.trip_day_id) ?? null : null,
+      placeId: reservation.place_id,
+      category: reservation.category as ReservationCategory,
+      title: reservation.title,
+      startsAt: reservation.starts_at,
+      endsAt: reservation.ends_at,
+      status: reservation.status as ReservationStatus,
+      provider: reservation.provider,
+      confirmationCode: reservation.confirmation_code,
+      notes: reservation.notes,
     })),
     suggestions: (suggestionResult.data ?? []).map((suggestion) => ({
       id: suggestion.id,
@@ -737,6 +757,41 @@ app.patch("/v1/trips/:tripId/stops", async (context) => {
     p_command_id: parsed.data.commandId,
     p_expected_version: parsed.data.expectedVersion,
     p_trip_id: context.req.param("tripId"),
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data))
+})
+
+app.post("/v1/trips/:tripId/reservations", async (context) => {
+  const parsed = createReservationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Check the reservation details."), 400)
+  const { expectedVersion, commandId, ...input } = parsed.data
+  const { data, error } = await context.get("admin").rpc("apply_mvp_reservation_command", {
+    p_actor_id: context.get("user").id, p_trip_id: context.req.param("tripId"), p_expected_version: expectedVersion,
+    p_command_id: commandId, p_operation: "create", p_input: input,
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data), 201)
+})
+
+app.patch("/v1/trips/:tripId/reservations/:reservationId", async (context) => {
+  const parsed = updateReservationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Check the reservation details."), 400)
+  const { expectedVersion, commandId, ...input } = parsed.data
+  const { data, error } = await context.get("admin").rpc("apply_mvp_reservation_command", {
+    p_actor_id: context.get("user").id, p_trip_id: context.req.param("tripId"), p_expected_version: expectedVersion,
+    p_command_id: commandId, p_operation: "update", p_reservation_id: context.req.param("reservationId"), p_input: input,
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data))
+})
+
+app.delete("/v1/trips/:tripId/reservations/:reservationId", async (context) => {
+  const parsed = deleteReservationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Refresh the trip before deleting this reservation."), 400)
+  const { data, error } = await context.get("admin").rpc("apply_mvp_reservation_command", {
+    p_actor_id: context.get("user").id, p_trip_id: context.req.param("tripId"), p_expected_version: parsed.data.expectedVersion,
+    p_command_id: parsed.data.commandId, p_operation: "delete", p_reservation_id: context.req.param("reservationId"),
   })
   if (error) return mapDatabaseError(context, error)
   return context.json(tripCommandResultSchema.parse(data))

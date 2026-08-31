@@ -10,6 +10,7 @@ import type {
   PlaceQuestionResponse,
   PlaceRecommendationInput,
   PlaceRecommendationResponse,
+  ReservationInput,
   TripSnapshot,
 } from "../../../../packages/shared/src"
 
@@ -164,6 +165,21 @@ export const api = {
         expectedVersion: trip.version,
         commandId: crypto.randomUUID(),
       }),
+    })
+  },
+  createReservation(accessToken: string, trip: TripSnapshot, input: ReservationInput) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/reservations`, accessToken, {
+      method: "POST", body: JSON.stringify({ ...input, expectedVersion: trip.version, commandId: crypto.randomUUID() }),
+    })
+  },
+  updateReservation(accessToken: string, trip: TripSnapshot, reservationId: string, input: ReservationInput) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/reservations/${reservationId}`, accessToken, {
+      method: "PATCH", body: JSON.stringify({ ...input, expectedVersion: trip.version, commandId: crypto.randomUUID() }),
+    })
+  },
+  removeReservation(accessToken: string, trip: TripSnapshot, reservationId: string) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/reservations/${reservationId}`, accessToken, {
+      method: "DELETE", body: JSON.stringify({ expectedVersion: trip.version, commandId: crypto.randomUUID() }),
     })
   },
   createSuggestion(accessToken: string, tripId: string) {

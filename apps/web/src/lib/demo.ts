@@ -3,6 +3,8 @@ import {
   samplePlaces,
   type AgentSuggestion,
   type PlaceSummary,
+  type ReservationInput,
+  type TripReservation,
   type TripSnapshot,
 } from "../../../../packages/shared/src"
 
@@ -16,8 +18,26 @@ export function createDemoTrip(name: string, startDate: string | null): TripSnap
     version: 1,
     days: [{ id: 1, dayNumber: 1, date: startDate, title: "Day 1" }],
     stops: [],
+    reservations: [],
     suggestions: [],
   }
+}
+
+export function createDemoReservation(trip: TripSnapshot, input: ReservationInput): TripSnapshot {
+  const reservation: TripReservation = { ...input, id: crypto.randomUUID(), tripId: trip.id }
+  return { ...trip, version: trip.version + 1, reservations: [...(trip.reservations ?? []), reservation] }
+}
+
+export function updateDemoReservation(trip: TripSnapshot, reservationId: string, input: ReservationInput): TripSnapshot {
+  const reservations = (trip.reservations ?? []).map((reservation) => reservation.id === reservationId ? { ...reservation, ...input } : reservation)
+  return reservations.some((reservation) => reservation.id === reservationId)
+    ? { ...trip, version: trip.version + 1, reservations }
+    : trip
+}
+
+export function removeDemoReservation(trip: TripSnapshot, reservationId: string): TripSnapshot {
+  const reservations = (trip.reservations ?? []).filter((reservation) => reservation.id !== reservationId)
+  return reservations.length === (trip.reservations ?? []).length ? trip : { ...trip, version: trip.version + 1, reservations }
 }
 
 export function addDemoStop(trip: TripSnapshot, place: PlaceSummary, dayNumber = 1): TripSnapshot {

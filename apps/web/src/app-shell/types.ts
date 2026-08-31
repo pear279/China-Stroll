@@ -1,4 +1,4 @@
-import type { AgentSuggestion, PlaceSummary, TripSnapshot } from "../../../../packages/shared/src"
+import type { AgentSuggestion, PlaceSummary, ReservationInput, TripSnapshot } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
@@ -21,6 +21,9 @@ export type AppShellProps = {
   onAddDay: () => Promise<number | null>
   onRemoveStop: (stopId: string) => Promise<void>
   onReorderStop: (stopId: string, targetIndex: number) => Promise<void>
+  onCreateReservation: (input: ReservationInput) => Promise<void>
+  onUpdateReservation: (reservationId: string, input: ReservationInput) => Promise<void>
+  onRemoveReservation: (reservationId: string) => Promise<void>
   onToggleSaved: (placeId: string) => Promise<void>
   onConfirm: (suggestion: AgentSuggestion) => Promise<void>
   onSuggest: () => Promise<void>

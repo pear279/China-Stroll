@@ -55,6 +55,9 @@ function createProps(): MineViewProps {
     onConfirm: vi.fn(async () => undefined),
     onRemoveStop: vi.fn(async () => undefined),
     onReorderStop: vi.fn(async () => undefined),
+    onCreateReservation: vi.fn(async () => undefined),
+    onUpdateReservation: vi.fn(async () => undefined),
+    onRemoveReservation: vi.fn(async () => undefined),
     onSelectDay: vi.fn(),
     onSelectPlace: vi.fn(),
     onSuggest: vi.fn(async () => undefined),
@@ -83,5 +86,17 @@ describe("MineView", () => {
     expect(props.onAddPlace).toHaveBeenCalledWith("beihai-park", 2)
     expect(screen.getByRole("button", { name: "Remove Jingshan Park" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Move Jingshan Park down" })).toBeTruthy()
+  })
+
+  it("saves a user-entered reservation draft", async () => {
+    const props = createProps()
+    render(<MineView {...props} />)
+    const user = userEvent.setup()
+
+    await user.type(screen.getByLabelText("Reservation title"), "Museum entry")
+    await user.selectOptions(screen.getByLabelText("Type"), "attraction")
+    await user.click(screen.getByRole("button", { name: "Save reservation" }))
+
+    expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))
   })
 })
