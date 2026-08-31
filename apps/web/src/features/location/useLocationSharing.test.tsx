@@ -30,21 +30,43 @@ const enabledSnapshot: LocationSharingSnapshot = {
 
 const options = { accessToken: "access-token", tripId: "trip-1", enabled: true }
 
-function installGeolocation({ denied = false }: { denied?: boolean } = {}) {
+function deferred<Value>() {
+  let resolve!: (value: Value) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<Value>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, reject, resolve }
+}
+
+function installGeolocation({ errorCode }: { errorCode?: number } = {}) {
+  let watchSuccess: PositionCallback | null = null
   const getCurrentPosition = vi.fn<Geolocation["getCurrentPosition"]>((success, error) => {
-    if (denied) {
-      error?.({ code: 1, message: "denied", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
+    if (errorCode) {
+      error?.({ code: errorCode, message: "location failed", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
       return
     }
     success({ coords: { latitude: 39.9163, longitude: 116.3972 } } as GeolocationPosition)
   })
-  const watchPosition = vi.fn<Geolocation["watchPosition"]>(() => 41)
+  const watchPosition = vi.fn<Geolocation["watchPosition"]>((success) => {
+    watchSuccess = success
+    return 41
+  })
   const clearWatch = vi.fn<Geolocation["clearWatch"]>()
   Object.defineProperty(navigator, "geolocation", {
     configurable: true,
     value: { getCurrentPosition, watchPosition, clearWatch },
   })
-  return { clearWatch, getCurrentPosition, watchPosition }
+  return {
+    clearWatch,
+    getCurrentPosition,
+    watchPosition,
+    emitWatchPosition(latitude: number, longitude: number) {
+      if (!watchSuccess) throw new Error("Location watch has not started.")
+      watchSuccess({ coords: { latitude, longitude } } as GeolocationPosition)
+    },
+  }
 }
 
 describe("useLocationSharing", () => {
@@ -105,8 +127,91 @@ describe("useLocationSharing", () => {
     expect(geolocation.watchPosition).toHaveBeenCalledTimes(1)
   })
 
+  it("revokes the old trip if an enable response arrives after unmount", async () => {
+    const geolocation = installGeolocation()
+    const serverEnable = deferred<LocationSharingSnapshot>()
+    vi.mocked(api.setLocationSharing).mockImplementation(async (_token, _tripId, enabled) => {
+      if (enabled) return serverEnable.promise
+      return offSnapshot
+    })
+    const { result, unmount } = renderHook(() => useLocationSharing(options))
+    await waitFor(() => expect(result.current.status).toBe("off"))
+
+    let enablePromise!: Promise<void>
+    act(() => { enablePromise = result.current.enable() })
+    await waitFor(() => expect(api.setLocationSharing).toHaveBeenCalledWith("access-token", "trip-1", true))
+    unmount()
+
+    await act(async () => {
+      serverEnable.resolve(enabledSnapshot)
+      await enablePromise
+    })
+
+    expect(api.setLocationSharing).toHaveBeenLastCalledWith("access-token", "trip-1", false)
+    expect(geolocation.getCurrentPosition).not.toHaveBeenCalled()
+    expect(api.updateCurrentLocation).not.toHaveBeenCalled()
+  })
+
+  it("revokes the old trip and skips upload when scope changes during initial positioning", async () => {
+    const geolocation = installGeolocation()
+    let resolvePosition: PositionCallback | null = null
+    geolocation.getCurrentPosition.mockImplementation((success) => { resolvePosition = success })
+    const { result, rerender } = renderHook(
+      ({ tripId }) => useLocationSharing({ ...options, tripId }),
+      { initialProps: { tripId: "trip-1" } },
+    )
+    await waitFor(() => expect(result.current.status).toBe("off"))
+
+    let enablePromise!: Promise<void>
+    act(() => { enablePromise = result.current.enable() })
+    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1))
+    rerender({ tripId: "trip-2" })
+
+    await act(async () => {
+      if (!resolvePosition) throw new Error("Initial position was not requested.")
+      resolvePosition({ coords: { latitude: 39.9163, longitude: 116.3972 } } as GeolocationPosition)
+      await enablePromise
+    })
+
+    expect(api.updateCurrentLocation).not.toHaveBeenCalled()
+    expect(api.setLocationSharing).toHaveBeenCalledWith("access-token", "trip-1", false)
+  })
+
+  it("serializes watch uploads so a newer point cannot be overwritten by an older request", async () => {
+    const geolocation = installGeolocation()
+    const firstWatchUpload = deferred<Pick<LocationSharingSnapshot, "tripId" | "enabled" | "expiresAt">>()
+    const secondWatchUpload = deferred<Pick<LocationSharingSnapshot, "tripId" | "enabled" | "expiresAt">>()
+    vi.mocked(api.updateCurrentLocation)
+      .mockResolvedValueOnce({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:10:00.000Z" })
+      .mockImplementationOnce(() => firstWatchUpload.promise)
+      .mockImplementationOnce(() => secondWatchUpload.promise)
+    const { result } = renderHook(() => useLocationSharing(options))
+    await waitFor(() => expect(result.current.status).toBe("off"))
+    await act(() => result.current.enable())
+
+    act(() => {
+      geolocation.emitWatchPosition(39.91, 116.39)
+      geolocation.emitWatchPosition(39.92, 116.4)
+    })
+    expect(api.updateCurrentLocation).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      firstWatchUpload.resolve({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:11:00.000Z" })
+      await firstWatchUpload.promise
+    })
+    await waitFor(() => expect(api.updateCurrentLocation).toHaveBeenCalledTimes(3))
+
+    await act(async () => {
+      secondWatchUpload.resolve({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:12:00.000Z" })
+      await secondWatchUpload.promise
+    })
+
+    expect(result.current.snapshot?.expiresAt).toBe("2026-08-31T12:12:00.000Z")
+    expect(api.updateCurrentLocation).toHaveBeenNthCalledWith(3, "access-token", "trip-1", 39.92, 116.4)
+  })
+
   it("leaves sharing off when foreground location permission is denied", async () => {
-    const geolocation = installGeolocation({ denied: true })
+    const geolocation = installGeolocation({ errorCode: 1 })
     const { result } = renderHook(() => useLocationSharing(options))
     await waitFor(() => expect(result.current.status).toBe("off"))
 
@@ -117,6 +222,17 @@ describe("useLocationSharing", () => {
     expect(api.setLocationSharing).toHaveBeenLastCalledWith("access-token", "trip-1", false)
     expect(api.updateCurrentLocation).not.toHaveBeenCalled()
     expect(geolocation.watchPosition).not.toHaveBeenCalled()
+  })
+
+  it("reports unavailable positioning as a dependency failure rather than permission denial", async () => {
+    installGeolocation({ errorCode: 2 })
+    const { result } = renderHook(() => useLocationSharing(options))
+    await waitFor(() => expect(result.current.status).toBe("off"))
+
+    await act(() => result.current.enable())
+
+    expect(result.current.status).toBe("dependency-unavailable")
+    expect(result.current.snapshot?.enabled).toBe(false)
   })
 
   it("revokes the server switch and does not start a watch when the initial upload fails", async () => {

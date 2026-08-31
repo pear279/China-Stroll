@@ -28,6 +28,20 @@ function requestCurrentPosition() {
   })
 }
 
+function locationFailureStatus(error: unknown): LocationSharingStatus {
+  return typeof error === "object" && error !== null && "code" in error && error.code === 1
+    ? "permission-denied"
+    : "dependency-unavailable"
+}
+
+async function revokeStaleSharing(accessToken: string, tripId: string) {
+  try {
+    await api.setLocationSharing(accessToken, tripId, false)
+  } catch {
+    // A stale scope has no mounted UI to update. The server expiry remains the fallback.
+  }
+}
+
 export function useLocationSharing({ accessToken, tripId, enabled }: UseLocationSharingOptions): LocationSharingController {
   const available = enabled && Boolean(accessToken && tripId)
   const [status, setStatus] = useState<LocationSharingStatus>(available ? "loading" : "dependency-unavailable")
@@ -48,6 +62,7 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
     }
 
     const operation = ++operationRef.current
+    const isStale = () => operationRef.current !== operation
     clearForegroundWatch()
     setStatus("enabling")
     setSnapshot((current) => current ? { ...current, status: "enabling" } : current)
@@ -56,26 +71,38 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
     try {
       enabledSnapshot = await api.setLocationSharing(accessToken, tripId, true)
     } catch {
-      if (operationRef.current === operation) setStatus("dependency-unavailable")
+      if (!isStale()) setStatus("dependency-unavailable")
       return
     }
-    if (operationRef.current !== operation) return
+    if (isStale()) {
+      await revokeStaleSharing(accessToken, tripId)
+      return
+    }
     setSnapshot({ ...enabledSnapshot, status: "enabling" })
 
     let position: GeolocationPosition
     try {
       position = await requestCurrentPosition()
-    } catch {
+    } catch (error) {
+      if (isStale()) {
+        await revokeStaleSharing(accessToken, tripId)
+        return
+      }
+      const failureStatus = locationFailureStatus(error)
       try {
         const revokedSnapshot = await api.setLocationSharing(accessToken, tripId, false)
-        if (operationRef.current !== operation) return
-        setSnapshot({ ...revokedSnapshot, status: "permission-denied" })
-        setStatus("permission-denied")
+        if (isStale()) return
+        setSnapshot({ ...revokedSnapshot, status: failureStatus })
+        setStatus(failureStatus)
       } catch {
-        if (operationRef.current !== operation) return
+        if (isStale()) return
         setSnapshot({ ...enabledSnapshot, status: "revoke-failed" })
         setStatus("revoke-failed")
       }
+      return
+    }
+    if (isStale()) {
+      await revokeStaleSharing(accessToken, tripId)
       return
     }
 
@@ -88,44 +115,65 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
         position.coords.longitude,
       )
     } catch {
+      if (isStale()) {
+        await revokeStaleSharing(accessToken, tripId)
+        return
+      }
       try {
         const revokedSnapshot = await api.setLocationSharing(accessToken, tripId, false)
-        if (operationRef.current !== operation) return
+        if (isStale()) return
         setSnapshot({ ...revokedSnapshot, status: "upload-failed" })
         setStatus("upload-failed")
       } catch {
-        if (operationRef.current !== operation) return
+        if (isStale()) return
         setSnapshot({ ...enabledSnapshot, status: "revoke-failed" })
         setStatus("revoke-failed")
       }
       return
     }
-    if (operationRef.current !== operation) return
+    if (isStale()) {
+      await revokeStaleSharing(accessToken, tripId)
+      return
+    }
 
     setSnapshot({ ...enabledSnapshot, enabled: true, expiresAt: initialUpload.expiresAt, status: "sharing" })
     setStatus("sharing")
+    let queuedPosition: { latitude: number; longitude: number } | null = null
+    let watchUploadInFlight = false
+    const uploadLatestWatchPosition = () => {
+      if (watchUploadInFlight || !queuedPosition || isStale()) return
+      const nextPosition = queuedPosition
+      queuedPosition = null
+      watchUploadInFlight = true
+      void api.updateCurrentLocation(accessToken, tripId, nextPosition.latitude, nextPosition.longitude).then((upload) => {
+        if (isStale()) return
+        setSnapshot((current) => current ? {
+          ...current,
+          enabled: true,
+          expiresAt: upload.expiresAt,
+          status: "sharing",
+        } : current)
+        setStatus("sharing")
+      }).catch(() => {
+        if (isStale()) return
+        setSnapshot((current) => current ? { ...current, status: "dependency-unavailable" } : current)
+        setStatus("dependency-unavailable")
+      }).finally(() => {
+        watchUploadInFlight = false
+        uploadLatestWatchPosition()
+      })
+    }
     watchIdRef.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
-        void api.updateCurrentLocation(accessToken, tripId, coords.latitude, coords.longitude).then((upload) => {
-          if (operationRef.current !== operation) return
-          setSnapshot((current) => current ? {
-            ...current,
-            enabled: true,
-            expiresAt: upload.expiresAt,
-            status: "sharing",
-          } : current)
-          setStatus("sharing")
-        }).catch(() => {
-          if (operationRef.current !== operation) return
-          setSnapshot((current) => current ? { ...current, status: "dependency-unavailable" } : current)
-          setStatus("dependency-unavailable")
-        })
+        queuedPosition = { latitude: coords.latitude, longitude: coords.longitude }
+        uploadLatestWatchPosition()
       },
-      () => {
-        if (operationRef.current !== operation) return
+      (error) => {
+        if (isStale()) return
         clearForegroundWatch()
-        setSnapshot((current) => current ? { ...current, status: "permission-denied" } : current)
-        setStatus("permission-denied")
+        const failureStatus = locationFailureStatus(error)
+        setSnapshot((current) => current ? { ...current, status: failureStatus } : current)
+        setStatus(failureStatus)
       },
       positionOptions,
     )
