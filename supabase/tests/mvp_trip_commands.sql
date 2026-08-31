@@ -438,6 +438,10 @@ declare
   v_outsider constant uuid := '88888888-8888-4888-8888-888888888888';
   v_trip uuid;
   v_other_trip uuid;
+  v_non_member_enable_rejected boolean := false;
+  v_non_member_upload_rejected boolean := false;
+  v_disabled_upload_rejected boolean := false;
+  v_expired_preference_upload_rejected boolean := false;
 begin
   if has_function_privilege(
     'authenticated',
@@ -490,6 +494,36 @@ begin
     (v_trip, v_peer, 'editor', 'active', v_actor, now()),
     (v_trip, v_removed_member, 'viewer', 'removed', v_actor, null);
 
+  begin
+    perform public.set_mvp_location_sharing(v_outsider, v_trip, true);
+  exception when others then
+    v_non_member_enable_rejected := sqlerrm like '%FORBIDDEN trip membership%';
+  end;
+
+  if not v_non_member_enable_rejected then
+    raise exception 'a non-member must not enable location sharing';
+  end if;
+
+  begin
+    perform public.upsert_mvp_current_location(v_outsider, v_trip, 39.9163, 116.3972);
+  exception when others then
+    v_non_member_upload_rejected := sqlerrm like '%FORBIDDEN trip membership%';
+  end;
+
+  if not v_non_member_upload_rejected then
+    raise exception 'a non-member must not upload a current location';
+  end if;
+
+  begin
+    perform public.upsert_mvp_current_location(v_actor, v_trip, 39.9163, 116.3972);
+  exception when others then
+    v_disabled_upload_rejected := sqlerrm like '%FORBIDDEN location sharing disabled%';
+  end;
+
+  if not v_disabled_upload_rejected then
+    raise exception 'a member must not upload while location sharing is disabled';
+  end if;
+
   perform public.set_mvp_location_sharing(v_actor, v_trip, true);
   perform public.upsert_mvp_current_location(v_actor, v_trip, 39.9163, 116.3972);
 
@@ -502,6 +536,28 @@ begin
   ) then
     raise exception 'enabled sharing must retain one unexpired current point';
   end if;
+
+  alter table public.trip_location_sharing_preferences
+  disable trigger trip_location_sharing_preferences_set_updated_at;
+  update public.trip_location_sharing_preferences
+  set
+    updated_at = now() - interval '2 seconds',
+    expires_at = now() - interval '1 second'
+  where trip_id = v_trip and user_id = v_actor;
+  alter table public.trip_location_sharing_preferences
+  enable trigger trip_location_sharing_preferences_set_updated_at;
+
+  begin
+    perform public.upsert_mvp_current_location(v_actor, v_trip, 39.9163, 116.3972);
+  exception when others then
+    v_expired_preference_upload_rejected := sqlerrm like '%FORBIDDEN location sharing disabled%';
+  end;
+
+  if not v_expired_preference_upload_rejected then
+    raise exception 'a member must not upload with an expired sharing preference';
+  end if;
+
+  perform public.set_mvp_location_sharing(v_actor, v_trip, true);
 
   perform public.set_mvp_location_sharing(v_actor, v_other_trip, true);
   perform public.upsert_mvp_current_location(v_actor, v_other_trip, 39.9164, 116.3973);
@@ -529,7 +585,9 @@ begin
 
   reset role;
   update public.trip_member_locations
-  set expires_at = now() - interval '1 second'
+  set
+    updated_at = now() - interval '2 seconds',
+    expires_at = now() - interval '1 second'
   where trip_id = v_trip and user_id = v_actor;
 
   set local role authenticated;
