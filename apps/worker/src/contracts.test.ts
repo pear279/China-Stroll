@@ -3,8 +3,11 @@ import {
   addStopSchema,
   agentChangesSchema,
   createTripSchema,
+  currentLocationResponseSchema,
+  currentLocationSchema,
   editTripStopsSchema,
   isReviewOverdue,
+  locationSharingToggleSchema,
   parseOpeningHours,
   placeIdSchema,
   placeListQuerySchema,
@@ -12,6 +15,32 @@ import {
 } from "./contracts"
 
 describe("worker contracts", () => {
+  it("accepts only explicit boolean sharing choices", () => {
+    expect(locationSharingToggleSchema.safeParse({ enabled: true }).success).toBe(true)
+    expect(locationSharingToggleSchema.safeParse({ enabled: "true" }).success).toBe(false)
+  })
+
+  it("accepts finite WGS84 boundaries and rejects coordinates outside them", () => {
+    expect(currentLocationSchema.safeParse({ latitude: -90, longitude: 180 }).success).toBe(true)
+    expect(currentLocationSchema.safeParse({ latitude: 90, longitude: -180 }).success).toBe(true)
+    expect(currentLocationSchema.safeParse({ latitude: 90.0001, longitude: 0 }).success).toBe(false)
+    expect(currentLocationSchema.safeParse({ latitude: 0, longitude: -180.0001 }).success).toBe(false)
+    expect(currentLocationSchema.safeParse({ latitude: Number.NaN, longitude: 0 }).success).toBe(false)
+    expect(currentLocationSchema.safeParse({ latitude: 0, longitude: Number.POSITIVE_INFINITY }).success).toBe(false)
+  })
+
+  it("keeps coordinate values out of location write responses", () => {
+    const result = currentLocationResponseSchema.parse({
+      tripId: crypto.randomUUID(),
+      enabled: true,
+      expiresAt: "2026-08-31T13:10:00.000Z",
+      latitude: 39.9,
+      longitude: 116.4,
+    })
+    expect(result).not.toHaveProperty("latitude")
+    expect(result).not.toHaveProperty("longitude")
+  })
+
   it("accepts a place beyond the first three samples", () => {
     const result = addStopSchema.safeParse({
       placeId: "summer-palace",

@@ -1,6 +1,7 @@
 import type {
   AgentSuggestion,
   AgentChange,
+  LocationSharingSnapshot,
   Locale,
   PlaceDetail,
   PlaceGuideResponse,
@@ -139,6 +140,35 @@ export const api = {
   },
   getTrip(accessToken: string, tripId: string) {
     return request<TripSnapshot>(`/v1/trips/${tripId}`, accessToken)
+  },
+  getLocationSharing(accessToken: string, tripId: string) {
+    return request<LocationSharingSnapshot>(`/v1/trips/${encodeURIComponent(tripId)}/location-sharing`, accessToken)
+  },
+  setLocationSharing(accessToken: string, tripId: string, enabled: boolean) {
+    return request<LocationSharingSnapshot>(`/v1/trips/${encodeURIComponent(tripId)}/location-sharing`, accessToken, {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    })
+  },
+  async updateCurrentLocation(accessToken: string, tripId: string, latitude: number, longitude: number) {
+    if (
+      !Number.isFinite(latitude)
+      || !Number.isFinite(longitude)
+      || latitude < -90
+      || latitude > 90
+      || longitude < -180
+      || longitude > 180
+    ) {
+      throw new RangeError("Current location must be a valid WGS84 coordinate.")
+    }
+    return request<Pick<LocationSharingSnapshot, "tripId" | "enabled" | "expiresAt">>(
+      `/v1/trips/${encodeURIComponent(tripId)}/location-sharing/current-location`,
+      accessToken,
+      {
+        method: "PUT",
+        body: JSON.stringify({ latitude, longitude }),
+      },
+    )
   },
   addStop(accessToken: string, trip: TripSnapshot, placeId: string, dayNumber = 1) {
     return request<{ version: number }>(`/v1/trips/${trip.id}/stops`, accessToken, {

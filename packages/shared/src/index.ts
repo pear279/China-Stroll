@@ -8,6 +8,36 @@ export type Coordinate = [longitude: number, latitude: number]
 
 export type Locale = "en" | "zh-CN"
 
+export type LocationSharingStatus =
+  | "loading"
+  | "off"
+  | "enabling"
+  | "sharing"
+  | "expired"
+  | "permission-denied"
+  | "upload-failed"
+  | "revoke-pending"
+  | "revoke-failed"
+  | "dependency-unavailable"
+
+export type SharedMemberLocation = {
+  userId: string
+  displayName: string
+  initials: string
+  coordinate: Coordinate
+  updatedAt: string
+  expiresAt: string
+}
+
+export type LocationSharingSnapshot = {
+  tripId: string
+  enabled: boolean
+  status: LocationSharingStatus
+  activeMemberCount: number
+  expiresAt: string | null
+  visibleLocations: SharedMemberLocation[]
+}
+
 export type SamplePlace = {
   id: "forbidden-city" | "temple-of-heaven" | "jingshan-park"
   name: string

@@ -90,6 +90,22 @@ export const createReservationSchema = reservationFieldsSchema.extend({
 export const updateReservationSchema = createReservationSchema
 export const deleteReservationSchema = z.object({ expectedVersion: z.int().positive(), commandId: z.uuid() })
 
+export const locationSharingToggleSchema = z.object({ enabled: z.boolean() }).strict()
+
+export const currentLocationSchema = z.object({
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+}).strict()
+
+export const locationSharingToggleResponseSchema = z.object({
+  tripId: z.uuid(),
+  enabled: z.boolean(),
+})
+
+export const currentLocationResponseSchema = locationSharingToggleResponseSchema.extend({
+  expiresAt: z.iso.datetime({ offset: true }),
+})
+
 export const suggestionRequestSchema = z.object({
   intent: z.string().trim().min(1).max(100).default("Make day one easier to follow"),
 })

@@ -96,3 +96,40 @@ describe("authenticated place requests", () => {
     )
   })
 })
+
+describe("location-sharing transport", () => {
+  const fetchMock = vi.fn()
+
+  afterEach(() => {
+    fetchMock.mockReset()
+    vi.unstubAllGlobals()
+  })
+
+  it("sends an explicit sharing choice through the trip boundary", async () => {
+    const { api } = await import("./api")
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      tripId: "trip-1",
+      enabled: true,
+      activeMemberCount: 2,
+      expiresAt: null,
+      visibleLocations: [],
+    })))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.setLocationSharing("access-token", "trip-1", true)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/trips/trip-1/location-sharing"),
+      expect.objectContaining({ method: "PUT", body: JSON.stringify({ enabled: true }) }),
+    )
+  })
+
+  it("never sends an invalid WGS84 point", async () => {
+    const { api } = await import("./api")
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(api.updateCurrentLocation("access-token", "trip-1", Number.NaN, 116.39))
+      .rejects.toThrow("valid WGS84")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})

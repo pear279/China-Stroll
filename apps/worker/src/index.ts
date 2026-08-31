@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js"
-import { Hono } from "hono"
+import { Hono, type Context } from "hono"
 import { cors } from "hono/cors"
 import { z } from "zod"
 import {
@@ -8,6 +8,7 @@ import {
   type Coordinate,
   type GuideSegment,
   type GuideSource,
+  type LocationSharingSnapshot,
   type PlaceDetail,
   type PlaceGuideResponse,
   type PlaceLibraryItem,
@@ -30,9 +31,13 @@ import {
   apiError,
   confirmSuggestionSchema,
   createTripSchema,
+  currentLocationResponseSchema,
+  currentLocationSchema,
   editTripStopsSchema,
   isReviewOverdue,
   localeSchema,
+  locationSharingToggleResponseSchema,
+  locationSharingToggleSchema,
   parseOpeningHours,
   placeDetailQuerySchema,
   placeGuideQuerySchema,
@@ -74,6 +79,8 @@ type Variables = {
   userClient: SupabaseClient<Database>
 }
 
+type WorkerContext = Context<{ Bindings: WorkerBindings; Variables: Variables }>
+
 export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library"] as const
 
 export function requiresAuthentication(pathname: string) {
@@ -90,7 +97,7 @@ app.use(
   cors({
     origin: (origin, context) => (origin === context.env.WEB_ORIGIN ? origin : ""),
     allowHeaders: ["Authorization", "Content-Type", "Idempotency-Key"],
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 )
 
@@ -725,6 +732,146 @@ app.get("/v1/trips/:tripId", async (context) => {
   }
 
   return context.json(snapshot)
+})
+
+async function readLocationSharingSnapshot(
+  userClient: SupabaseClient<Database>,
+  admin: SupabaseClient<Database>,
+  userId: string,
+  tripId: string,
+): Promise<
+  | { snapshot: LocationSharingSnapshot; error?: never; notFound?: never }
+  | { snapshot?: never; error: { message: string; code?: string }; notFound?: never }
+  | { snapshot?: never; error?: never; notFound: true }
+> {
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const [preferenceResult, memberResult, locationResult] = await Promise.all([
+    userClient
+      .from("trip_location_sharing_preferences")
+      .select("enabled,enabled_at,expires_at,updated_at")
+      .eq("trip_id", tripId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    userClient
+      .from("trip_members")
+      .select("user_id")
+      .eq("trip_id", tripId)
+      .eq("status", "active"),
+    userClient
+      .from("trip_member_locations")
+      .select("user_id,latitude,longitude,sharing_enabled,updated_at,expires_at")
+      .eq("trip_id", tripId)
+      .eq("sharing_enabled", true)
+      .gt("expires_at", nowIso),
+  ])
+
+  const readError = preferenceResult.error ?? memberResult.error ?? locationResult.error
+  if (readError) return { error: readError }
+
+  const activeMemberIds = new Set((memberResult.data ?? []).map((member) => member.user_id))
+  if (!activeMemberIds.has(userId)) return { notFound: true }
+
+  const peerLocations = (locationResult.data ?? []).filter((location) =>
+    location.user_id !== userId
+      && activeMemberIds.has(location.user_id)
+      && location.sharing_enabled
+      && new Date(location.expires_at).getTime() > now.getTime(),
+  )
+  const peerIds = [...new Set(peerLocations.map((location) => location.user_id))]
+  const profileResult = peerIds.length > 0
+    ? await admin.from("user_profiles").select("user_id,display_name").in("user_id", peerIds)
+    : { data: [], error: null }
+  if (profileResult.error) return { error: profileResult.error }
+
+  const displayNameByUserId = new Map(
+    (profileResult.data ?? []).map((profile) => [profile.user_id, profile.display_name?.trim() || "Trip member"]),
+  )
+  const preference = preferenceResult.data
+  const preferenceExpiresAt = preference?.expires_at ?? null
+  const preferenceIsActive = Boolean(
+    preference?.enabled
+      && preferenceExpiresAt
+      && new Date(preferenceExpiresAt).getTime() > now.getTime(),
+  )
+  const status = preferenceIsActive
+    ? "sharing"
+    : preference?.enabled
+      ? "expired"
+      : "off"
+
+  return {
+    snapshot: {
+      tripId,
+      enabled: preferenceIsActive,
+      status,
+      activeMemberCount: activeMemberIds.size,
+      expiresAt: preferenceExpiresAt,
+      visibleLocations: peerLocations.map((location) => {
+        const displayName = displayNameByUserId.get(location.user_id) ?? "Trip member"
+        const words = displayName.split(/\s+/).filter(Boolean)
+        const initials = words.length > 1
+          ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
+          : displayName.slice(0, 1).toUpperCase()
+        return {
+          userId: location.user_id,
+          displayName,
+          initials,
+          coordinate: [location.longitude, location.latitude],
+          updatedAt: location.updated_at,
+          expiresAt: location.expires_at,
+        }
+      }),
+    },
+  }
+}
+
+async function locationSharingSnapshotResponse(
+  context: WorkerContext,
+) {
+  const tripId = context.req.param("tripId")
+  if (!tripId) return context.json(apiError("VALIDATION_FAILED", "Choose a trip."), 400)
+  const result = await readLocationSharingSnapshot(
+    context.get("userClient"),
+    context.get("admin"),
+    context.get("user").id,
+    tripId,
+  )
+  if (result.error) return mapDatabaseError(context, result.error)
+  if (result.notFound) return context.json(apiError("NOT_FOUND", "Trip not found."), 404)
+  return context.json(result.snapshot)
+}
+
+app.get("/v1/trips/:tripId/location-sharing", locationSharingSnapshotResponse)
+
+app.put("/v1/trips/:tripId/location-sharing", async (context) => {
+  const parsed = locationSharingToggleSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Choose whether to share your location."), 400)
+  }
+  const { data, error } = await context.get("admin").rpc("set_mvp_location_sharing", {
+    p_actor_id: context.get("user").id,
+    p_enabled: parsed.data.enabled,
+    p_trip_id: context.req.param("tripId"),
+  })
+  if (error) return mapDatabaseError(context, error)
+  locationSharingToggleResponseSchema.parse(data)
+  return locationSharingSnapshotResponse(context)
+})
+
+app.put("/v1/trips/:tripId/location-sharing/current-location", async (context) => {
+  const parsed = currentLocationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Share a valid current location."), 400)
+  }
+  const { data, error } = await context.get("admin").rpc("upsert_mvp_current_location", {
+    p_actor_id: context.get("user").id,
+    p_latitude: parsed.data.latitude,
+    p_longitude: parsed.data.longitude,
+    p_trip_id: context.req.param("tripId"),
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(currentLocationResponseSchema.parse(data))
 })
 
 app.post("/v1/trips/:tripId/stops", async (context) => {
