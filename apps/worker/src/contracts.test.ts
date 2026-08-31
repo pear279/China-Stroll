@@ -3,6 +3,7 @@ import {
   addStopSchema,
   agentChangesSchema,
   createTripSchema,
+  editTripStopsSchema,
   isReviewOverdue,
   parseOpeningHours,
   placeIdSchema,
@@ -51,6 +52,15 @@ describe("worker contracts", () => {
   it("rejects malformed database change data", () => {
     const result = agentChangesSchema.safeParse([{ op: "update_stop", stopId: "not-a-uuid" }])
     expect(result.success).toBe(false)
+  })
+
+  it("accepts a bounded versioned itinerary edit", () => {
+    const result = editTripStopsSchema.safeParse({
+      expectedVersion: 2,
+      commandId: crypto.randomUUID(),
+      changes: [{ op: "remove_stop", stopId: crypto.randomUUID() }],
+    })
+    expect(result.success).toBe(true)
   })
 
   it("keeps only the public command result", () => {

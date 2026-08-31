@@ -56,6 +56,12 @@ export const addStopSchema = z.object({
   commandId: z.uuid(),
 })
 
+export const editTripStopsSchema = z.object({
+  expectedVersion: z.int().positive(),
+  commandId: z.uuid(),
+  changes: agentChangesSchema.min(1).max(20),
+})
+
 export const addTripDaySchema = z.object({
   date: z.iso.date().nullable().optional(),
   title: z.string().trim().min(1).max(120).optional(),

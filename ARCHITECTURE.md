@@ -90,7 +90,7 @@ Implemented:
 
 Next required endpoints:
 
-- Trip/stop patch, move and delete.
+- Versioned trip-stop patch, move and delete through `PATCH /v1/trips/:tripId/stops`.
 - Reservation create/read/update/delete.
 - Member invitation/acceptance.
 - Preference-aware place recommendation.

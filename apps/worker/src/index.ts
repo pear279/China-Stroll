@@ -26,6 +26,7 @@ import {
   apiError,
   confirmSuggestionSchema,
   createTripSchema,
+  editTripStopsSchema,
   isReviewOverdue,
   localeSchema,
   parseOpeningHours,
@@ -720,6 +721,23 @@ app.post("/v1/trips/:tripId/stops", async (context) => {
     p_trip_id: context.req.param("tripId"),
   })
 
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data))
+})
+
+app.patch("/v1/trips/:tripId/stops", async (context) => {
+  const parsed = editTripStopsSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) {
+    return context.json(apiError("VALIDATION_FAILED", "Check the itinerary changes."), 400)
+  }
+  const { data, error } = await context.get("admin").rpc("apply_mvp_trip_changes", {
+    p_actor_id: context.get("user").id,
+    p_changes: parsed.data.changes,
+    p_change_type: "edit_itinerary",
+    p_command_id: parsed.data.commandId,
+    p_expected_version: parsed.data.expectedVersion,
+    p_trip_id: context.req.param("tripId"),
+  })
   if (error) return mapDatabaseError(context, error)
   return context.json(tripCommandResultSchema.parse(data))
 })
