@@ -1,10 +1,12 @@
-import { Bookmark, Check, Clock3, MapPinned, Plus } from "lucide-react"
+import { Bookmark, Check, CircleAlert, Clock3, MapPinned, Milestone, Plus } from "lucide-react"
 import {
   formatCategoryLabel,
   formatDurationHours,
   resolvePlaceImage,
+  type Coordinate,
   type PlaceSummary,
 } from "../../../../../packages/shared/src"
+import { haversineKilometres } from "../../lib/navigation"
 
 type PlaceCardProps = {
   place: PlaceSummary
@@ -12,10 +14,22 @@ type PlaceCardProps = {
   saved: boolean
   selectedDay: number
   busy: string | null
+  userCoordinate: Coordinate | null
   onDetails: (placeId: string) => void
   onSave: (placeId: string) => Promise<void>
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
   onShowOnMap: (placeId: string) => void
+}
+
+function reviewLabel(reviewDueAt: string | null | undefined) {
+  if (!reviewDueAt) {
+    return "Review date pending"
+  }
+
+  const date = reviewDueAt.slice(0, 10)
+  return reviewDueAt < new Date().toISOString()
+    ? `Source recheck due ${date}`
+    : `Review due ${date}`
 }
 
 export function PlaceCard({
@@ -24,11 +38,14 @@ export function PlaceCard({
   saved,
   selectedDay,
   busy,
+  userCoordinate,
   onDetails,
   onSave,
   onAdd,
   onShowOnMap,
 }: PlaceCardProps) {
+  const distanceKm = userCoordinate ? haversineKilometres(userCoordinate, place.coordinate) : null
+
   return (
     <article className="place-card">
       <button
@@ -45,6 +62,8 @@ export function PlaceCard({
         <p>{place.shortIntro}</p>
         <div className="place-card-meta">
           <span><Clock3 aria-hidden="true" size={15} />{formatDurationHours(place.durationMinutes)}</span>
+          {distanceKm !== null && <span><Milestone aria-hidden="true" size={15} />{distanceKm.toFixed(1)} km away</span>}
+          <span><CircleAlert aria-hidden="true" size={15} />{reviewLabel(place.reviewDueAt)}</span>
         </div>
         <div className="place-card-actions">
           <button

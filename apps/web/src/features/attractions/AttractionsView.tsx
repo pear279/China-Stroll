@@ -1,20 +1,29 @@
 import { Compass, Crosshair, LoaderCircle, MapPinOff } from "lucide-react"
-import type { Coordinate, PlaceSummary } from "../../../../../packages/shared/src"
+import type {
+  Coordinate,
+  Locale,
+  PlaceRecommendationInput,
+  PlaceRecommendationResponse,
+  PlaceSummary,
+} from "../../../../../packages/shared/src"
 import { haversineKilometres } from "../../lib/navigation"
 import type { LocationStatus, NearbyRadius, PlacesState } from "../../app-shell/types"
 import { PlaceCard } from "./PlaceCard"
 import { PlaceFilters } from "./PlaceFilters"
+import { RecommendationPanel } from "./RecommendationPanel"
 
 export type AttractionsViewProps = {
   busy: string | null
   categories: string[]
   category: string
+  locale: Locale
   locationStatus: LocationStatus
   maxDuration: number | undefined
   nearbyRadius: NearbyRadius
   places: PlaceSummary[]
   placesState: PlacesState
   plannedIds: Set<string | null>
+  query: string
   savedPlaceIds: Set<string>
   selectedDay: number
   userCoordinate: Coordinate | null
@@ -23,8 +32,11 @@ export type AttractionsViewProps = {
   onCategory: (category: string) => void
   onDuration: (duration: number | undefined) => void
   onOpenDetails: (placeId: string) => void
+  onQuery: (query: string) => void
+  onRecommendPlaces: (input: PlaceRecommendationInput) => Promise<PlaceRecommendationResponse>
   onRadius: (radius: NearbyRadius) => void
   onRequestLocation: () => void
+  onResetFilters: () => void
   onShowOnMap: (placeId: string) => void
   onToggleSaved: (placeId: string) => Promise<void>
 }
@@ -33,12 +45,14 @@ export function AttractionsView({
   busy,
   categories,
   category,
+  locale,
   locationStatus,
   maxDuration,
   nearbyRadius,
   places,
   placesState,
   plannedIds,
+  query,
   savedPlaceIds,
   selectedDay,
   userCoordinate,
@@ -47,11 +61,15 @@ export function AttractionsView({
   onCategory,
   onDuration,
   onOpenDetails,
+  onQuery,
+  onRecommendPlaces,
   onRadius,
   onRequestLocation,
+  onResetFilters,
   onShowOnMap,
   onToggleSaved,
 }: AttractionsViewProps) {
+  const locationMessageId = "attractions-location-message"
   const nearest = userCoordinate && visiblePlaces.length
     ? [...visiblePlaces].sort(
         (left, right) =>
@@ -82,7 +100,7 @@ export function AttractionsView({
           <div>
             {locationStatus === "failed" ? <MapPinOff aria-hidden="true" size={22} /> : <Crosshair aria-hidden="true" size={22} />}
             <strong>{locationStatus === "failed" ? "Location is unavailable" : "Find nearby places"}</strong>
-            <span>{locationStatus === "failed" ? "You can still browse every reviewed place." : "Use a one-time location check to sort places nearby."}</span>
+            <span id={locationMessageId}>{locationStatus === "failed" ? "You can still browse every reviewed place." : "Use a one-time location check to sort places nearby."}</span>
           </div>
         )}
         <button type="button" disabled={locationStatus === "loading"} onClick={onRequestLocation}>
@@ -95,10 +113,13 @@ export function AttractionsView({
           categories={categories}
           category={category}
           maxDuration={maxDuration}
+          query={query}
           radius={nearbyRadius}
           hasLocation={Boolean(userCoordinate)}
+          locationMessageId={locationMessageId}
           onCategory={onCategory}
           onDuration={onDuration}
+          onQuery={onQuery}
           onRadius={onRadius}
         />
       )}
@@ -130,7 +151,25 @@ export function AttractionsView({
           <Compass aria-hidden="true" size={28} />
           <h2>No place matches these filters.</h2>
           <p>Widen the distance, category, or visit length to see more.</p>
+          <button type="button" className="secondary-button inline-reset-button" onClick={onResetFilters}>
+            Reset search and filters
+          </button>
         </div>
+      )}
+
+      {placesState === "ready" && places.length > 0 && (
+        <RecommendationPanel
+          places={places}
+          locale={locale}
+          coordinate={userCoordinate}
+          radiusKm={userCoordinate ? nearbyRadius : null}
+          availableMinutes={maxDuration ?? null}
+          plannedPlaceIds={[...plannedIds].filter((placeId): placeId is string => Boolean(placeId))}
+          selectedDay={selectedDay}
+          onRecommend={onRecommendPlaces}
+          onDetails={onOpenDetails}
+          onAdd={onAddPlace}
+        />
       )}
 
       {visiblePlaces.length > 0 && (
@@ -143,6 +182,7 @@ export function AttractionsView({
               saved={savedPlaceIds.has(place.id)}
               selectedDay={selectedDay}
               busy={busy}
+              userCoordinate={userCoordinate}
               onDetails={onOpenDetails}
               onSave={onToggleSaved}
               onAdd={onAddPlace}

@@ -1,7 +1,12 @@
-import { render, screen } from "@testing-library/react"
+import { useState } from "react"
+import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
-import type { PlaceSummary } from "../../../../../packages/shared/src"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import {
+  filterPlaceSummaries,
+  type PlaceRecommendationResponse,
+  type PlaceSummary,
+} from "../../../../../packages/shared/src"
 import { AttractionsView, type AttractionsViewProps } from "./AttractionsView"
 
 const palace: PlaceSummary = {
@@ -13,34 +18,104 @@ const palace: PlaceSummary = {
   tags: ["palace"],
   coordinate: [116.3907694, 39.9172757],
   durationMinutes: 240,
-  coordinatesCheckedAt: "2026-08-30",
+  coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+  aliases: ["Forbidden City"],
+  highlights: ["Imperial Garden"],
+  reviewedAt: "2026-08-30T00:00:00.000Z",
+  reviewDueAt: "2026-09-29T00:00:00.000Z",
+}
+
+const museum: PlaceSummary = {
+  id: "national-museum-of-china",
+  locale: "en",
+  name: "National Museum of China",
+  shortIntro: "Major history galleries on Tiananmen East.",
+  categoryCode: "museum",
+  tags: ["history"],
+  coordinate: [116.407387, 39.905132],
+  durationMinutes: 180,
+  coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+  aliases: ["国博"],
+  highlights: ["Bronze gallery"],
+  reviewedAt: "2026-08-30T00:00:00.000Z",
+  reviewDueAt: "2026-09-29T00:00:00.000Z",
 }
 
 function createProps(): AttractionsViewProps {
   return {
     busy: null,
-    categories: ["historic"],
+    categories: ["historic", "museum"],
     category: "all",
+    locale: "en",
     locationStatus: "failed",
     maxDuration: undefined,
     nearbyRadius: 3,
-    places: [palace],
+    places: [palace, museum],
     placesState: "ready",
     plannedIds: new Set(),
     savedPlaceIds: new Set(),
     selectedDay: 1,
     userCoordinate: null,
-    visiblePlaces: [palace],
+    visiblePlaces: [palace, museum],
+    query: "",
     onAddPlace: vi.fn(async () => undefined),
     onCategory: vi.fn(),
     onDuration: vi.fn(),
     onOpenDetails: vi.fn(),
+    onQuery: vi.fn(),
+    onRecommendPlaces: vi.fn(async () =>
+      ({
+        results: [],
+        generatedBy: "deterministic",
+        updatedAt: "2026-08-31T00:00:00.000Z",
+      }) satisfies PlaceRecommendationResponse,
+    ),
     onRadius: vi.fn(),
     onRequestLocation: vi.fn(),
+    onResetFilters: vi.fn(),
     onShowOnMap: vi.fn(),
     onToggleSaved: vi.fn(async () => undefined),
   }
 }
+
+function AttractionsHarness() {
+  const [query, setQuery] = useState("")
+  const [category, setCategory] = useState("all")
+  const [maxDuration, setMaxDuration] = useState<number | undefined>()
+  const [radius, setRadius] = useState<1 | 3 | 5>(3)
+  const places = [palace, museum]
+  const visiblePlaces = filterPlaceSummaries(places, {
+    query,
+    category,
+    maxDurationMinutes: maxDuration,
+    coordinate: null,
+    radiusKm: null,
+  })
+
+  return (
+    <AttractionsView
+      {...createProps()}
+      category={category}
+      maxDuration={maxDuration}
+      nearbyRadius={radius}
+      places={places}
+      query={query}
+      visiblePlaces={visiblePlaces}
+      onCategory={setCategory}
+      onDuration={setMaxDuration}
+      onQuery={setQuery}
+      onRadius={setRadius}
+      onResetFilters={() => {
+        setQuery("")
+        setCategory("all")
+        setMaxDuration(undefined)
+        setRadius(3)
+      }}
+    />
+  )
+}
+
+afterEach(cleanup)
 
 describe("AttractionsView", () => {
   it("keeps discovery usable when location is denied", async () => {
@@ -63,6 +138,22 @@ describe("AttractionsView", () => {
       />,
     )
 
-    expect(screen.getByRole("status").textContent).toContain("Loading reviewed places")
+    expect(screen.getByText("Loading reviewed places…")).toBeTruthy()
+  })
+
+  it("searches reviewed fields and resets an empty result", async () => {
+    const user = userEvent.setup()
+    render(<AttractionsHarness />)
+
+    const search = screen.getByRole("searchbox", { name: "Search reviewed places" })
+    await user.type(search, "国博")
+    expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
+
+    await user.clear(search)
+    await user.type(search, "blue umbrella")
+    expect(screen.getByRole("heading", { name: "No place matches these filters." })).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Reset search and filters" }))
+    expect(screen.getAllByRole("article")).toHaveLength(2)
   })
 })

@@ -54,6 +54,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Acceptance: a user can find one of 20 places, understand its source/review status and add it to a selected day in three actions or fewer.
   - Test: normal, empty, denied-location, AI-unavailable and mobile paths.
   - Progress 2026-08-30: shared place contracts and trust invariants landed in `packages/shared/src/place-contracts.ts`; deterministic place discovery, reviewed local Q&A retrieval, preference inference and recommendation ranking landed in `packages/shared/src/place-discovery.ts`; static/API place repositories now back the full 20-place catalog in preview and account modes, recompute runtime freshness flags from the catalog artifact, avoid `Authorization: Bearer null`, and passed focused repository/API/AppShell tests plus full app/Worker typecheck in the Attractions 1.0 worktree.
+  - Progress 2026-08-31: Attractions now applies shared reviewed-text query/category/duration/radius filtering in the shell, exposes an accessible search/reset flow, renders recommendation chips plus reviewed/AI result labels through `PlaceRepository.recommendPlaces`, and surfaces review-due metadata on cards without changing place identity or image sourcing. Focused Attractions/AppShell tests, fresh `typecheck`, fresh `lint`, and manual desktop plus 390px browser screenshots passed in the Attractions 1.0 worktree.
 
 - [ ] Task 7 — Complete itinerary editing and reservations in Mine
   - Goal: make the itinerary and reservation data models usable.

@@ -20,7 +20,27 @@ const palace: PlaceSummary = {
   tags: ["palace"],
   coordinate: [116.3907694, 39.9172757],
   durationMinutes: 240,
-  coordinatesCheckedAt: "2026-08-30",
+  coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+  aliases: ["Forbidden City"],
+  highlights: ["Imperial Garden"],
+  reviewedAt: "2026-08-30T00:00:00.000Z",
+  reviewDueAt: "2026-09-29T00:00:00.000Z",
+}
+
+const museum: PlaceSummary = {
+  id: "national-museum-of-china",
+  locale: "en",
+  name: "National Museum of China",
+  shortIntro: "Major history galleries on Tiananmen East.",
+  categoryCode: "museum",
+  tags: ["history"],
+  coordinate: [116.407387, 39.905132],
+  durationMinutes: 180,
+  coordinatesCheckedAt: "2026-08-30T00:00:00.000Z",
+  aliases: ["国博"],
+  highlights: ["Bronze gallery"],
+  reviewedAt: "2026-08-30T00:00:00.000Z",
+  reviewDueAt: "2026-09-29T00:00:00.000Z",
 }
 
 const trip: TripSnapshot = {
@@ -36,7 +56,7 @@ const trip: TripSnapshot = {
 }
 
 const repository: PlaceRepository = {
-  listPlaces: vi.fn(async () => ({ locale: "en" as const, places: [palace] })),
+  listPlaces: vi.fn(async () => ({ locale: "en" as const, places: [palace, museum] })),
   getPlace: vi.fn(async () => ({
     id: palace.id,
     locale: "en" as const,
@@ -85,7 +105,7 @@ const props: AppShellProps = {
   message: null,
   mode: "preview",
   placeRepository: repository,
-  places: [palace],
+  places: [palace, museum],
   placesState: "ready",
   savedPlaceIds: new Set(),
   testIdentity: null,
@@ -123,5 +143,14 @@ describe("AppShell", () => {
 
     expect(await screen.findByRole("heading", { name: "Map and nearby places" })).toBeTruthy()
     expect(screen.getByRole("dialog", { name: "The Palace Museum map actions" })).toBeTruthy()
+  })
+
+  it("filters attractions through the shared search state", async () => {
+    render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search reviewed places" }), "国博")
+
+    expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "The Palace Museum" })).toBeNull()
   })
 })

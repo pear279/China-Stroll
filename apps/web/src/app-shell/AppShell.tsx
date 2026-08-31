@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom"
-import { collectPlaceCategories, haversineKilometres } from "../../../../packages/shared/src"
+import { collectPlaceCategories, filterPlaceSummaries } from "../../../../packages/shared/src"
 import { PlaceDetailPanel } from "../components/PlaceDetailPanel"
 import { AttractionsView } from "../features/attractions/AttractionsView"
 import { MapView } from "../features/map/MapView"
@@ -34,6 +34,7 @@ export function AppShell({
   const [detailPlaceId, setDetailPlaceId] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState(trip.days[0]?.dayNumber ?? 1)
   const [category, setCategory] = useState("all")
+  const [query, setQuery] = useState("")
   const [maxDuration, setMaxDuration] = useState<number | undefined>()
   const [nearbyRadius, setNearbyRadius] = useState<NearbyRadius>(3)
   const { coordinate: userCoordinate, status: locationStatus, requestLocation } = useCurrentLocation()
@@ -41,12 +42,15 @@ export function AppShell({
   const plannedIds = useMemo(() => new Set(trip.stops.map((stop) => stop.placeId)), [trip.stops])
   const categories = useMemo(() => collectPlaceCategories(places), [places])
   const visiblePlaces = useMemo(
-    () => places.filter((place) =>
-      (category === "all" || place.categoryCode === category)
-      && (maxDuration === undefined || place.durationMinutes <= maxDuration)
-      && (!userCoordinate || haversineKilometres(userCoordinate, place.coordinate) <= nearbyRadius),
-    ),
-    [category, maxDuration, nearbyRadius, places, userCoordinate],
+    () =>
+      filterPlaceSummaries(places, {
+        query,
+        category,
+        maxDurationMinutes: maxDuration,
+        coordinate: userCoordinate,
+        radiusKm: userCoordinate ? nearbyRadius : null,
+      }),
+    [category, maxDuration, nearbyRadius, places, query, userCoordinate],
   )
 
   useEffect(() => {
@@ -84,12 +88,14 @@ export function AppShell({
                 busy={busy}
                 categories={categories}
                 category={category}
+                locale={trip.locale}
                 locationStatus={locationStatus}
                 maxDuration={maxDuration}
                 nearbyRadius={nearbyRadius}
                 places={places}
                 placesState={placesState}
                 plannedIds={plannedIds}
+                query={query}
                 savedPlaceIds={savedPlaceIds}
                 selectedDay={selectedDay}
                 userCoordinate={userCoordinate}
@@ -98,8 +104,16 @@ export function AppShell({
                 onCategory={setCategory}
                 onDuration={setMaxDuration}
                 onOpenDetails={setDetailPlaceId}
+                onQuery={setQuery}
+                onRecommendPlaces={placeRepository.recommendPlaces.bind(placeRepository)}
                 onRadius={setNearbyRadius}
                 onRequestLocation={requestLocation}
+                onResetFilters={() => {
+                  setQuery("")
+                  setCategory("all")
+                  setMaxDuration(undefined)
+                  setNearbyRadius(3)
+                }}
                 onShowOnMap={showOnMap}
                 onToggleSaved={onToggleSaved}
               />
