@@ -12,6 +12,13 @@ const placeAnswerSchema = z.object({
   sourceIds: z.array(z.int().positive()).max(8),
 })
 
+const recommendationExplanationsSchema = z.object({
+  explanations: z.array(z.object({
+    placeId: z.string().trim().min(1),
+    reason: z.string().trim().min(1).max(180),
+  })).max(5),
+})
+
 export type SiliconFlowConfig = {
   apiKey?: string
   baseUrl: string
@@ -143,6 +150,45 @@ export async function generatePlaceAnswer(
       throw new Error("siliconflow_unknown_source")
     }
     return parsed
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+export async function generateRecommendationExplanations(
+  config: SiliconFlowConfig,
+  input: { locale: "en" | "zh-CN"; candidates: Array<{ placeId: string; name: string; matchedSignals: string[]; reason: string }> },
+  fetcher: Fetcher = fetch,
+) {
+  if (!config.apiKey || input.candidates.length === 0) return null
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetcher(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.chatModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "Return JSON only: { explanations: [{ placeId, reason }] }. Use only the supplied candidates. Give a concise reason under 180 characters. Do not invent opening hours, prices, booking rules, safety facts, or places." },
+          { role: "user", content: JSON.stringify(input) },
+        ],
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`siliconflow_status_${response.status}`)
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content
+    if (!content) throw new Error("siliconflow_empty_response")
+    const parsed = recommendationExplanationsSchema.parse(JSON.parse(content))
+    const allowedIds = new Set(input.candidates.map((candidate) => candidate.placeId))
+    const outputIds = parsed.explanations.map((item) => item.placeId)
+    if (outputIds.some((id) => !allowedIds.has(id)) || new Set(outputIds).size !== outputIds.length) {
+      throw new Error("siliconflow_unknown_place")
+    }
+    return parsed.explanations
   } finally {
     clearTimeout(timeoutId)
   }

@@ -41,7 +41,7 @@ import {
   suggestionStatusSchema,
   tripCommandResultSchema,
 } from "./contracts"
-import { generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { generateRecommendationExplanations, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 import { answerPlaceQuestion } from "./placeIntelligence"
 import { TavilyWebSearchProvider } from "./webSearch"
 import { rankPlaceRecommendations } from "../../../packages/shared/src/place-discovery"
@@ -583,9 +583,33 @@ app.post("/v1/place-recommendations", async (context) => {
   }
   const input: PlaceRecommendationInput = { ...parsed.data, candidatePlaceIds: candidateIds, plannedPlaceIds: [...new Set(parsed.data.plannedPlaceIds)] }
   const results = rankPlaceRecommendations(places, input)
+  const siliconFlow = siliconFlowConfigFromBindings(context.env)
+  let generatedBy: PlaceRecommendationResponse["generatedBy"] = "deterministic"
+  if (siliconFlow.apiKey && results.length > 0) {
+    const limit = await consumePlaceIntelligenceLimit(context)
+    if (limit === "unauthenticated") return context.json(apiError("UNAUTHENTICATED", "Sign in before using external place intelligence."), 401)
+    if (limit === "rate-limited") return context.json(apiError("RATE_LIMITED", "Please wait before asking for another external recommendation."), 429)
+    if (limit === "dependency-unavailable") return context.json(apiError("DEPENDENCY_UNAVAILABLE", "External place intelligence is temporarily unavailable."), 503)
+    const names = new Map(places.map((place) => [place.id, place.name]))
+    const explanations = await generateRecommendationExplanations(siliconFlow, {
+      locale: input.locale,
+      candidates: results.slice(0, 5).map((result) => ({ placeId: result.placeId, name: names.get(result.placeId) ?? result.placeId, matchedSignals: result.matchedSignals, reason: result.reason })),
+    }).catch(() => null)
+    if (explanations) {
+      const explanationById = new Map(explanations.map((item) => [item.placeId, item.reason]))
+      results.forEach((result) => {
+        const reason = explanationById.get(result.placeId)
+        if (reason) {
+          result.reason = reason
+          result.reasonMode = "model"
+        }
+      })
+      generatedBy = "model"
+    }
+  }
   const response: PlaceRecommendationResponse = {
     results,
-    generatedBy: "deterministic",
+    generatedBy,
     updatedAt: new Date().toISOString(),
   }
   return context.json(response)
