@@ -10,6 +10,7 @@ import type {
 
 type RecommendationPanelProps = {
   places: PlaceSummary[]
+  candidatePlaces: PlaceSummary[]
   locale: Locale
   coordinate: Coordinate | null
   radiusKm: 1 | 3 | 5 | null
@@ -44,6 +45,7 @@ function generatedByLabel(generatedBy: PlaceRecommendationResponse["generatedBy"
 
 export function RecommendationPanel({
   places,
+  candidatePlaces,
   locale,
   coordinate,
   radiusKm,
@@ -83,7 +85,7 @@ export function RecommendationPanel({
         coordinate,
         radiusKm,
         availableMinutes,
-        candidatePlaceIds: places.map((place) => place.id),
+        candidatePlaceIds: candidatePlaces.map((place) => place.id),
         plannedPlaceIds,
       })
       setState({ status: "ready", response })
@@ -110,7 +112,7 @@ export function RecommendationPanel({
           <h2 id="recommendation-heading">Recommendation picks</h2>
           <p>Mix reviewed filters with trip context to shortlist where to go next.</p>
         </div>
-        <span className="count-chip">{places.length} candidates</span>
+        <span className="count-chip">{candidatePlaces.length} candidates</span>
       </div>
 
       <div className="recommendation-controls">

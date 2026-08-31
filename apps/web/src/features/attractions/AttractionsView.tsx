@@ -160,6 +160,7 @@ export function AttractionsView({
       {placesState === "ready" && places.length > 0 && (
         <RecommendationPanel
           places={places}
+          candidatePlaces={visiblePlaces}
           locale={locale}
           coordinate={userCoordinate}
           radiusKm={userCoordinate ? nearbyRadius : null}

@@ -119,6 +119,9 @@ const props: AppShellProps = {
 }
 
 afterEach(cleanup)
+afterEach(() => {
+  vi.clearAllMocks()
+})
 
 describe("AppShell", () => {
   it.each([
@@ -152,5 +155,17 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
     expect(screen.queryByRole("heading", { name: "The Palace Museum" })).toBeNull()
+  })
+
+  it("passes only the visible attractions into recommendation candidates", async () => {
+    render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search reviewed places" }), "国博")
+    await userEvent.click(screen.getByRole("button", { name: "History" }))
+    await userEvent.click(screen.getByRole("button", { name: "Recommend places" }))
+
+    expect(repository.recommendPlaces).toHaveBeenCalledWith(expect.objectContaining({
+      candidatePlaceIds: ["national-museum-of-china"],
+    }))
   })
 })
