@@ -117,6 +117,8 @@ Reservations are private trip records returned with the shared trip snapshot. Cr
 
 Map/list selection → set `selectedPlaceId` → action sheet → user chooses Apple Maps, Google Maps or a China-local provider → external app/browser handles navigation. The internal map never claims its dotted visit-order line is a calculated route.
 
+The Map module renders the selected day's ordered itinerary separately from nearby recommendations. It shares `selectedDay` and `selectedPlaceId` with Mine; itinerary selection highlights the matching marker when coordinates exist.
+
 ### Location sharing
 
 Mine or Map privacy control → show associated members and sharing explanation → user enables switch → foreground geolocation permission → server stores an expiring current point → RLS exposes it only to current trip members. Turning the switch off stops browser watches and revokes server visibility.

@@ -76,6 +76,7 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: Map module, `TravelMap`, navigation action sheet, map/route adapters and tests.
   - Acceptance: trip places, food and hotels share product place identity; marker selection shows Navigate/Cancel; nearby list and map remain synchronized; formal basemap passes license and Beijing network checks.
   - Test: component/browser tests and Beijing device navigation checks.
+  - Progress 2026-08-31: Map now presents an independent selected-day itinerary panel above nearby reviewed places. It retains the shared day/place selection state, orders stops by `sortOrder`, highlights the matching stop, and leaves coordinate-less stops as explicit text rather than inventing markers. Focused Map/AppShell tests (11 assertions) and typecheck passed in the Attractions worktree.
 
 - [ ] Task 9 — Add opt-in associated-user location sharing
   - Goal: allow a member to explicitly share an expiring current location with accepted trip members.

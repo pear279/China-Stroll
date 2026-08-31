@@ -30,7 +30,7 @@ const trip: TripSnapshot = {
   locale: "en",
   version: 1,
   days: [{ id: 1, dayNumber: 1, date: null, title: null }],
-  stops: [],
+  stops: [{ id: "stop-1", tripId: "trip-1", dayNumber: 1, placeId: "forbidden-city", name: "The Palace Museum", coordinate: [116.3907694, 39.9172757], startTime: "09:00:00", durationMinutes: 240, sortOrder: 0 }],
   suggestions: [],
 }
 
@@ -53,6 +53,14 @@ function createProps(): MapViewProps {
 }
 
 describe("MapView", () => {
+  it("shows the selected day itinerary and synchronizes its selection", async () => {
+    const props = createProps()
+    render(<MapView {...props} />)
+    expect(screen.getByRole("heading", { name: "Day 1 itinerary" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*09:00/ }))
+    expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
+  })
+
   it("opens Details, Add, Navigate and Cancel for a selected marker", async () => {
     const props = createProps()
     const { rerender } = render(<MapView {...props} />)

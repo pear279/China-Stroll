@@ -253,6 +253,17 @@ input:focus { border-color: #b33a2e; }
 .recommendation-result-actions button:disabled { color: #486034; background: #eef3e7; opacity: 1; }
 .map-view { max-width: none; }
 .map-module-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 1px; border: 1px solid #cfc6b8; background: #cfc6b8; }
+.map-side-panels { display: grid; align-content: start; gap: 1px; background: #cfc6b8; }
+.map-itinerary-panel { padding: 1rem; background: #f7f4ed; }
+.map-itinerary-panel .section-heading { margin-bottom: .8rem; }
+.map-itinerary-panel .section-heading h2 { margin: .25rem 0 0; font-size: 1.25rem; }
+.map-itinerary-panel > p { margin: 0; padding: .75rem; border: 1px dashed #c8beaf; color: #776e64; font-size: .8rem; }
+.map-itinerary-panel ol { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
+.map-itinerary-panel button, .map-itinerary-static { width: 100%; min-height: 4.1rem; display: grid; grid-template-columns: 2rem 1fr; align-items: center; gap: .65rem; padding: .6rem; border: 1px solid #d8d0c3; color: #443c35; background: #fffdf8; text-align: left; }
+.map-itinerary-panel button > span:first-child, .map-itinerary-static > span:first-child { width: 1.85rem; height: 1.85rem; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #23201d; font: 700 .74rem "Stroll Serif", Georgia, serif; }
+.map-itinerary-panel button > span:last-child, .map-itinerary-static > span:last-child { display: grid; gap: .18rem; min-width: 0; }
+.map-itinerary-panel small, .map-itinerary-static small { display: flex; align-items: center; gap: .28rem; color: #83796e; }
+.map-itinerary-panel button.is-selected { border-color: #b33a2e; box-shadow: inset 4px 0 #b33a2e; }
 .map-stage { position: relative; min-width: 0; background: #e6e0d5; }
 .map-stage .map-shell { min-height: 610px; height: min(68vh, 760px); border: 0; }
 .map-place-list { max-height: min(68vh, 760px); overflow-y: auto; padding: 1rem; background: #f7f4ed; }
