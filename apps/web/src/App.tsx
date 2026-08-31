@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { type AgentSuggestion, type PlaceSummary, type ReservationInput, type TripSnapshot } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
 import { createPlaceRepository } from "./data/placeRepository"
+import { useLocationSharing } from "./features/location/useLocationSharing"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
@@ -26,6 +27,11 @@ export function App() {
       : createPlaceRepository("api", session?.access_token ?? null)),
     [mode, session?.access_token],
   )
+  const locationSharing = useLocationSharing({
+    accessToken: session?.access_token ?? null,
+    tripId: trip?.id ?? null,
+    enabled: mode === "account" && Boolean(session && trip),
+  })
 
   const loadTrip = useCallback(async (accessToken: string, tripId: string) => {
     const nextTrip = await api.getTrip(accessToken, tripId)
@@ -330,6 +336,13 @@ export function App() {
       busy={busy}
       message={message}
       mode={mode}
+      locationSharing={{
+        status: locationSharing.status,
+        snapshot: locationSharing.snapshot,
+        onEnable: locationSharing.enable,
+        onDisable: locationSharing.disable,
+        onRetryDisable: locationSharing.retryDisable,
+      }}
       placeRepository={placeRepository}
       places={places}
       placesState={placesState}

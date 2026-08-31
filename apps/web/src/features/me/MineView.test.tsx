@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
+import type { LocationSharingSnapshot, PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
 import { MineView, type MineViewProps } from "./MineView"
 
 const trip: TripSnapshot = {
@@ -40,16 +40,32 @@ const places: PlaceSummary[] = [
   },
 ]
 
+const offLocationSnapshot: LocationSharingSnapshot = {
+  tripId: "trip-1",
+  enabled: false,
+  status: "off",
+  activeMemberCount: 3,
+  expiresAt: null,
+  visibleLocations: [],
+}
+
 function createProps(): MineViewProps {
   return {
     busy: null,
     message: null,
-    mode: "preview",
+    mode: "account",
     selectedDay: 2,
     selectedPlaceId: null,
     testIdentity: null,
     trip,
     places,
+    locationSharing: {
+      status: "off",
+      snapshot: offLocationSnapshot,
+      onEnable: vi.fn(async () => undefined),
+      onDisable: vi.fn(async () => undefined),
+      onRetryDisable: vi.fn(async () => undefined),
+    },
     onAddDay: vi.fn(async () => 3),
     onAddPlace: vi.fn(async () => undefined),
     onConfirm: vi.fn(async () => undefined),
@@ -98,5 +114,98 @@ describe("MineView", () => {
     await user.click(screen.getByRole("button", { name: "Save reservation" }))
 
     expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))
+  })
+
+  it("renders location sharing off by default with explicit privacy limits", () => {
+    render(<MineView {...createProps()} />)
+
+    expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByText("Location sharing is off")).toBeTruthy()
+    expect(screen.getByText("Only while this app is open")).toBeTruthy()
+    expect(screen.getByText(/active trip members only/i)).toBeTruthy()
+    expect(screen.getByText(/no location history/i)).toBeTruthy()
+    expect(screen.getByText(/not a safety guarantee/i)).toBeTruthy()
+  })
+
+  it("shows successful sharing and the number of active recipients", () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "sharing",
+      snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing" },
+    }
+    render(<MineView {...props} />)
+
+    expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("true")
+    expect(screen.getByText("Sharing with 2 other active trip members.")).toBeTruthy()
+  })
+
+  it("explains when no active peer can receive a shared point", () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "sharing",
+      snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing", activeMemberCount: 1 },
+    }
+    render(<MineView {...props} />)
+
+    expect(screen.getByText("No other active trip members can view your location right now.")).toBeTruthy()
+  })
+
+  it("keeps permission denial visible without blocking the rest of Mine", () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "permission-denied",
+      snapshot: { ...offLocationSnapshot, status: "permission-denied" },
+    }
+    render(<MineView {...props} />)
+
+    expect(screen.getByRole("alert").textContent).toContain("Location permission was denied")
+    expect(screen.getByRole("heading", { name: "Day 2 itinerary" })).toBeTruthy()
+  })
+
+  it("offers a retry when server revocation fails", async () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "revoke-failed",
+      snapshot: { ...offLocationSnapshot, enabled: true, status: "revoke-failed" },
+    }
+    render(<MineView {...props} />)
+
+    expect(screen.getByRole("alert").textContent).toContain("server revocation failed")
+    await userEvent.click(screen.getByRole("button", { name: "Retry revocation" }))
+    expect(props.locationSharing.onRetryDisable).toHaveBeenCalledTimes(1)
+  })
+
+  it("still allows a traveler to turn sharing off after a live upload dependency failure", async () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "dependency-unavailable",
+      snapshot: { ...offLocationSnapshot, enabled: true, status: "dependency-unavailable" },
+    }
+    render(<MineView {...props} />)
+
+    const sharingSwitch = screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement
+    expect(sharingSwitch.disabled).toBe(false)
+    await userEvent.click(sharingSwitch)
+    expect(props.locationSharing.onDisable).toHaveBeenCalledTimes(1)
+  })
+
+  it("uses a deterministic unavailable state in preview without member or coordinate placeholders", () => {
+    const props = createProps()
+    props.locationSharing = {
+      ...props.locationSharing,
+      status: "dependency-unavailable",
+      snapshot: null,
+    }
+    props.mode = "preview"
+    render(<MineView {...props} />)
+
+    expect((screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText("Location sharing is unavailable in preview.")).toBeTruthy()
+    expect(screen.queryByText(/demo member/i)).toBeNull()
   })
 })

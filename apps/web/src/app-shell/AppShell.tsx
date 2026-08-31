@@ -15,6 +15,7 @@ export function AppShell({
   busy,
   message,
   mode,
+  locationSharing,
   placeRepository,
   places,
   placesState,
@@ -173,6 +174,7 @@ export function AppShell({
                 busy={busy}
                 message={message}
                 mode={mode}
+                locationSharing={locationSharing}
                 places={places}
                 selectedDay={selectedDay}
                 selectedPlaceId={selectedPlaceId}

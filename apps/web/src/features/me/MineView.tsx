@@ -1,12 +1,13 @@
-import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, Pencil, Plus, Sparkles, Trash2, Users, X } from "lucide-react"
+import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
 import { useState } from "react"
 import type { AgentSuggestion, PlaceSummary, ReservationInput, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
-import type { AppMode } from "../../app-shell/types"
+import type { AppMode, LocationSharingControls } from "../../app-shell/types"
 
 export type MineViewProps = {
   busy: string | null
   message: string | null
   mode: AppMode
+  locationSharing: LocationSharingControls
   selectedDay: number
   selectedPlaceId: string | null
   testIdentity: string | null
@@ -29,6 +30,7 @@ export function MineView({
   busy,
   message,
   mode,
+  locationSharing,
   selectedDay,
   selectedPlaceId,
   testIdentity,
@@ -185,12 +187,85 @@ export function MineView({
           />
         </section>
 
-        <section className="mine-empty-card" aria-labelledby="members-heading">
-          <Users aria-hidden="true" size={22} />
-          <h2 id="members-heading">Trip members</h2>
-          <p>Location sharing will remain off until associated users, consent, access control, and revocation are available.</p>
-        </section>
+        <LocationSharingCard mode={mode} sharing={locationSharing} />
       </div>
+    </section>
+  )
+}
+
+function LocationSharingCard({ mode, sharing }: { mode: AppMode; sharing: LocationSharingControls }) {
+  const checked = sharing.snapshot?.enabled ?? false
+  const waiting = sharing.status === "loading" || sharing.status === "enabling" || sharing.status === "revoke-pending"
+  const unavailable = mode === "preview"
+    || (sharing.status === "dependency-unavailable" && !sharing.snapshot)
+    || sharing.status === "revoke-failed"
+  const recipients = Math.max(0, (sharing.snapshot?.activeMemberCount ?? 1) - 1)
+
+  let statusText = "Location sharing is off"
+  let statusIsError = false
+  if (mode === "preview") statusText = "Location sharing is unavailable in preview."
+  else if (sharing.status === "loading") statusText = "Checking location sharing…"
+  else if (sharing.status === "enabling") statusText = "Starting foreground location sharing…"
+  else if (sharing.status === "sharing") {
+    statusText = recipients === 0
+      ? "No other active trip members can view your location right now."
+      : `Sharing with ${recipients} other active trip ${recipients === 1 ? "member" : "members"}.`
+  } else if (sharing.status === "expired") statusText = "Your last shared location expired. Sharing is off."
+  else if (sharing.status === "permission-denied") {
+    statusText = checked
+      ? "Location permission was denied. No new updates are being sent; your last accepted point may remain visible until it expires or you turn sharing off."
+      : "Location permission was denied. Location sharing is off."
+    statusIsError = true
+  } else if (sharing.status === "upload-failed") {
+    statusText = "Your initial location could not be shared. Location sharing is off."
+    statusIsError = true
+  } else if (sharing.status === "revoke-pending") statusText = "Browser updates stopped. Revoking server visibility…"
+  else if (sharing.status === "revoke-failed") {
+    statusText = "Browser updates stopped, but server revocation failed. Retry to remove visibility."
+    statusIsError = true
+  } else if (sharing.status === "dependency-unavailable") {
+    statusText = checked
+      ? "The latest location update failed. Your last accepted point may remain visible until it expires or you turn sharing off."
+      : "Location sharing is temporarily unavailable. Your map and itinerary still work."
+    statusIsError = true
+  }
+
+  return (
+    <section className="location-sharing-card" aria-labelledby="location-sharing-heading">
+      <div className="location-sharing-heading">
+        <div className="location-sharing-title">
+          <LocateFixed aria-hidden="true" size={22} />
+          <div><span className="eyebrow">Privacy control</span><h2 id="location-sharing-heading">Current location</h2></div>
+        </div>
+        <button
+          aria-checked={checked}
+          aria-label="Share my current location"
+          className="location-sharing-switch"
+          disabled={waiting || unavailable}
+          role="switch"
+          type="button"
+          onClick={() => void (checked ? sharing.onDisable() : sharing.onEnable())}
+        >
+          <span aria-hidden="true" />
+        </button>
+      </div>
+      <strong className="location-sharing-label">Share my current location</strong>
+      <ul className="location-sharing-limits">
+        <li>Only while this app is open</li>
+        <li>Visible to active trip members only</li>
+        <li>One current point with no location history</li>
+      </ul>
+      <p className="location-safety-note">This is a coordination aid, not a safety guarantee.</p>
+      <div className={statusIsError ? "location-sharing-status is-error" : "location-sharing-status"} role={statusIsError ? "alert" : "status"}>
+        {waiting && <LoaderCircle className="spin" aria-hidden="true" size={17} />}
+        <span>{statusText}</span>
+      </div>
+      {sharing.snapshot && <small className="location-member-count">{sharing.snapshot.activeMemberCount} active trip {sharing.snapshot.activeMemberCount === 1 ? "member" : "members"}</small>}
+      {sharing.status === "revoke-failed" && (
+        <button className="secondary-button location-retry-button" type="button" onClick={() => void sharing.onRetryDisable()}>
+          Retry revocation
+        </button>
+      )}
     </section>
   )
 }

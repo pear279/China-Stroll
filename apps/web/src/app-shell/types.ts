@@ -1,4 +1,4 @@
-import type { AgentSuggestion, PlaceSummary, ReservationInput, TripSnapshot } from "../../../../packages/shared/src"
+import type { AgentSuggestion, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationInput, TripSnapshot } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
@@ -7,10 +7,19 @@ export type LocationStatus = "idle" | "loading" | "ready" | "failed"
 export type NearbyRadius = 1 | 3 | 5
 export type ModulePath = "/attractions" | "/map" | "/tools" | "/me"
 
+export type LocationSharingControls = {
+  status: LocationSharingStatus
+  snapshot: LocationSharingSnapshot | null
+  onEnable: () => Promise<void>
+  onDisable: () => Promise<void>
+  onRetryDisable: () => Promise<void>
+}
+
 export type AppShellProps = {
   busy: string | null
   message: string | null
   mode: AppMode
+  locationSharing: LocationSharingControls
   placeRepository: PlaceRepository
   places: PlaceSummary[]
   placesState: PlacesState

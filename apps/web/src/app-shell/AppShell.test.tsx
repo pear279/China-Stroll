@@ -103,6 +103,13 @@ const props: AppShellProps = {
   busy: null,
   message: null,
   mode: "preview",
+  locationSharing: {
+    status: "dependency-unavailable",
+    snapshot: null,
+    onEnable: vi.fn(async () => undefined),
+    onDisable: vi.fn(async () => undefined),
+    onRetryDisable: vi.fn(async () => undefined),
+  },
   placeRepository: repository,
   places: [palace, museum],
   placesState: "ready",
