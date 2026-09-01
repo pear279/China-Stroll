@@ -54,7 +54,11 @@ Implemented location-sharing tables:
 
 RLS requires current active trip membership for reads and exposes only enabled, non-expired points. Browser clients cannot write these tables directly: service-role-only commands verify the authenticated actor and active membership before changing the preference or latest point. Enable/disable and current-point uploads serialize on the same trip-member transaction lock, so an overlapping upload cannot recreate a point after revocation. Disabling sharing revokes the current point in the same server-side command. Historical location trails are out of scope for the first version.
 
-Private place records and photos need separate tables before implementation; visibility defaults to `private`. Public community records must not reuse private storage paths or bypass moderation state.
+Implemented private-place tables:
+
+- `private_places`: trip-scoped, user-created hotel/restaurant/meeting-point/other locations with an opaque product `id`, optional WGS84 coordinate, address, and notes. They are a separate trust class from reviewed `places` and are never returned by public place APIs. `trip_stops.private_place_id` and `reservations.private_place_id` link to them; a stop or reservation holds either a reviewed `place_id` or a `private_place_id`, never both.
+
+Private photo/travel records still need separate tables before implementation; visibility defaults to `private`. Public community records must not reuse private storage paths or bypass moderation state.
 
 ## Place Data Publishing Pipeline
 
@@ -94,10 +98,10 @@ Implemented:
 - Stop field edits (start time, duration, transport, notes), cross-day movement, and trip-day date/title/notes edits.
 - AI reservation draft (read-only; never calls a reservation write command).
 - Tools: a provider-neutral exchange adapter (returns an honest unavailable state without a configured provider) and bounded text translation over the SiliconFlow chat adapter.
+- Private places: trip-scoped hotels/restaurants/meeting points with create, list, and add-to-day; stops and reservations can link to either a reviewed place or a private place through one product place identity.
 
 Next required endpoints:
 
-- Private trip-scoped places for hotels, restaurants and meeting points.
 - Private records and offline cache.
 
 Implemented location-sharing endpoints:
@@ -134,7 +138,9 @@ Reservations are private trip records returned with the shared trip snapshot. Cr
 
 Map/list selection → set `selectedPlaceId` → action sheet → user chooses Apple Maps, Google Maps or a China-local provider → external app/browser handles navigation. The internal map never claims its dotted visit-order line is a calculated route.
 
-The Map module renders the selected day's ordered itinerary separately from nearby recommendations. It shares `selectedDay` and `selectedPlaceId` with Mine; itinerary selection highlights the matching marker when coordinates exist.
+The Map module renders the selected day's ordered itinerary separately from nearby recommendations. It shares `selectedDay` and `selectedPlaceId` with Mine; itinerary selection highlights the matching marker when coordinates exist. Private stops are rendered with a distinct trust label and never receive an invented coordinate; coordinate-less private stops stay text-only in Mine.
+
+The visual boundary remains the project-owned MapLibre/mapcn wrapper. The formal basemap tile provider, its attribution/license, and Beijing-network verification are recorded in the Package 6 acceptance checklist; the current map is a development wrapper and is not the shipping basemap.
 
 ### Location sharing
 

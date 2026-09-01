@@ -49,9 +49,9 @@
 
 ### Package 4: Private Places and Map Completion
 
-- [ ] Create a detailed package plan from the approved spec before changing code.
-- [ ] Trip-scoped private place identity and RLS for hotel, restaurant, meeting point, and other stops.
-- [ ] Private-place creation, itinerary/reservation linking, marker styling, and navigation.
+- [x] Create a detailed package plan from the approved spec before changing code.
+- [x] Trip-scoped private place identity and RLS for hotel, restaurant, meeting point, and other stops.
+- [x] Private-place creation, itinerary/reservation linking, marker styling, and navigation.
 - [ ] Formal basemap attribution, Beijing network fallback, and license record.
 
 ### Package 5: Private Records and Offline Reading

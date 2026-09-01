@@ -108,6 +108,11 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: `apps/web/src/data/toolsContent.ts`, `apps/worker/src/tools.ts`, `GET /v1/exchange-rates`, `POST /v1/translations`, rebuilt `ToolsView`.
   - Verified: exchange adapter returns null without a provider; translation returns null without an API key and routes through the authenticated Worker boundary; ToolsView renders real emergency/helpline links, navigation links, payment guidance, common phrases, and no fabricated rate before a live request. typecheck, lint, 222 tests, web/Functions/Worker builds passed on 2026-09-01.
 
+- [x] Package 4 — Private Places and Map Completion (2026-09-01)
+  - Goal: trip-scoped private places (hotel/restaurant/meeting-point/other), stop/reservation linking, distinct trust labels, and map-boundary attribution record.
+  - Files: `supabase/migrations/20260901190000_add_private_places.sql`, `create_mvp_private_place`/`add_mvp_private_stop`, private-place Worker endpoints, Mine `PrivatePlacesCard`, `private_place_id` stop/reservation links.
+  - Verified: two clean PostgreSQL 17 rebuilds with private-place permission/RLS/partial-coordinate/idempotency tests; private places are a separate trust class and never reach public place APIs; Mine creates and adds private places to a day. typecheck, lint, 222 tests, web/Functions/Worker builds, and `db:verify` passed on 2026-09-01. Formal basemap provider/attribution and Beijing network checks remain in Package 6 acceptance.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.
