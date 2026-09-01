@@ -12,6 +12,7 @@ import type {
   PlaceQuestionResponse,
   PlaceRecommendationInput,
   PlaceRecommendationResponse,
+  ReservationDraft,
   ReservationInput,
   TripInvitationPreview,
   TripInvitationSummary,
@@ -201,6 +202,18 @@ export const api = {
         expectedVersion: trip.version,
         commandId: crypto.randomUUID(),
       }),
+    })
+  },
+  updateTripDay(accessToken: string, trip: TripSnapshot, dayNumber: number, input: { date?: string | null; title?: string | null; notes?: string }) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/days/${dayNumber}`, accessToken, {
+      method: "PATCH",
+      body: JSON.stringify({ ...input, expectedVersion: trip.version, commandId: crypto.randomUUID() }),
+    })
+  },
+  createReservationDraft(accessToken: string, tripId: string, sourceText: string) {
+    return request<ReservationDraft>(`/v1/trips/${encodeURIComponent(tripId)}/reservation-drafts`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({ sourceText }),
     })
   },
   createReservation(accessToken: string, trip: TripSnapshot, input: ReservationInput) {

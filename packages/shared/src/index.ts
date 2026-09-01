@@ -132,6 +132,7 @@ export type TripReservation = {
 }
 
 export type ReservationInput = Omit<TripReservation, "id" | "tripId">
+export type ReservationDraft = Omit<ReservationInput, "dayNumber" | "placeId">
 
 export type AgentChange =
   | {

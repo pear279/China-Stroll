@@ -19,6 +19,17 @@ const recommendationExplanationsSchema = z.object({
   })).max(5),
 })
 
+export const reservationDraftModelSchema = z.object({
+  category: z.enum(["accommodation", "transport", "restaurant", "attraction", "activity"]),
+  title: z.string().trim().min(1).max(200),
+  startsAt: z.iso.datetime().nullable(),
+  endsAt: z.iso.datetime().nullable(),
+  status: z.enum(["planned", "confirmed", "cancelled", "completed"]).default("planned"),
+  provider: z.string().trim().max(200).nullable(),
+  confirmationCode: z.string().trim().max(200).nullable(),
+  notes: z.string().max(4000).default(""),
+})
+
 export type SiliconFlowConfig = {
   apiKey?: string
   baseUrl: string
@@ -189,6 +200,43 @@ export async function generateRecommendationExplanations(
       throw new Error("siliconflow_unknown_place")
     }
     return parsed.explanations
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+export async function generateReservationDraft(
+  config: SiliconFlowConfig,
+  sourceText: string,
+  fetcher: Fetcher = fetch,
+) {
+  if (!config.apiKey) return null
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetcher(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.chatModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Parse the pasted booking information into an unsaved reservation draft. Return one JSON object with category (accommodation|transport|restaurant|attraction|activity), title, startsAt (ISO datetime or null), endsAt (ISO datetime or null), status (planned|confirmed|cancelled|completed), provider (or null), confirmationCode (or null), and notes. Use null or empty for anything the text does not state. Never invent a booking, confirmation code, price, or availability.",
+          },
+          { role: "user", content: sourceText },
+        ],
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`siliconflow_status_${response.status}`)
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content
+    if (!content) throw new Error("siliconflow_empty_response")
+    return reservationDraftModelSchema.parse(JSON.parse(content))
   } finally {
     clearTimeout(timeoutId)
   }

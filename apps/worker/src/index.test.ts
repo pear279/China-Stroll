@@ -619,6 +619,50 @@ describe("worker routes", () => {
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({ error: { code: "MEMBER_CONFLICT" } })
   })
+
+  it("updates a trip day through the versioned command", async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: { tripId, version: 3, commandId: crypto.randomUUID(), changed: [{ type: "trip_day", id: 1, dayNumber: 2 }] },
+      error: null,
+    })
+
+    const response = await app.request(
+      `/v1/trips/${tripId}/days/2`,
+      {
+        method: "PATCH",
+        headers: { Authorization: "Bearer valid-test-token", "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Museum morning", date: "2026-09-02", expectedVersion: 2, commandId: crypto.randomUUID() }),
+      },
+      env,
+    )
+
+    expect(response.status).toBe(200)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("update_mvp_trip_day", {
+      p_actor_id: actorId,
+      p_trip_id: tripId,
+      p_expected_version: 2,
+      p_command_id: expect.any(String),
+      p_day_number: 2,
+      p_input: { title: "Museum morning", date: "2026-09-02" },
+    })
+    await expect(response.json()).resolves.toMatchObject({ version: 3 })
+  })
+
+  it("returns an unavailable reservation draft without writing", async () => {
+    const response = await app.request(
+      `/v1/trips/${tripId}/reservation-drafts`,
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer valid-test-token", "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceText: "Hotel check-in on 2026-09-03" }),
+      },
+      env,
+    )
+
+    expect(response.status).toBe(503)
+    expect(supabaseMocks.rpc).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "DEPENDENCY_UNAVAILABLE" } })
+  })
 })
 
 describe("authentication boundary", () => {

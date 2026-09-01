@@ -52,6 +52,7 @@ import {
   placeQuestionSchema,
   placeRecommendationSchema,
   removeMemberResultSchema,
+  reservationDraftRequestSchema,
   revokeInvitationResultSchema,
   savePlaceSchema,
   suggestionRisksSchema,
@@ -62,9 +63,10 @@ import {
   tripInvitationSummarySchema,
   tripMemberSummarySchema,
   updateReservationSchema,
+  updateTripDaySchema,
   userProfileInputSchema,
 } from "./contracts"
-import { generateRecommendationExplanations, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { generateRecommendationExplanations, generateReservationDraft, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 import { answerPlaceQuestion } from "./placeIntelligence"
 import { TavilyWebSearchProvider } from "./webSearch"
 import { rankPlaceRecommendations } from "../../../packages/shared/src/place-discovery"
@@ -1158,6 +1160,38 @@ app.delete("/v1/trips/:tripId/members/:memberUserId", async (context) => {
   if (error) return mapDatabaseError(context, error)
   const result = removeMemberResultSchema.parse(data)
   return context.json({ tripId: result.tripId, removedUserId: result.removedUserId })
+})
+
+app.patch("/v1/trips/:tripId/days/:dayNumber", async (context) => {
+  const parsed = updateTripDaySchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Check the day details."), 400)
+  const dayNumber = Number(context.req.param("dayNumber"))
+  if (!Number.isInteger(dayNumber) || dayNumber < 1) return context.json(apiError("VALIDATION_FAILED", "Choose a valid day."), 400)
+  const { expectedVersion, commandId, ...input } = parsed.data
+  const { data, error } = await context.get("admin").rpc("update_mvp_trip_day", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_expected_version: expectedVersion,
+    p_command_id: commandId,
+    p_day_number: dayNumber,
+    p_input: input,
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data))
+})
+
+app.post("/v1/trips/:tripId/reservation-drafts", async (context) => {
+  const parsed = reservationDraftRequestSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Paste the booking details to draft a reservation."), 400)
+  const draft = await generateReservationDraft(
+    siliconFlowConfigFromBindings(context.env),
+    parsed.data.sourceText,
+  ).catch((error) => {
+    console.error(JSON.stringify({ message: "siliconflow_reservation_draft_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+    return null
+  })
+  if (!draft) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "Could not draft this reservation. Enter it manually."), 503)
+  return context.json(draft)
 })
 
 app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
