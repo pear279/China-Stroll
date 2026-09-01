@@ -1,7 +1,7 @@
 # China Stroll MVP Function Completion Design
 
 Date: 2026-09-01  
-Status: approved direction, pending written-spec confirmation
+Status: approved
 
 ## Objective
 
@@ -139,4 +139,3 @@ After all five packages are complete, run one unified acceptance phase:
 ## Completion Criteria
 
 The milestone is function-complete when every in-scope entry has a real or explicitly degraded user flow, no button claims an unavailable mutation succeeded, public and private place trust classes remain distinct, AI applies no writes, and all four modules can be used without relying on a future placeholder. The milestone is accepted only after the unified acceptance phase passes.
-
