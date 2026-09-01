@@ -89,6 +89,8 @@ export type SamplePlace = {
   image: string
 }
 
+export type TransportMode = "walk" | "transit" | "taxi" | "bike" | "other"
+
 export type TripStop = {
   id: string
   tripId: string
@@ -98,6 +100,8 @@ export type TripStop = {
   coordinate: Coordinate | null
   startTime: string | null
   durationMinutes: number | null
+  transportMode: TransportMode | null
+  notes: string
   sortOrder: number
 }
 
@@ -106,6 +110,7 @@ export type TripDay = {
   dayNumber: number
   date: string | null
   title: string | null
+  notes: string
 }
 
 export type ReservationCategory = "accommodation" | "transport" | "restaurant" | "attraction" | "activity"
@@ -142,6 +147,8 @@ export type AgentChange =
       startTime: string
       durationMinutes: number
       sortOrder: number
+      transportMode?: TransportMode | null
+      notes?: string
     }
   | {
       op: "move_stop"

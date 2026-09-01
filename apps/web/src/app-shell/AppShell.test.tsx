@@ -50,7 +50,7 @@ const trip: TripSnapshot = {
   endDate: null,
   locale: "en",
   version: 2,
-  days: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null }],
+  days: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" }],
   stops: [],
   suggestions: [],
 }

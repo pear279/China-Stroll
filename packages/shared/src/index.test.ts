@@ -58,6 +58,8 @@ describe("buildSampleSuggestion", () => {
       coordinate: place.coordinate,
       startTime: null,
       durationMinutes: null,
+      transportMode: null,
+      notes: "",
       sortOrder: index,
     }))
 
@@ -91,6 +93,8 @@ describe("buildSampleSuggestion", () => {
       coordinate: place.coordinate,
       startTime: null,
       durationMinutes: null,
+      transportMode: null,
+      notes: "",
       sortOrder: index,
     }))
 
@@ -112,6 +116,8 @@ describe("buildSampleSuggestion", () => {
       coordinate: place.coordinate,
       startTime: null,
       durationMinutes: 300,
+      transportMode: null,
+      notes: "",
       sortOrder: index,
     }))
 
@@ -139,6 +145,8 @@ describe("buildSampleSuggestion", () => {
         coordinate: [116.397155, 39.916345],
         startTime: null,
         durationMinutes: 240,
+        transportMode: null,
+        notes: "",
         sortOrder: 0,
       },
     ])

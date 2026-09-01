@@ -4,6 +4,7 @@ import {
   type AgentSuggestion,
   type PlaceSummary,
   type ReservationInput,
+  type TransportMode,
   type TripReservation,
   type TripSnapshot,
 } from "../../../../packages/shared/src"
@@ -16,7 +17,7 @@ export function createDemoTrip(name: string, startDate: string | null): TripSnap
     endDate: startDate,
     locale: "en",
     version: 1,
-    days: [{ id: 1, dayNumber: 1, date: startDate, title: "Day 1" }],
+    days: [{ id: 1, dayNumber: 1, date: startDate, title: "Day 1", notes: "" }],
     stops: [],
     reservations: [],
     suggestions: [],
@@ -57,6 +58,8 @@ export function addDemoStop(trip: TripSnapshot, place: PlaceSummary, dayNumber =
         coordinate: place.coordinate,
         startTime: null,
         durationMinutes: place.durationMinutes,
+        transportMode: null,
+        notes: "",
         sortOrder: trip.stops.filter((stop) => stop.dayNumber === dayNumber).length,
       },
     ],
@@ -90,7 +93,44 @@ export function addDemoDay(trip: TripSnapshot, date: string | null = null): Trip
     ...trip,
     endDate: date ?? trip.endDate,
     version: trip.version + 1,
-    days: [...trip.days, { id: dayNumber, dayNumber, date, title: `Day ${dayNumber}` }],
+    days: [...trip.days, { id: dayNumber, dayNumber, date, title: `Day ${dayNumber}`, notes: "" }],
+  }
+}
+
+export function editDemoStop(
+  trip: TripSnapshot,
+  stopId: string,
+  fields: { startTime?: string | null; durationMinutes?: number | null; transportMode?: TransportMode | null; notes?: string },
+): TripSnapshot {
+  if (!trip.stops.some((stop) => stop.id === stopId)) return trip
+  return {
+    ...trip,
+    version: trip.version + 1,
+    stops: trip.stops.map((stop) => stop.id === stopId ? { ...stop, ...fields } : stop),
+  }
+}
+
+export function moveDemoStopToDay(trip: TripSnapshot, stopId: string, dayNumber: number): TripSnapshot {
+  const moving = trip.stops.find((stop) => stop.id === stopId)
+  if (!moving || (moving.dayNumber ?? 1) === dayNumber) return trip
+  const targetSort = trip.stops.filter((stop) => (stop.dayNumber ?? 1) === dayNumber).length
+  return {
+    ...trip,
+    version: trip.version + 1,
+    stops: trip.stops.map((stop) => stop.id === stopId ? { ...stop, dayNumber, sortOrder: targetSort } : stop),
+  }
+}
+
+export function editDemoDay(
+  trip: TripSnapshot,
+  dayNumber: number,
+  fields: { date?: string | null; title?: string | null; notes?: string },
+): TripSnapshot {
+  if (!trip.days.some((day) => day.dayNumber === dayNumber)) return trip
+  return {
+    ...trip,
+    version: trip.version + 1,
+    days: trip.days.map((day) => day.dayNumber === dayNumber ? { ...day, ...fields } : day),
   }
 }
 

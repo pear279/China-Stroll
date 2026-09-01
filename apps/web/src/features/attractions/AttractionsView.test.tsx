@@ -55,7 +55,7 @@ function createProps(): AttractionsViewProps {
     plannedIds: new Set(),
     savedPlaceIds: new Set(),
     selectedDay: 1,
-    tripDays: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null }, { id: 2, dayNumber: 2, date: "2026-09-02", title: null }],
+    tripDays: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" }, { id: 2, dayNumber: 2, date: "2026-09-02", title: null, notes: "" }],
     userCoordinate: null,
     visiblePlaces: [palace, museum],
     query: "",

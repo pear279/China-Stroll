@@ -12,8 +12,8 @@ const trip: TripSnapshot = {
   locale: "en",
   version: 2,
   days: [
-    { id: 1, dayNumber: 1, date: "2026-09-01", title: null },
-    { id: 2, dayNumber: 2, date: "2026-09-02", title: null },
+    { id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" },
+    { id: 2, dayNumber: 2, date: "2026-09-02", title: null, notes: "" },
   ],
   stops: [{
     id: "stop-1",
@@ -24,6 +24,8 @@ const trip: TripSnapshot = {
     coordinate: [116.3903973, 39.9244589],
     startTime: "09:00:00",
     durationMinutes: 90,
+    transportMode: null,
+    notes: "",
     sortOrder: 0,
   }],
   suggestions: [],

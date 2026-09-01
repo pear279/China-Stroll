@@ -32,8 +32,8 @@ const trip: TripSnapshot = {
   endDate: null,
   locale: "en",
   version: 1,
-  days: [{ id: 1, dayNumber: 1, date: null, title: null }],
-  stops: [{ id: "stop-1", tripId: "trip-1", dayNumber: 1, placeId: "forbidden-city", name: "The Palace Museum", coordinate: [116.3907694, 39.9172757], startTime: "09:00:00", durationMinutes: 240, sortOrder: 0 }],
+  days: [{ id: 1, dayNumber: 1, date: null, title: null, notes: "" }],
+  stops: [{ id: "stop-1", tripId: "trip-1", dayNumber: 1, placeId: "forbidden-city", name: "The Palace Museum", coordinate: [116.3907694, 39.9172757], startTime: "09:00:00", durationMinutes: 240, transportMode: null, notes: "", sortOrder: 0 }],
   suggestions: [],
 }
 

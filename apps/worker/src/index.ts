@@ -19,6 +19,7 @@ import {
   type PlaceSummary,
   type ReservationCategory,
   type ReservationStatus,
+  type TransportMode,
   type TripSnapshot,
   type UserProfile,
 } from "../../../packages/shared/src"
@@ -679,8 +680,8 @@ app.get("/v1/trips/:tripId", async (context) => {
   const client = context.get("userClient")
   const [tripResult, dayResult, stopResult, reservationResult, suggestionResult] = await Promise.all([
     client.from("trips").select("id,name,start_date,end_date,locale,version").eq("id", tripId).maybeSingle(),
-    client.from("trip_days").select("id,day_number,day_date,title").eq("trip_id", tripId).order("day_number"),
-    client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,sort_order").eq("trip_id", tripId).order("sort_order"),
+    client.from("trip_days").select("id,day_number,day_date,title,notes").eq("trip_id", tripId).order("day_number"),
+    client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,transport_mode,notes,sort_order").eq("trip_id", tripId).order("sort_order"),
     client.from("reservations").select("id,trip_id,trip_day_id,place_id,category,title,starts_at,ends_at,status,provider,confirmation_code,notes").eq("trip_id", tripId).order("starts_at", { ascending: true }),
     client.from("agent_suggestions").select("id,trip_id,base_version,intent,reason,changes,risks,status,expires_at").eq("trip_id", tripId).order("created_at", { ascending: false }).limit(5),
   ])
@@ -700,6 +701,7 @@ app.get("/v1/trips/:tripId", async (context) => {
       dayNumber: day.day_number,
       date: day.day_date,
       title: day.title,
+      notes: day.notes,
     })),
     stops: (stopResult.data ?? []).map((stop) => ({
       id: stop.id,
@@ -713,6 +715,8 @@ app.get("/v1/trips/:tripId", async (context) => {
           : [stop.snapshot_longitude, stop.snapshot_latitude],
       startTime: stop.start_time,
       durationMinutes: stop.duration_minutes,
+      transportMode: stop.transport_mode as TransportMode | null,
+      notes: stop.notes,
       sortOrder: stop.sort_order,
     })),
     reservations: (reservationResult.data ?? []).map((reservation) => ({
@@ -1185,6 +1189,8 @@ app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
         : ([stop.snapshot_longitude, stop.snapshot_latitude] satisfies Coordinate),
     startTime: stop.start_time,
     durationMinutes: stop.duration_minutes,
+    transportMode: null,
+    notes: "",
     sortOrder: stop.sort_order,
   }))
   const modelDraft = await generateTripSuggestion(siliconFlowConfigFromBindings(context.env), {

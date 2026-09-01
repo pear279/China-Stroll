@@ -86,7 +86,7 @@ const guide: PlaceGuideResponse = {
   ],
 }
 
-const days: TripDay[] = [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null }]
+const days: TripDay[] = [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" }]
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void

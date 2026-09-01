@@ -29,10 +29,10 @@ describe("preview trip days", () => {
 describe("preview itinerary editing", () => {
   const trip: TripSnapshot = {
     id: "trip-1", name: "Beijing", startDate: null, endDate: null, locale: "en", version: 2,
-    days: [{ id: 1, dayNumber: 1, date: null, title: "Day 1" }], suggestions: [],
+    days: [{ id: 1, dayNumber: 1, date: null, title: "Day 1", notes: "" }], suggestions: [],
     stops: [
-      { id: "stop-a", tripId: "trip-1", dayNumber: 1, placeId: "forbidden-city", name: "The Palace Museum", coordinate: [116.3907694, 39.9172757], startTime: null, durationMinutes: 240, sortOrder: 0 },
-      { id: "stop-b", tripId: "trip-1", dayNumber: 1, placeId: "jingshan-park", name: "Jingshan Park", coordinate: [116.3903973, 39.9244589], startTime: null, durationMinutes: 90, sortOrder: 1 },
+      { id: "stop-a", tripId: "trip-1", dayNumber: 1, placeId: "forbidden-city", name: "The Palace Museum", coordinate: [116.3907694, 39.9172757], startTime: null, durationMinutes: 240, transportMode: null, notes: "", sortOrder: 0 },
+      { id: "stop-b", tripId: "trip-1", dayNumber: 1, placeId: "jingshan-park", name: "Jingshan Park", coordinate: [116.3903973, 39.9244589], startTime: null, durationMinutes: 90, transportMode: null, notes: "", sortOrder: 1 },
     ],
   }
 
@@ -66,6 +66,8 @@ describe("preview coordinate refresh", () => {
         coordinate: [116.397155, 39.916345],
         startTime: null,
         durationMinutes: 240,
+        transportMode: null,
+        notes: "",
         sortOrder: 0,
       }],
     }
@@ -95,6 +97,8 @@ describe("preview coordinate refresh", () => {
         coordinate: [116.3, 39.9],
         startTime: null,
         durationMinutes: 60,
+        transportMode: null,
+        notes: "",
         sortOrder: 0,
       }],
     }

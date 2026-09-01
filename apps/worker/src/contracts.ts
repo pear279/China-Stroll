@@ -50,6 +50,8 @@ export const agentChangeSchema = z.discriminatedUnion("op", [
     startTime: z.string(),
     durationMinutes: z.int().positive(),
     sortOrder: z.int().nonnegative(),
+    transportMode: z.enum(["walk", "transit", "taxi", "bike", "other"]).nullable().optional(),
+    notes: z.string().max(4000).optional(),
   }),
   z.object({
     op: z.literal("move_stop"),
@@ -94,6 +96,18 @@ export const addTripDaySchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   expectedVersion: z.int().positive(),
   commandId: z.uuid(),
+})
+
+export const updateTripDaySchema = z.object({
+  date: z.iso.date().nullable().optional(),
+  title: z.string().trim().min(1).max(120).nullable().optional(),
+  notes: z.string().max(4000).optional(),
+  expectedVersion: z.int().positive(),
+  commandId: z.uuid(),
+})
+
+export const reservationDraftRequestSchema = z.object({
+  sourceText: z.string().trim().min(2).max(4000),
 })
 
 const reservationFieldsSchema = z.object({
