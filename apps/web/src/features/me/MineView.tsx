@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { AgentSuggestion, PlaceSummary, ReservationDraft, ReservationInput, TransportMode, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
-import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, ProfileControls, StopEditFields } from "../../app-shell/types"
+import type { AgentSuggestion, PlaceSummary, PrivatePlaceInput, ReservationDraft, ReservationInput, TransportMode, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
+import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, PrivatePlacesControls, ProfileControls, StopEditFields } from "../../app-shell/types"
 import { ProfileCard } from "./ProfileCard"
 import { TripMembersCard } from "./TripMembersCard"
 
@@ -12,6 +12,7 @@ export type MineViewProps = {
   itineraryEditing: ItineraryEditControls
   locationSharing: LocationSharingControls
   membership: MembershipControls
+  privatePlaces: PrivatePlacesControls
   profile: ProfileControls
   selectedDay: number
   selectedPlaceId: string | null
@@ -38,6 +39,7 @@ export function MineView({
   itineraryEditing,
   locationSharing,
   membership,
+  privatePlaces,
   profile,
   selectedDay,
   selectedPlaceId,
@@ -153,7 +155,7 @@ export function MineView({
                   >
                     <span className="timeline-number">{index + 1}</span>
                     <span className="timeline-copy">
-                      <strong>{stop.name}</strong>
+                      <strong>{stop.name}{stop.privatePlaceId && <span className="private-badge">Private</span>}</strong>
                       <span><Clock3 aria-hidden="true" size={15} />{stop.startTime ? stop.startTime.slice(0, 5) : "Time open"} · {stop.durationMinutes ?? 90} min</span>
                     </span>
                   </button>
@@ -227,6 +229,8 @@ export function MineView({
           onRevokeInvitation={membership.onRevokeInvitation}
           onRemoveMember={membership.onRemoveMember}
         />
+
+        <PrivatePlacesCard mode={mode} controls={privatePlaces} selectedDay={selectedDay} />
       </div>
     </section>
   )
@@ -497,5 +501,73 @@ function StopEditor({ stop, days, busy, onMove, onSave }: {
         {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}Save stop
       </button>
     </div>
+  )
+}
+
+function PrivatePlacesCard({ mode, controls, selectedDay }: { mode: AppMode; controls: PrivatePlacesControls; selectedDay: number }) {
+  const [name, setName] = useState("")
+  const [type, setType] = useState<PrivatePlaceInput["type"]>("other")
+  const [address, setAddress] = useState("")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  if (mode === "preview") {
+    return (
+      <section className="account-card private-places-card" aria-labelledby="private-places-heading">
+        <div className="section-heading">
+          <div><span className="eyebrow">Private places</span><h2 id="private-places-heading">Hotels and stops</h2></div>
+        </div>
+        <p className="account-signin-note">Private places (hotels, restaurants, meeting points) need a signed-in account.</p>
+      </section>
+    )
+  }
+
+  async function create() {
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      await controls.onCreate({ name: name.trim(), type, address: address.trim() || null, coordinate: null, notes })
+      setName(""); setAddress(""); setNotes("")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="account-card private-places-card" aria-labelledby="private-places-heading">
+      <div className="section-heading">
+        <div><span className="eyebrow">Private places</span><h2 id="private-places-heading">Hotels and stops</h2></div>
+      </div>
+      <div className="private-place-form">
+        <label>Name<input value={name} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder="e.g. Courtyard Hotel" /></label>
+        <div className="profile-row">
+          <label>Place type
+            <select value={type} onChange={(event) => setType(event.target.value as PrivatePlaceInput["type"])}>
+              <option value="other">Other</option><option value="hotel">Hotel</option>
+              <option value="restaurant">Restaurant</option><option value="meeting_point">Meeting point</option>
+            </select>
+          </label>
+          <label>Address<input value={address} maxLength={400} onChange={(event) => setAddress(event.target.value)} placeholder="Optional" /></label>
+        </div>
+        <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" /></label>
+        <button className="secondary-button" type="button" disabled={saving || !name.trim()} onClick={() => void create()}>
+          {saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Add private place
+        </button>
+      </div>
+      {controls.places.length > 0 && (
+        <ul className="member-list">
+          {controls.places.map((place) => (
+            <li key={place.id}>
+              <div className="member-copy">
+                <strong>{place.name}</strong>
+                <span>{place.type.replace("_", " ")}{place.address ? ` · ${place.address}` : ""}{place.coordinate ? "" : " · no coordinate"}</span>
+              </div>
+              <button className="add-private-stop" type="button" onClick={() => void controls.onAddToDay(place.id, selectedDay)}>Add to day {selectedDay}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <small className="private-places-note">Private places are your own trip stops, not reviewed attractions.</small>
+    </section>
   )
 }

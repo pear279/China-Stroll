@@ -96,6 +96,7 @@ export type TripStop = {
   tripId: string
   dayNumber: number | null
   placeId: string | null
+  privatePlaceId: string | null
   name: string
   coordinate: Coordinate | null
   startTime: string | null
@@ -104,6 +105,18 @@ export type TripStop = {
   notes: string
   sortOrder: number
 }
+
+export type PrivatePlace = {
+  id: string
+  tripId: string
+  name: string
+  type: "hotel" | "restaurant" | "meeting_point" | "other"
+  address: string | null
+  coordinate: Coordinate | null
+  notes: string
+}
+
+export type PrivatePlaceInput = Omit<PrivatePlace, "id" | "tripId">
 
 export type TripDay = {
   id: number

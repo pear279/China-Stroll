@@ -2,7 +2,7 @@ import type { Session } from "@supabase/supabase-js"
 import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type ReservationDraft, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
+import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type PrivatePlace, type PrivatePlaceInput, type ReservationDraft, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
 import type { AccountStateStatus, DayEditFields, StopEditFields } from "./app-shell/types"
 import { createPlaceRepository } from "./data/placeRepository"
@@ -31,6 +31,7 @@ export function App() {
   const [members, setMembers] = useState<TripMemberSummary[]>([])
   const [invitations, setInvitations] = useState<TripInvitationSummary[]>([])
   const [membershipStatus, setMembershipStatus] = useState<AccountStateStatus>("idle")
+  const [privatePlaces, setPrivatePlaces] = useState<PrivatePlace[]>([])
   const placeRepository = useMemo(
     () => (mode === "preview"
       ? createPlaceRepository("static")
@@ -163,6 +164,17 @@ export function App() {
       .catch(() => {
         if (active) setMembershipStatus("failed")
       })
+    return () => { active = false }
+  }, [mode, session, trip?.id])
+
+  useEffect(() => {
+    if (mode !== "account" || !session || !trip) return
+    let active = true
+    void api.getPrivatePlaces(session.access_token, trip.id).then(({ places }) => {
+      if (active) setPrivatePlaces(places)
+    }).catch(() => {
+      if (active) setPrivatePlaces([])
+    })
     return () => { active = false }
   }, [mode, session, trip?.id])
 
@@ -470,6 +482,24 @@ export function App() {
     }
   }
 
+  async function createPrivatePlace(input: PrivatePlaceInput) {
+    if (mode !== "account" || !session || !trip) return
+    await run("create-private-place", async () => {
+      const created = await api.createPrivatePlace(session.access_token, trip.id, input)
+      setPrivatePlaces((current) => [...current, { ...input, id: created.id, tripId: trip.id }])
+      setMessage("Private place saved.")
+    })
+  }
+
+  async function addPrivateStop(privatePlaceId: string, dayNumber: number) {
+    if (mode !== "account" || !session || !trip) return
+    await run("add-private-stop", async () => {
+      await api.addPrivateStop(session.access_token, trip, privatePlaceId, dayNumber)
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Private place added to the itinerary.")
+    })
+  }
+
   if (mode === "loading") return <LoadingScreen />
 
   const joinToken = location.pathname.startsWith("/join/")
@@ -535,6 +565,11 @@ export function App() {
         onCreateInvitation: createInvitation,
         onRevokeInvitation: revokeInvitation,
         onRemoveMember: removeMember,
+      }}
+      privatePlaces={{
+        places: privatePlaces,
+        onCreate: createPrivatePlace,
+        onAddToDay: addPrivateStop,
       }}
       profile={{
         profile,

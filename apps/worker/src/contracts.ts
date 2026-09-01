@@ -121,6 +121,28 @@ export const translationRequestSchema = z.object({
   to: z.enum(["en", "zh-CN"]),
 }).refine((value) => value.from !== value.to, { message: "Choose two different languages." })
 
+export const privatePlaceInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  type: z.enum(["hotel", "restaurant", "meeting_point", "other"]).default("other"),
+  address: z.string().trim().max(400).nullable().default(null),
+  latitude: z.number().finite().min(-90).max(90).nullable().default(null),
+  longitude: z.number().finite().min(-180).max(180).nullable().default(null),
+  notes: z.string().max(4000).default(""),
+})
+
+export const addPrivateStopSchema = z.object({
+  privatePlaceId: z.uuid(),
+  dayNumber: z.int().positive(),
+  expectedVersion: z.int().positive(),
+  commandId: z.uuid(),
+})
+
+export const createPrivatePlaceResultSchema = z.object({
+  tripId: z.uuid(),
+  commandId: z.uuid(),
+  privatePlace: z.object({ id: z.uuid() }),
+})
+
 const reservationFieldsSchema = z.object({
   category: z.enum(["accommodation", "transport", "restaurant", "attraction", "activity"]),
   title: z.string().trim().min(1).max(200),

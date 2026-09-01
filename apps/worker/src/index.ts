@@ -28,12 +28,14 @@ import {
   addStopSchema,
   addTripDaySchema,
   acceptInvitationResultSchema,
+  addPrivateStopSchema,
   createReservationSchema,
   deleteReservationSchema,
   agentChangesSchema,
   apiError,
   confirmSuggestionSchema,
   createInvitationResultSchema,
+  createPrivatePlaceResultSchema,
   createTripInvitationSchema,
   createTripSchema,
   currentLocationResponseSchema,
@@ -52,6 +54,7 @@ import {
   placeListQuerySchema,
   placeQuestionSchema,
   placeRecommendationSchema,
+  privatePlaceInputSchema,
   removeMemberResultSchema,
   reservationDraftRequestSchema,
   revokeInvitationResultSchema,
@@ -687,7 +690,7 @@ app.get("/v1/trips/:tripId", async (context) => {
   const [tripResult, dayResult, stopResult, reservationResult, suggestionResult] = await Promise.all([
     client.from("trips").select("id,name,start_date,end_date,locale,version").eq("id", tripId).maybeSingle(),
     client.from("trip_days").select("id,day_number,day_date,title,notes").eq("trip_id", tripId).order("day_number"),
-    client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,transport_mode,notes,sort_order").eq("trip_id", tripId).order("sort_order"),
+    client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,private_place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,transport_mode,notes,sort_order").eq("trip_id", tripId).order("sort_order"),
     client.from("reservations").select("id,trip_id,trip_day_id,place_id,category,title,starts_at,ends_at,status,provider,confirmation_code,notes").eq("trip_id", tripId).order("starts_at", { ascending: true }),
     client.from("agent_suggestions").select("id,trip_id,base_version,intent,reason,changes,risks,status,expires_at").eq("trip_id", tripId).order("created_at", { ascending: false }).limit(5),
   ])
@@ -714,6 +717,7 @@ app.get("/v1/trips/:tripId", async (context) => {
       tripId: stop.trip_id,
       dayNumber: stop.trip_day_id ? dayById.get(stop.trip_day_id) ?? null : null,
       placeId: stop.place_id,
+      privatePlaceId: stop.private_place_id,
       name: stop.snapshot_name,
       coordinate:
         stop.snapshot_longitude == null || stop.snapshot_latitude == null
@@ -1223,6 +1227,66 @@ app.post("/v1/translations", async (context) => {
   })
 })
 
+app.post("/v1/trips/:tripId/private-places", async (context) => {
+  const parsed = privatePlaceInputSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Check the place details."), 400)
+  const { data, error } = await context.get("admin").rpc("create_mvp_private_place", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_command_id: crypto.randomUUID(),
+    p_input: parsed.data,
+  })
+  if (error) return mapDatabaseError(context, error)
+  const result = createPrivatePlaceResultSchema.parse(data)
+  return context.json(result.privatePlace, 201)
+})
+
+app.get("/v1/trips/:tripId/private-places", async (context) => {
+  const tripId = context.req.param("tripId")
+  const userId = context.get("user").id
+  const { data: memberRow, error: memberError } = await context
+    .get("admin")
+    .from("trip_members")
+    .select("user_id")
+    .eq("trip_id", tripId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle()
+  if (memberError) return mapDatabaseError(context, memberError)
+  if (!memberRow) return context.json(apiError("NOT_FOUND", "Trip not found."), 404)
+  const { data, error } = await context
+    .get("admin")
+    .from("private_places")
+    .select("id,trip_id,name,type,address,latitude,longitude,notes")
+    .eq("trip_id", tripId)
+  if (error) return mapDatabaseError(context, error)
+  const places = (data ?? []).map((place) => ({
+    id: place.id,
+    tripId: place.trip_id,
+    name: place.name,
+    type: place.type,
+    address: place.address,
+    coordinate: place.latitude == null || place.longitude == null ? null : [place.longitude, place.latitude],
+    notes: place.notes,
+  }))
+  return context.json({ places })
+})
+
+app.post("/v1/trips/:tripId/private-stops", async (context) => {
+  const parsed = addPrivateStopSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Choose a private place and a day."), 400)
+  const { data, error } = await context.get("admin").rpc("add_mvp_private_stop", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_expected_version: parsed.data.expectedVersion,
+    p_command_id: parsed.data.commandId,
+    p_private_place_id: parsed.data.privatePlaceId,
+    p_day_number: parsed.data.dayNumber,
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripCommandResultSchema.parse(data))
+})
+
 app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
   const parsed = suggestionRequestSchema.safeParse(await context.req.json().catch(() => ({})))
   if (!parsed.success) {
@@ -1253,6 +1317,7 @@ app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
     startTime: stop.start_time,
     durationMinutes: stop.duration_minutes,
     transportMode: null,
+    privatePlaceId: null,
     notes: "",
     sortOrder: stop.sort_order,
   }))

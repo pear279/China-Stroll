@@ -38,7 +38,8 @@ for sql_file in \
   supabase/tests/location_sharing_concurrency.sql \
   supabase/tests/mvp_member_commands.sql \
   supabase/tests/mvp_invitation_accept_concurrency.sql \
-  supabase/tests/mvp_trip_edit_commands.sql
+  supabase/tests/mvp_trip_edit_commands.sql \
+  supabase/tests/mvp_private_places.sql
 do
   echo "Running $sql_file"
   docker exec -i "$db_container" \

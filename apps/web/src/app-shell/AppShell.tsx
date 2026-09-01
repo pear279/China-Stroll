@@ -19,6 +19,7 @@ export function AppShell({
   itineraryEditing,
   locationSharing,
   membership,
+  privatePlaces,
   profile,
   placeRepository,
   places,
@@ -182,6 +183,7 @@ export function AppShell({
                 itineraryEditing={itineraryEditing}
                 locationSharing={locationSharing}
                 membership={membership}
+                privatePlaces={privatePlaces}
                 profile={profile}
                 places={places}
                 selectedDay={selectedDay}

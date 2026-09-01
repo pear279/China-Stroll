@@ -1,4 +1,4 @@
-import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationDraft, ReservationInput, TransportMode, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
+import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, PrivatePlace, PrivatePlaceInput, ReservationDraft, ReservationInput, TransportMode, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
@@ -53,6 +53,12 @@ export type ItineraryEditControls = {
   onDraftReservation: (sourceText: string) => Promise<ReservationDraft | null>
 }
 
+export type PrivatePlacesControls = {
+  places: PrivatePlace[]
+  onCreate: (input: PrivatePlaceInput) => Promise<void>
+  onAddToDay: (privatePlaceId: string, dayNumber: number) => Promise<void>
+}
+
 export type AppShellProps = {
   accessToken: string | null
   busy: string | null
@@ -61,6 +67,7 @@ export type AppShellProps = {
   itineraryEditing: ItineraryEditControls
   locationSharing: LocationSharingControls
   membership: MembershipControls
+  privatePlaces: PrivatePlacesControls
   profile: ProfileControls
   placeRepository: PlaceRepository
   places: PlaceSummary[]

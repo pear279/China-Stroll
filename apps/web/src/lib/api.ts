@@ -13,6 +13,8 @@ import type {
   PlaceQuestionResponse,
   PlaceRecommendationInput,
   PlaceRecommendationResponse,
+  PrivatePlace,
+  PrivatePlaceInput,
   ReservationDraft,
   ReservationInput,
   TranslationResult,
@@ -216,6 +218,21 @@ export const api = {
     return request<ReservationDraft>(`/v1/trips/${encodeURIComponent(tripId)}/reservation-drafts`, accessToken, {
       method: "POST",
       body: JSON.stringify({ sourceText }),
+    })
+  },
+  getPrivatePlaces(accessToken: string, tripId: string) {
+    return request<{ places: PrivatePlace[] }>(`/v1/trips/${encodeURIComponent(tripId)}/private-places`, accessToken)
+  },
+  createPrivatePlace(accessToken: string, tripId: string, input: PrivatePlaceInput) {
+    return request<{ id: string }>(`/v1/trips/${encodeURIComponent(tripId)}/private-places`, accessToken, {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  },
+  addPrivateStop(accessToken: string, trip: TripSnapshot, privatePlaceId: string, dayNumber: number) {
+    return request<{ version: number }>(`/v1/trips/${trip.id}/private-stops`, accessToken, {
+      method: "POST",
+      body: JSON.stringify({ privatePlaceId, dayNumber, expectedVersion: trip.version, commandId: crypto.randomUUID() }),
     })
   },
   createReservation(accessToken: string, trip: TripSnapshot, input: ReservationInput) {

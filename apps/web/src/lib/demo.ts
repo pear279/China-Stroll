@@ -58,7 +58,7 @@ export function addDemoStop(trip: TripSnapshot, place: PlaceSummary, dayNumber =
         coordinate: place.coordinate,
         startTime: null,
         durationMinutes: place.durationMinutes,
-        transportMode: null,
+        transportMode: null, privatePlaceId: null,
         notes: "",
         sortOrder: trip.stops.filter((stop) => stop.dayNumber === dayNumber).length,
       },

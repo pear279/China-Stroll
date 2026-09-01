@@ -132,6 +132,11 @@ const props: AppShellProps = {
     onEditDay: vi.fn(async () => undefined),
     onDraftReservation: vi.fn(async () => null),
   },
+  privatePlaces: {
+    places: [],
+    onCreate: vi.fn(async () => undefined),
+    onAddToDay: vi.fn(async () => undefined),
+  },
   placeRepository: repository,
   places: [palace, museum],
   placesState: "ready",

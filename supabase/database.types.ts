@@ -549,6 +549,48 @@ export type Database = {
         }
         Relationships: []
       }
+      private_places: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          notes: string
+          trip_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          notes?: string
+          trip_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          notes?: string
+          trip_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reservations: {
         Row: {
           attachment_path: string | null
@@ -560,6 +602,7 @@ export type Database = {
           id: string
           notes: string
           place_id: string | null
+          private_place_id: string | null
           provider: string | null
           starts_at: string | null
           status: string
@@ -578,6 +621,7 @@ export type Database = {
           id?: string
           notes?: string
           place_id?: string | null
+          private_place_id?: string | null
           provider?: string | null
           starts_at?: string | null
           status?: string
@@ -596,6 +640,7 @@ export type Database = {
           id?: string
           notes?: string
           place_id?: string | null
+          private_place_id?: string | null
           provider?: string | null
           starts_at?: string | null
           status?: string
@@ -880,6 +925,7 @@ export type Database = {
           id: string
           notes: string
           place_id: string | null
+          private_place_id: string | null
           snapshot_latitude: number | null
           snapshot_longitude: number | null
           snapshot_name: string
@@ -899,6 +945,7 @@ export type Database = {
           id?: string
           notes?: string
           place_id?: string | null
+          private_place_id?: string | null
           snapshot_latitude?: number | null
           snapshot_longitude?: number | null
           snapshot_name: string
@@ -918,6 +965,7 @@ export type Database = {
           id?: string
           notes?: string
           place_id?: string | null
+          private_place_id?: string | null
           snapshot_latitude?: number | null
           snapshot_longitude?: number | null
           snapshot_name?: string
@@ -1087,6 +1135,26 @@ export type Database = {
           p_locale?: string
           p_name: string
           p_start_date?: string
+        }
+        Returns: Json
+      }
+      add_mvp_private_stop: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_day_number: number
+          p_expected_version: number
+          p_private_place_id: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      create_mvp_private_place: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_input: Json
+          p_trip_id: string
         }
         Returns: Json
       }

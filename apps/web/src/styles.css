@@ -366,8 +366,13 @@ input:focus { border-color: #b33a2e; }
 .profile-form input, .profile-form select { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; }
 .profile-row { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
 .profile-form .primary-button { width: fit-content; min-height: 2.6rem; display: inline-flex; align-items: center; gap: .35rem; }
-.member-list, .invitation-list { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
-.member-list li, .invitation-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .75rem; border: 1px solid #ded6c9; background: #fffdf8; }
+.member-list, .invitation-list { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }.member-list li, .invitation-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .75rem; border: 1px solid #ded6c9; background: #fffdf8; }
+.private-badge { margin-left: .4rem; padding: .08rem .4rem; border-radius: 999px; background: #e7ecf3; color: #35507a; font-size: .68rem; font-weight: 800; }
+.private-place-form { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.private-place-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.private-place-form input, .private-place-form select { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; }
+.add-private-stop { min-height: 2.4rem; flex: 0 0 auto; padding: 0 .7rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #7f2d26; background: #fffdf8; font-size: .76rem; font-weight: 750; }
+.private-places-note { color: #6f675e; font-size: .72rem; line-height: 1.45; }
 .member-copy { display: grid; gap: .18rem; min-width: 0; }
 .member-copy strong { display: flex; align-items: center; gap: .45rem; }
 .member-copy span { color: #776e64; font-size: .73rem; }
