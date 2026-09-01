@@ -58,6 +58,7 @@ import {
   suggestionStatusSchema,
   tripCommandResultSchema,
   tripInvitationPreviewSchema,
+  tripInvitationSummarySchema,
   tripMemberSummarySchema,
   updateReservationSchema,
   userProfileInputSchema,
@@ -1046,6 +1047,39 @@ app.get("/v1/trips/:tripId/members", async (context) => {
     }),
   )
   return context.json({ members: summaries })
+})
+
+app.get("/v1/trips/:tripId/invitations", async (context) => {
+  const tripId = context.req.param("tripId")
+  const userId = context.get("user").id
+  const { data: tripRow, error: tripError } = await context
+    .get("admin")
+    .from("trips")
+    .select("owner_id")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (tripError) return mapDatabaseError(context, tripError)
+  if (!tripRow || tripRow.owner_id !== userId) {
+    return context.json(apiError("FORBIDDEN", "Only the trip owner can manage invitations."), 403)
+  }
+  const { data, error } = await context
+    .get("admin")
+    .from("trip_invitations")
+    .select("id,trip_id,role,expires_at,use_count,max_uses,revoked_at")
+    .eq("trip_id", tripId)
+  if (error) return mapDatabaseError(context, error)
+  const invitations = (data ?? []).map((invitation) =>
+    tripInvitationSummarySchema.parse({
+      id: invitation.id,
+      tripId: invitation.trip_id,
+      role: invitation.role,
+      expiresAt: invitation.expires_at,
+      useCount: invitation.use_count,
+      maxUses: invitation.max_uses,
+      revokedAt: invitation.revoked_at,
+    }),
+  )
+  return context.json({ invitations })
 })
 
 app.post("/v1/trips/:tripId/invitations", async (context) => {

@@ -246,6 +246,9 @@ export const api = {
   getTripMembers(accessToken: string, tripId: string) {
     return request<{ members: TripMemberSummary[] }>(`/v1/trips/${encodeURIComponent(tripId)}/members`, accessToken)
   },
+  getTripInvitations(accessToken: string, tripId: string) {
+    return request<{ invitations: TripInvitationSummary[] }>(`/v1/trips/${encodeURIComponent(tripId)}/invitations`, accessToken)
+  },
   createTripInvitation(accessToken: string, tripId: string, input: CreateTripInvitationInput) {
     return request<{ invitation: TripInvitationSummary; inviteUrl: string }>(
       `/v1/trips/${encodeURIComponent(tripId)}/invitations`,

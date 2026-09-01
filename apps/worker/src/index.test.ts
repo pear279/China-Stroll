@@ -405,6 +405,58 @@ describe("worker routes", () => {
     await expect(response.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } })
   })
 
+  it("lists the owner's invitations", async () => {
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "trips") return queryResult({ owner_id: actorId }, null, "maybeSingle")
+      if (table === "trip_invitations") {
+        const query = {
+          select: vi.fn(() => query),
+          eq: vi.fn(() => Promise.resolve({
+            data: [{
+              id: invitationId,
+              trip_id: tripId,
+              role: "viewer",
+              expires_at: "2026-09-02T00:00:00.000Z",
+              use_count: 0,
+              max_uses: 1,
+              revoked_at: null,
+            }],
+            error: null,
+          })),
+        }
+        return query
+      }
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/invitations`, { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      invitations: [{
+        id: invitationId,
+        tripId,
+        role: "viewer",
+        expiresAt: "2026-09-02T00:00:00.000Z",
+        useCount: 0,
+        maxUses: 1,
+        revokedAt: null,
+      }],
+    })
+  })
+
+  it("forbids listing invitations for a non-owner", async () => {
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "trips") return queryResult({ owner_id: peerId }, null, "maybeSingle")
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/invitations`, { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "FORBIDDEN" } })
+  })
+
   it("creates an invitation and returns a one-time link without echoing the token hash", async () => {
     const invitation = {
       id: invitationId,
