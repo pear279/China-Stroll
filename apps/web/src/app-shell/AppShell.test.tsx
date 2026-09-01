@@ -164,7 +164,7 @@ afterEach(() => {
 describe("AppShell", () => {
   it.each([
     ["/attractions", "景点"],
-    ["/map", "Map and nearby places"],
+    ["/map", "地图"],
     ["/tools", "Travel tools"],
     ["/me", "My trip"],
   ])("renders %s", async (path, heading) => {
@@ -182,8 +182,8 @@ describe("AppShell", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Show The Palace Museum on map" }))
 
-    expect(await screen.findByRole("heading", { name: "Map and nearby places" })).toBeTruthy()
-    expect(screen.getByRole("dialog", { name: "The Palace Museum map actions" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "地图" })).toBeTruthy()
+    expect(screen.getByRole("dialog", { name: "The Palace Museum 地图操作" })).toBeTruthy()
   })
 
   it("filters attractions through the shared search state", async () => {

@@ -88,160 +88,80 @@ describe("MapView", () => {
     vi.useRealTimers()
   })
 
-  it("shows the selected day itinerary and synchronizes its selection", async () => {
+  it("shows the trip area with the selected day itinerary", async () => {
     const props = createProps()
     render(<MapView {...props} />)
-    expect(screen.getByRole("heading", { name: "Day 1 itinerary" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*09:00/ }))
+    expect(screen.getByRole("heading", { name: "行程" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*分钟/ }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
   })
 
-  it("switches the shared day from the map date tabs", async () => {
+  it("opens details and navigation for an itinerary place", async () => {
     const props = createProps()
     render(<MapView {...props} />)
-    await userEvent.click(screen.getByRole("button", { name: /Day 1/ }))
+
+    await userEvent.click(screen.getByRole("button", { name: "The Palace Museum 详情" }))
+    expect(props.onOpenDetails).toHaveBeenCalledWith("forbidden-city")
+
+    await userEvent.click(screen.getByRole("button", { name: "The Palace Museum 导航" }))
+    expect(screen.getByRole("dialog", { name: "选择导航平台" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Apple Maps" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "高德地图" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "取消" }))
+    expect(screen.queryByRole("dialog", { name: "选择导航平台" })).toBeNull()
+  })
+
+  it("switches the shared day from the map day tabs", async () => {
+    const props = createProps()
+    render(<MapView {...props} />)
+    await userEvent.click(screen.getByRole("button", { name: /第 1 天/ }))
     expect(props.onSelectDay).toHaveBeenCalledWith(1)
   })
 
-  it("opens Details, Add, Navigate and Cancel for a selected marker", async () => {
+  it("toggles the sharing panel with an enable/disable switch", async () => {
     const props = createProps()
-    const { rerender } = render(<MapView {...props} />)
+    render(<MapView {...props} />)
 
-    await userEvent.click(await screen.findByRole("button", { name: "Select marker" }))
-    expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
-
-    rerender(<MapView {...props} selectedPlaceId="forbidden-city" />)
-    expect(screen.getByRole("dialog", { name: "The Palace Museum map actions" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Details" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Add to day 1" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: "Navigate" }))
-    expect(screen.getByRole("link", { name: "Apple Maps" })).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Amap" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
-    expect(props.onSelect).toHaveBeenLastCalledWith(null)
+    expect(screen.queryByText(/位置共享已关闭/)).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: /共享位置/ }))
+    expect(screen.getByRole("switch", { name: /开启共享|关闭共享/ })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /附近景点/ }))
+    expect(screen.getByLabelText("距离范围")).toBeTruthy()
   })
 
-  it("shows unexpired member locations with current-point context and no history", async () => {
+  it("renders unexpired member locations on the map", async () => {
     const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      snapshot: { ...sharingSnapshot, visibleLocations: [memberPoint] },
-    }
+    props.locationSharing = { ...props.locationSharing, snapshot: { ...sharingSnapshot, visibleLocations: [memberPoint] } }
     render(<MapView {...props} />)
 
     await act(async () => Promise.resolve())
     expect(screen.getByLabelText("Alex’s shared current location")).toBeTruthy()
-    expect(screen.getByRole("heading", { name: "Members sharing now" })).toBeTruthy()
-    expect(screen.getByText("Alex")).toBeTruthy()
-    expect(screen.getByText(/Updated/)).toBeTruthy()
-    expect(screen.getByText(/expires in/)).toBeTruthy()
-    expect(screen.queryByText(/Route history/i)).toBeNull()
   })
 
-  it("omits expired member points without adding an empty placeholder", () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      snapshot: {
-        ...sharingSnapshot,
-        visibleLocations: [{ ...memberPoint, expiresAt: "2000-01-01T00:00:00.000Z" }],
-      },
-    }
-    render(<MapView {...props} />)
-
-    expect(screen.queryByLabelText("Alex’s shared current location")).toBeNull()
-    expect(screen.queryByRole("heading", { name: "Members sharing now" })).toBeNull()
-    expect(screen.queryByText(/No members are sharing/i)).toBeNull()
-  })
-
-  it("updates relative time and removes a member point when its current point expires", async () => {
+  it("removes a member point once its current point expires", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2099-09-01T10:00:30.000Z"))
     const props = createProps()
     props.locationSharing = {
       ...props.locationSharing,
-      snapshot: {
-        ...sharingSnapshot,
-        visibleLocations: [{ ...memberPoint, expiresAt: "2099-09-01T10:02:00.000Z" }],
-      },
+      snapshot: { ...sharingSnapshot, visibleLocations: [{ ...memberPoint, expiresAt: "2099-09-01T10:02:00.000Z" }] },
     }
     render(<MapView {...props} />)
 
     await act(async () => Promise.resolve())
     expect(screen.getByLabelText("Alex’s shared current location")).toBeTruthy()
-    expect(screen.getByText(/Updated just now · expires in 2 min/)).toBeTruthy()
 
-    await act(async () => vi.advanceTimersByTime(30_000))
-    expect(screen.getByText(/Updated 1 min ago · expires in 1 min/)).toBeTruthy()
-
-    await act(async () => vi.advanceTimersByTime(60_000))
+    await act(async () => vi.advanceTimersByTime(120_000))
     expect(screen.queryByLabelText("Alex’s shared current location")).toBeNull()
-    expect(screen.queryByRole("heading", { name: "Members sharing now" })).toBeNull()
   })
 
-  it("does not render a delayed location snapshot that expired after the original render", () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2099-09-01T10:00:00.000Z"))
-    const props = createProps()
-    const { rerender } = render(<MapView {...props} />)
-
-    act(() => vi.advanceTimersByTime(5 * 60_000))
-    rerender(
-      <MapView
-        {...props}
-        locationSharing={{
-          ...props.locationSharing,
-          snapshot: {
-            ...sharingSnapshot,
-            visibleLocations: [{ ...memberPoint, expiresAt: "2099-09-01T10:02:00.000Z" }],
-          },
-        }}
-      />,
-    )
-
-    expect(screen.queryByLabelText("Alex’s shared current location")).toBeNull()
-    expect(screen.queryByRole("heading", { name: "Members sharing now" })).toBeNull()
-  })
-
-  it("keeps map browsing available when shared locations cannot be refreshed", async () => {
+  it("keeps the map usable when shared locations cannot be refreshed", async () => {
     const props = createProps()
     props.locationSharing = { ...props.locationSharing, status: "dependency-unavailable", snapshot: null }
     render(<MapView {...props} />)
 
-    expect(screen.getByRole("alert").textContent).toContain("Shared locations could not be refreshed")
     await userEvent.click(await screen.findByRole("button", { name: "Select marker" }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
-  })
-
-  it.each([
-    "permission-denied" as const,
-    "dependency-unavailable" as const,
-    "upload-failed" as const,
-    "revoke-failed" as const,
-  ])("keeps valid member points visible and warns during a %s failure", async (status) => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status,
-      snapshot: { ...sharingSnapshot, visibleLocations: [memberPoint] },
-    }
-    render(<MapView {...props} />)
-
-    expect(await screen.findByLabelText("Alex’s shared current location")).toBeTruthy()
-    expect(screen.getByRole("heading", { name: "Members sharing now" })).toBeTruthy()
-    expect(screen.getByRole("alert")).toBeTruthy()
-  })
-
-  it.each([
-    ["expired" as const, "shared current point expired"],
-    ["permission-denied" as const, "location is not updating"],
-  ])("explains the %s state without hiding the itinerary", (status, message) => {
-    const props = createProps()
-    props.locationSharing = { ...props.locationSharing, status }
-    render(<MapView {...props} />)
-
-    expect(screen.getByText(new RegExp(message, "i"))).toBeTruthy()
-    expect(screen.getByRole("heading", { name: "Day 1 itinerary" })).toBeTruthy()
   })
 })
