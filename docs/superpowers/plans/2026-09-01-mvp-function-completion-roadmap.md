@@ -26,10 +26,10 @@
 
 **Detailed plan:** `docs/superpowers/plans/2026-09-01-account-profile-trip-members.md`
 
-- [ ] Profile read/update for display name, locales, country, and bounded travel preferences.
-- [ ] Expiring single-use editor/viewer invitation links with hashed tokens.
-- [ ] Authenticated invitation preview/acceptance, invitation revoke, and member removal.
-- [ ] Mine profile/member UI and immediate refresh of location-sharing recipient context.
+- [x] Profile read/update for display name, locales, country, and bounded travel preferences.
+- [x] Expiring single-use editor/viewer invitation links with hashed tokens.
+- [x] Authenticated invitation preview/acceptance, invitation revoke, and member removal.
+- [x] Mine profile/member UI and immediate refresh of location-sharing recipient context.
 
 ### Package 2: Complete Itinerary and Reservation Editing
 

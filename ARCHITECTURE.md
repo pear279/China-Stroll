@@ -86,21 +86,30 @@ Implemented:
 - Public places: list, detail and guide.
 - Authenticated place question and place-library endpoints.
 - Place intelligence: reviewed local answers are public; paid SiliconFlow/Tavily calls are separately rate-limited per authenticated user or `CF-Connecting-IP`. The Tavily adapter validates the API payload and exposes only safe public HTTPS citations; it does not fetch search-result pages.
-- Trip create/read, add day, add stop, create suggestion and confirm suggestion.
+- Trip create/read, add day, add/update/move/remove stops, create suggestion and confirm suggestion.
+- Preference-aware place recommendation.
+- Reservation create/read/update/delete.
+- Profile read/update.
+- Membership: list members and invitations, create/preview/accept/revoke invitations, remove members.
 
 Next required endpoints:
 
-- Versioned trip-stop patch, move and delete through `PATCH /v1/trips/:tripId/stops`.
-- Reservation create/read/update/delete.
-- Member invitation/acceptance.
-- Preference-aware place recommendation.
-- User profile read/update.
+- Stop field edits (start time, duration, transport, notes) and trip-day date/title/notes edits.
+- AI reservation draft parsing (read-only, never a write command).
+- Private trip-scoped places for hotels, restaurants and meeting points.
+- Tools providers (exchange, translation) and private records/offline cache.
 
 Implemented location-sharing endpoints:
 
 - Read sharing state and server-filtered visible peer points.
 - Enable or disable the caller's trip-scoped sharing preference.
 - Replace the caller's single current WGS84 point and refresh its ten-minute expiry.
+
+### Membership and invitation invariants
+
+- Invitation tokens are generated in the Worker as 32 random bytes, encoded URL-safe without padding, and sent only once in the create response URL. Only a SHA-256 hex hash reaches the database; raw tokens never appear in rows or logs.
+- Invitation and membership commands are audited in `trip_change_log` without incrementing `trips.version` (membership does not reorder stops or days). The former `unique (trip_id, version)` constraint is relaxed to a non-unique index; `command_id` remains the unique idempotency key.
+- Only an active owner can create/revoke invitations or remove members; the owner cannot be removed; acceptance atomically locks the invitation, checks expiry/revocation/usage, upserts an active membership and increments `use_count`.
 
 All trip writes use a command id, expected trip version, permission check and change log. AI-generated changes use the same write path as explicit user changes.
 

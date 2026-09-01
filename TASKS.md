@@ -93,6 +93,11 @@ This file is the authoritative implementation plan. A task is complete only when
   - Acceptance: payment guidance, timestamped exchange rate, common phrases, translation and service numbers have loading/error/offline behavior.
   - Test: adapter tests, offline check and mobile UI review.
 
+- [x] Package 1 — Account, Profile, and Trip Members (2026-09-01)
+  - Goal: profile read/update, single-use hashed invitation links, invitation preview/accept/revoke, member removal, and the Mine account UI.
+  - Files: `supabase/migrations/20260901090000_add_mvp_member_commands.sql`, member/invitation Worker endpoints, `ProfileCard`, `TripMembersCard`, `JoinTripView`, `useLocationSharing.refresh`.
+  - Verified: two clean PostgreSQL 17 rebuilds with five service-role-only member/invitation commands and transactional permission/RLS/expiry/revoke/atomic-accept/concurrency tests; Worker profile/member/invitation routes store only SHA-256 token hashes; Mine account UI and the `/join/:token` accept flow. typecheck, lint, 207 tests, web/Functions/Worker builds, and `db:verify` passed on 2026-09-01. Two-account browser acceptance remains in Package 6.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.
