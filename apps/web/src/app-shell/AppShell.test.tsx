@@ -163,7 +163,7 @@ afterEach(() => {
 
 describe("AppShell", () => {
   it.each([
-    ["/attractions", "Reviewed attractions"],
+    ["/attractions", "景点"],
     ["/map", "Map and nearby places"],
     ["/tools", "Travel tools"],
     ["/me", "My trip"],
@@ -174,7 +174,7 @@ describe("AppShell", () => {
 
   it("redirects unknown paths to Attractions", async () => {
     render(<MemoryRouter initialEntries={["/unknown"]}><AppShell {...props} /></MemoryRouter>)
-    expect(await screen.findByRole("heading", { name: "Reviewed attractions" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "景点" })).toBeTruthy()
   })
 
   it("keeps a selected place when moving from Attractions to Map", async () => {
@@ -189,7 +189,7 @@ describe("AppShell", () => {
   it("filters attractions through the shared search state", async () => {
     render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
 
-    await userEvent.type(screen.getByRole("searchbox", { name: "Search reviewed places" }), "国博")
+    await userEvent.type(screen.getByRole("searchbox", { name: "搜索景点" }), "国博")
 
     expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
     expect(screen.queryByRole("heading", { name: "The Palace Museum" })).toBeNull()
@@ -198,9 +198,10 @@ describe("AppShell", () => {
   it("passes only the visible attractions into recommendation candidates", async () => {
     render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
 
-    await userEvent.type(screen.getByRole("searchbox", { name: "Search reviewed places" }), "国博")
-    await userEvent.click(screen.getByRole("button", { name: "History" }))
-    await userEvent.click(screen.getByRole("button", { name: "Recommend places" }))
+    await userEvent.type(screen.getByRole("searchbox", { name: "搜索景点" }), "国博")
+    await userEvent.click(screen.getByRole("button", { name: "景点个性化推荐" }))
+    await userEvent.click(screen.getByRole("button", { name: "历史" }))
+    await userEvent.click(screen.getByRole("button", { name: "发送" }))
 
     expect(repository.recommendPlaces).toHaveBeenCalledWith(expect.objectContaining({
       candidatePlaceIds: ["national-museum-of-china"],
@@ -216,7 +217,7 @@ describe("AppShell", () => {
     await user.click(opener)
     expect(await screen.findByRole("dialog", { name: "The Palace Museum" })).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "Close place details" }))
+    await user.click(screen.getByRole("button", { name: "返回" }))
 
     expect(document.activeElement).toBe(opener)
   })

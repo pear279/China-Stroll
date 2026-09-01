@@ -94,56 +94,32 @@ describe("RecommendationPanel", () => {
     vi.clearAllMocks()
   })
 
-  it("submits chips and optional context then opens a result", async () => {
+  it("keeps the send button disabled while there is no input", () => {
+    renderPanel()
+    expect((screen.getByRole("button", { name: "发送" }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("adds a tag to the input and submits the mapped preference", async () => {
     const user = userEvent.setup()
-    const { onRecommend, onDetails } = renderPanel()
+    const { onRecommend } = renderPanel()
 
-    await user.click(screen.getByRole("button", { name: "History" }))
-    await user.type(screen.getByLabelText("Anything else?"), "quiet morning")
-    await user.click(screen.getByRole("button", { name: "Recommend places" }))
+    await user.click(screen.getByRole("button", { name: "历史" }))
+    expect(screen.getByRole("button", { name: "历史" }).getAttribute("aria-pressed")).toBe("true")
+    await user.click(screen.getByRole("button", { name: "发送" }))
 
-    expect(onRecommend).toHaveBeenCalledWith(expect.objectContaining({
-      preferences: ["history"],
-      context: "quiet morning",
-    }))
+    expect(onRecommend).toHaveBeenCalledWith(expect.objectContaining({ preferences: ["history"] }))
+  })
 
-    await user.click(screen.getByRole("button", { name: "View The Palace Museum" }))
+  it("renders the formatted answer and opens a recommended place", async () => {
+    const user = userEvent.setup()
+    const { onDetails } = renderPanel()
+
+    await user.click(screen.getByRole("button", { name: "历史" }))
+    await user.click(screen.getByRole("button", { name: "发送" }))
+
+    expect(await screen.findByText(/根据用户输入的/)).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "详情" }))
     expect(onDetails).toHaveBeenCalledWith("forbidden-city")
-  })
-
-  it("toggles pressed state on preference chips", async () => {
-    const user = userEvent.setup()
-    renderPanel()
-
-    const historyChip = screen.getByRole("button", { name: "History" })
-    expect(historyChip.getAttribute("aria-pressed")).toBe("false")
-
-    await user.click(historyChip)
-    expect(historyChip.getAttribute("aria-pressed")).toBe("true")
-
-    await user.click(historyChip)
-    expect(historyChip.getAttribute("aria-pressed")).toBe("false")
-  })
-
-  it("shows the AI-assisted label for model responses", async () => {
-    const user = userEvent.setup()
-    renderPanel()
-
-    await user.click(screen.getByRole("button", { name: "Recommend places" }))
-    expect(await screen.findByText("AI-assisted recommendation")).toBeTruthy()
-  })
-
-  it("shows the reviewed-data label for deterministic responses", async () => {
-    const user = userEvent.setup()
-    renderPanel({
-      response: {
-        ...recommendationResponse,
-        generatedBy: "deterministic",
-      },
-    })
-
-    await user.click(screen.getByRole("button", { name: "Recommend places" }))
-    expect(await screen.findByText("Reviewed-data match")).toBeTruthy()
   })
 
   it("adds a recommendation to the selected day", async () => {
@@ -151,8 +127,9 @@ describe("RecommendationPanel", () => {
     const onAdd = vi.fn(async () => undefined)
     renderPanel({ selectedDay: 2, onAdd })
 
-    await user.click(screen.getByRole("button", { name: "Recommend places" }))
-    await user.click(await screen.findByRole("button", { name: "Add The Palace Museum to day 2" }))
+    await user.click(screen.getByRole("button", { name: "历史" }))
+    await user.click(screen.getByRole("button", { name: "发送" }))
+    await user.click(await screen.findByRole("button", { name: "加入第 2 天" }))
 
     expect(onAdd).toHaveBeenCalledWith("forbidden-city", 2)
   })

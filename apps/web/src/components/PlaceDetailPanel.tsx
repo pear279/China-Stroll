@@ -1,4 +1,4 @@
-import { Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send, X } from "lucide-react"
+import { ArrowLeft, Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send } from "lucide-react"
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react"
 import {
   type GuideSource,
@@ -191,7 +191,7 @@ export function PlaceDetailPanel({
         aria-labelledby="place-detail-title"
         onKeyDown={trapFocus}
       >
-        <button ref={closeButtonRef} className="detail-close" type="button" onClick={onClose} aria-label="Close place details"><X size={20} /></button>
+        <button ref={closeButtonRef} className="detail-back" type="button" onClick={onClose} aria-label="返回"><ArrowLeft size={20} /></button>
         <img className="detail-hero" src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
         <div className="detail-content">
           <span className="eyebrow">Reviewed place guide</span>
@@ -199,13 +199,13 @@ export function PlaceDetailPanel({
           <p className="detail-intro">{detail?.shortIntro ?? place.shortIntro}</p>
           <div className="detail-actions">
             <button type="button" className={saved ? "is-active" : ""} disabled={busy === "save"} onClick={() => void run("save", () => onToggleSaved(place.id))}>
-              {saved ? <Check size={17} /> : <Bookmark size={17} />}{saved ? "Saved" : "Save"}
+              {saved ? <Check size={17} /> : <Bookmark size={17} />}{saved ? "已收藏" : "收藏景点"}
             </button>
-            <select aria-label="Trip day" value={dayNumber} onChange={(event) => setDayNumber(Number(event.target.value))}>
-              {(days.length ? days : [{ id: 0, dayNumber: 1, date: null, title: null }]).map((day) => <option key={day.dayNumber} value={day.dayNumber}>Day {day.dayNumber}</option>)}
+            <select aria-label="日程" value={dayNumber} onChange={(event) => setDayNumber(Number(event.target.value))}>
+              {(days.length ? days : [{ id: 0, dayNumber: 1, date: null, title: null, notes: "" }]).map((day) => <option key={day.dayNumber} value={day.dayNumber}>第 {day.dayNumber} 天</option>)}
             </select>
             <button type="button" disabled={planned || busy === "add"} onClick={() => void run("add", () => onAdd(place.id, dayNumber))}>
-              {planned ? <Check size={17} /> : <Plus size={17} />}{planned ? "Planned" : "Add to trip"}
+              {planned ? <Check size={17} /> : <Plus size={17} />}{planned ? "已加入" : "加入日程"}
             </button>
           </div>
 
@@ -254,10 +254,11 @@ export function PlaceDetailPanel({
           )}
 
           <div className="guide-heading">
-            <h3>AI-ready audio guide</h3>
-            <select value={audience} onChange={(event) => setAudience(event.target.value as "general" | "child")} aria-label="Guide audience">
-              <option value="general">General</option><option value="child">For children</option>
-            </select>
+            <h3>景点导览</h3>
+            <div className="guide-mode-toggle" role="group" aria-label="导览模式">
+              <button type="button" className={audience === "general" ? "is-active" : undefined} aria-pressed={audience === "general"} onClick={() => setAudience("general")}>普通模式</button>
+              <button type="button" className={audience === "child" ? "is-active" : undefined} aria-pressed={audience === "child"} onClick={() => setAudience("child")}>儿童模式</button>
+            </div>
           </div>
           {status === "loading" && <p className="detail-state"><LoaderCircle className="spin" size={18} />Loading reviewed guide…</p>}
           {status === "failed" && <p className="detail-state">The detailed guide is unavailable. The place summary and navigation still work.</p>}

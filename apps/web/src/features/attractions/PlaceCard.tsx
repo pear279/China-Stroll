@@ -15,6 +15,7 @@ type PlaceCardProps = {
   selectedDay: number
   busy: string | null
   userCoordinate: Coordinate | null
+  mode: "grid" | "list"
   onDetails: (placeId: string) => void
   onSave: (placeId: string) => Promise<void>
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
@@ -39,6 +40,7 @@ export function PlaceCard({
   selectedDay,
   busy,
   userCoordinate,
+  mode,
   onDetails,
   onSave,
   onAdd,
@@ -47,7 +49,7 @@ export function PlaceCard({
   const distanceKm = userCoordinate ? haversineKilometres(userCoordinate, place.coordinate) : null
 
   return (
-    <article className="place-card">
+    <article className={mode === "list" ? "place-card place-card--list" : "place-card"}>
       <button
         className="place-image-button"
         type="button"

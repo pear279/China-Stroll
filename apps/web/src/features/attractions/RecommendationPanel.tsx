@@ -1,4 +1,4 @@
-import { LoaderCircle, Sparkles } from "lucide-react"
+import { LoaderCircle, Send, Sparkles } from "lucide-react"
 import { useMemo, useState } from "react"
 import type {
   Coordinate,
@@ -23,25 +23,22 @@ type RecommendationPanelProps = {
 }
 
 const preferenceOptions = [
-  { id: "family", label: "Family" },
-  { id: "history", label: "History" },
-  { id: "relaxed", label: "Relaxed" },
-  { id: "photography", label: "Photography" },
-  { id: "half-day", label: "Half-day" },
-] as const satisfies Array<{
-  id: PlaceRecommendationInput["preferences"][number]
-  label: string
-}>
+  { id: "family", label: "亲子" },
+  { id: "history", label: "历史" },
+  { id: "relaxed", label: "休闲" },
+  { id: "photography", label: "摄影" },
+  { id: "half-day", label: "半日" },
+] as const satisfies Array<{ id: PlaceRecommendationInput["preferences"][number]; label: string }>
+
+const labelToId = new Map<string, PlaceRecommendationInput["preferences"][number]>(
+  preferenceOptions.map((option) => [option.label, option.id] as const),
+)
 
 type RecommendationState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ready"; response: PlaceRecommendationResponse }
   | { status: "failed"; message: string }
-
-function generatedByLabel(generatedBy: PlaceRecommendationResponse["generatedBy"]) {
-  return generatedBy === "model" ? "AI-assisted recommendation" : "Reviewed-data match"
-}
 
 export function RecommendationPanel({
   places,
@@ -56,23 +53,22 @@ export function RecommendationPanel({
   onDetails,
   onAdd,
 }: RecommendationPanelProps) {
-  const [selectedPreferences, setSelectedPreferences] = useState<PlaceRecommendationInput["preferences"]>([])
-  const [context, setContext] = useState("")
+  const [input, setInput] = useState("")
   const [state, setState] = useState<RecommendationState>({ status: "idle" })
   const [busyPlaceId, setBusyPlaceId] = useState<string | null>(null)
 
-  const placeById = useMemo(
-    () => new Map(places.map((place) => [place.id, place])),
-    [places],
-  )
+  const placeById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const plannedSet = useMemo(() => new Set(plannedPlaceIds), [plannedPlaceIds])
 
-  function togglePreference(preference: PlaceRecommendationInput["preferences"][number]) {
-    setSelectedPreferences((current) =>
-      current.includes(preference)
-        ? current.filter((item) => item !== preference)
-        : [...current, preference],
-    )
+  const tokens = input.split(/\s+/).filter(Boolean)
+  const selectedPreferences = [...new Set(tokens.filter((token) => labelToId.has(token)).map((token) => labelToId.get(token)!))]
+  const context = tokens.filter((token) => !labelToId.has(token)).join(" ")
+
+  function addTag(label: string) {
+    const current = input.split(/\s+/).filter(Boolean)
+    if (current.includes(label)) return
+    if (current.filter((token) => labelToId.has(token)).length >= 5) return
+    setInput((value) => value.trim() ? `${value.trim()} ${label}` : label)
   }
 
   async function handleSubmit() {
@@ -104,105 +100,89 @@ export function RecommendationPanel({
     }
   }
 
+  const recommendationNames = state.status === "ready"
+    ? state.response.results
+        .map((result) => placeById.get(result.placeId)?.name)
+        .filter((name): name is string => Boolean(name))
+        .slice(0, 3)
+    : []
+
+  const preferenceLabel = selectedPreferences.map((preference) => preferenceOptions.find((option) => option.id === preference)?.label ?? preference).join("、")
+
+  const canSend = tokens.length > 0
+
   return (
     <section className="recommendation-panel" aria-labelledby="recommendation-heading">
       <div className="recommendation-heading">
         <div>
-          <span className="eyebrow">Trip fit</span>
-          <h2 id="recommendation-heading">Recommendation picks</h2>
-          <p>Mix reviewed filters with trip context to shortlist where to go next.</p>
+          <span className="eyebrow">个性化推荐</span>
+          <h2 id="recommendation-heading">景点个性化推荐</h2>
         </div>
-        <span className="count-chip">{candidatePlaces.length} candidates</span>
       </div>
 
-      <div className="recommendation-controls">
-        <div className="recommendation-chip-row" role="group" aria-label="Trip preferences">
-          {preferenceOptions.map((option) => {
-            const pressed = selectedPreferences.includes(option.id)
-            return (
-              <button
-                key={option.id}
-                type="button"
-                className={pressed ? "is-active" : undefined}
-                aria-pressed={pressed}
-                onClick={() => togglePreference(option.id)}
-              >
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
+      <div className="recommendation-tags" role="group" aria-label="旅游偏好标签">
+        {preferenceOptions.map((option) => {
+          const active = tokens.includes(option.label)
+          return (
+            <button key={option.id} type="button" className={active ? "is-active" : undefined} aria-pressed={active} onClick={() => addTag(option.label)}>
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
 
-        <label className="recommendation-context" htmlFor="recommendation-context">
-          <span>Anything else?</span>
-          <input
-            id="recommendation-context"
-            value={context}
-            onChange={(event) => setContext(event.target.value)}
-            placeholder="Quiet morning, stroller-friendly, best views..."
-          />
-        </label>
-
-        <button type="button" className="primary-button recommendation-submit" onClick={() => void handleSubmit()}>
-          Recommend places
+      <div className="recommendation-input-row">
+        <input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="添加标签帮你推荐景点"
+          aria-label="推荐偏好输入"
+        />
+        <button type="button" className={canSend ? "is-ready" : undefined} disabled={!canSend || state.status === "loading"} onClick={() => void handleSubmit()}>
+          {state.status === "loading" ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}
+          <span>发送</span>
         </button>
       </div>
-
-      {state.status === "idle" && (
-        <div className="recommendation-state" role="status">
-          <Sparkles aria-hidden="true" size={18} />
-          <p>Select a few preferences to generate a reviewed shortlist.</p>
-        </div>
-      )}
 
       {state.status === "loading" && (
         <div className="recommendation-state" role="status">
           <LoaderCircle className="spin" aria-hidden="true" size={20} />
-          <p>Finding matching reviewed places…</p>
+          <p>正在分析你的偏好并匹配景点…</p>
         </div>
       )}
 
       {state.status === "failed" && (
         <div className="recommendation-state recommendation-state-error" role="status">
-          <p>{state.message || "Recommendations are unavailable right now."}</p>
+          <p>{state.message || "推荐暂时不可用。"}</p>
         </div>
       )}
 
       {state.status === "ready" && (
         <div className="recommendation-results" aria-live="polite">
+          <div className="recommendation-answer" role="status">
+            <Sparkles aria-hidden="true" size={16} />
+            <p>根据用户输入的“{tokens.join(" ")}”内容，分析得出用户偏好{preferenceLabel || "通用"}游玩偏好，推荐{recommendationNames.length ? recommendationNames.join("、") : "暂无"}景点。</p>
+          </div>
+
           {state.response.results.length === 0 ? (
             <div className="recommendation-state" role="status">
-              <p>No recommendations fit the current trip filters.</p>
+              <p>没有景点符合当前偏好与筛选条件。</p>
             </div>
           ) : (
             state.response.results.map((result) => {
               const place = placeById.get(result.placeId)
-              if (!place) {
-                return null
-              }
-
+              if (!place) return null
               const planned = plannedSet.has(place.id)
-
               return (
                 <article key={place.id} className="recommendation-result">
                   <div className="recommendation-result-copy">
-                    <span className="recommendation-badge">
-                      {generatedByLabel(state.response.generatedBy)}
-                    </span>
                     <h3>{place.name}</h3>
                     <p>{result.reason}</p>
                   </div>
                   <div className="recommendation-result-actions">
-                    <button type="button" onClick={() => onDetails(place.id)}>
-                      View {place.name}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={planned || busyPlaceId === place.id}
-                      aria-label={planned ? `${place.name} is planned` : `Add ${place.name} to day ${selectedDay}`}
-                      onClick={() => void handleAdd(place.id)}
-                    >
-                      {planned ? "Planned" : `Add to day ${selectedDay}`}
+                    <button type="button" onClick={() => onDetails(place.id)}>详情</button>
+                    <button type="button" disabled={planned || busyPlaceId === place.id} onClick={() => void handleAdd(place.id)}>
+                      {planned ? "已加入" : `加入第 ${selectedDay} 天`}
                     </button>
                   </div>
                 </article>
@@ -214,5 +194,3 @@ export function RecommendationPanel({
     </section>
   )
 }
-
-export type { RecommendationPanelProps }

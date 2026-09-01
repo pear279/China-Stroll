@@ -295,7 +295,7 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    const closeButton = await screen.findByRole("button", { name: "Close place details" })
+    const closeButton = await screen.findByRole("button", { name: "返回" })
     expect(document.activeElement).toBe(closeButton)
 
     await user.tab({ shift: true })
@@ -332,7 +332,7 @@ describe("PlaceDetailPanel", () => {
     renderPanel(repository)
 
     const user = userEvent.setup()
-    await user.selectOptions(screen.getByRole("combobox", { name: "Guide audience" }), "child")
+    await user.click(screen.getByRole("button", { name: "儿童模式" }))
 
     childGuideDeferred.resolve(childGuide)
     expect(await screen.findByText("Look for the guardian lions before the long courtyard walk.")).toBeTruthy()
