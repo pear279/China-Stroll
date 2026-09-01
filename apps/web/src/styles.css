@@ -368,6 +368,17 @@ input:focus { border-color: #b33a2e; }
 .join-card h1 { margin: .2rem 0 0; font-size: 1.7rem; }
 .join-card p { margin: 0; color: #6f675e; line-height: 1.6; }
 .join-card .primary-button, .join-card .secondary-button { width: 100%; }
+.day-editor { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.day-editor label, .stop-editor label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.day-editor input, .stop-editor input, .stop-editor select { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; }
+.day-editor-fields, .stop-editor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.day-editor .secondary-button, .stop-editor .secondary-button { width: fit-content; min-height: 2.6rem; }
+.stop-editor { display: grid; gap: .7rem; grid-column: 1 / -1; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.reservation-draft { display: grid; gap: .7rem; }
+.reservation-draft .secondary-button { width: 100%; min-height: 2.6rem; }
+.reservation-draft-form { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.reservation-draft-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.reservation-draft-form textarea { min-height: 4.5rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; resize: vertical; }
 .reservation-manager { display: grid; gap: 1rem; }
 .reservation-form { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
 .reservation-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
@@ -465,6 +476,8 @@ input:focus { border-color: #b33a2e; }
   .reservation-fields { grid-template-columns: 1fr; }
   .reservation-form .primary-button { width: 100%; justify-content: center; min-height: 2.9rem; }
   .profile-row, .invitation-row { grid-template-columns: 1fr; }
+  .day-editor-fields, .stop-editor-fields { grid-template-columns: 1fr; }
+  .day-editor .secondary-button, .stop-editor .secondary-button { width: 100%; justify-content: center; min-height: 2.9rem; }
   .profile-form .primary-button { width: 100%; justify-content: center; min-height: 2.9rem; }
   .invite-url-row { grid-template-columns: 1fr; }
   .invite-url button { justify-content: center; }

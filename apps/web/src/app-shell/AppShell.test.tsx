@@ -125,6 +125,12 @@ const props: AppShellProps = {
     status: "idle",
     onSave: vi.fn(async () => undefined),
   },
+  itineraryEditing: {
+    onEditStop: vi.fn(async () => undefined),
+    onMoveStopToDay: vi.fn(async () => undefined),
+    onEditDay: vi.fn(async () => undefined),
+    onDraftReservation: vi.fn(async () => null),
+  },
   placeRepository: repository,
   places: [palace, museum],
   placesState: "ready",

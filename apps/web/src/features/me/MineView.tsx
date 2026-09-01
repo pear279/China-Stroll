@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
-import { useState } from "react"
-import type { AgentSuggestion, PlaceSummary, ReservationInput, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
-import type { AppMode, LocationSharingControls, MembershipControls, ProfileControls } from "../../app-shell/types"
+import { useEffect, useState } from "react"
+import type { AgentSuggestion, PlaceSummary, ReservationDraft, ReservationInput, TransportMode, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
+import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, ProfileControls, StopEditFields } from "../../app-shell/types"
 import { ProfileCard } from "./ProfileCard"
 import { TripMembersCard } from "./TripMembersCard"
 
@@ -9,6 +9,7 @@ export type MineViewProps = {
   busy: string | null
   message: string | null
   mode: AppMode
+  itineraryEditing: ItineraryEditControls
   locationSharing: LocationSharingControls
   membership: MembershipControls
   profile: ProfileControls
@@ -34,6 +35,7 @@ export function MineView({
   busy,
   message,
   mode,
+  itineraryEditing,
   locationSharing,
   membership,
   profile,
@@ -56,6 +58,7 @@ export function MineView({
 }: MineViewProps) {
   const [placeToAdd, setPlaceToAdd] = useState("")
   const [draggedStopId, setDraggedStopId] = useState<string | null>(null)
+  const [editingStopId, setEditingStopId] = useState<string | null>(null)
   const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
   const dayStops = [...trip.stops]
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
@@ -99,6 +102,12 @@ export function MineView({
           </button>
         ))}
       </div>
+
+      <DayEditor
+        day={trip.days.find((day) => day.dayNumber === selectedDay) ?? null}
+        busy={busy}
+        onSave={(fields) => itineraryEditing.onEditDay(selectedDay, fields)}
+      />
 
       {message && <div className="status-banner" role="status"><Check aria-hidden="true" size={18} />{message}</div>}
 
@@ -150,10 +159,20 @@ export function MineView({
                   </button>
                   <div className="stop-actions" aria-label={`${stop.name} itinerary controls`}>
                     <span className="drag-handle" aria-label={`Drag ${stop.name} to reorder`} title="Drag to reorder"><GripVertical aria-hidden="true" size={17} /></span>
+                    <button type="button" disabled={busy !== null} aria-label={`Edit ${stop.name}`} onClick={() => setEditingStopId(editingStopId === stop.id ? null : stop.id)}><Pencil aria-hidden="true" size={16} /></button>
                     <button type="button" disabled={busy !== null || index === 0} aria-label={`Move ${stop.name} up`} onClick={() => void onReorderStop(stop.id, index - 1)}><ArrowUp aria-hidden="true" size={16} /></button>
                     <button type="button" disabled={busy !== null || index === dayStops.length - 1} aria-label={`Move ${stop.name} down`} onClick={() => void onReorderStop(stop.id, index + 1)}><ArrowDown aria-hidden="true" size={16} /></button>
                     <button className="remove-stop" type="button" disabled={busy !== null} aria-label={`Remove ${stop.name}`} onClick={() => void onRemoveStop(stop.id)}><Trash2 aria-hidden="true" size={16} /></button>
                   </div>
+                  {editingStopId === stop.id && (
+                    <StopEditor
+                      stop={stop}
+                      days={trip.days}
+                      busy={busy}
+                      onMove={(dayNumber) => itineraryEditing.onMoveStopToDay(stop.id, dayNumber)}
+                      onSave={(fields) => itineraryEditing.onEditStop(stop.id, fields)}
+                    />
+                  )}
                 </li>
               ))}
             </ol>
@@ -188,6 +207,7 @@ export function MineView({
             places={places}
             reservations={(trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)}
             onCreate={onCreateReservation}
+            onDraft={itineraryEditing.onDraftReservation}
             onRemove={onRemoveReservation}
             onUpdate={onUpdateReservation}
           />
@@ -295,13 +315,19 @@ function asLocalDateTime(value: string | null) {
   return value ? value.slice(0, 16) : ""
 }
 
-function ReservationManager({ busy, days, places, reservations, onCreate, onUpdate, onRemove }: {
+function ReservationManager({ busy, days, places, reservations, onCreate, onDraft, onUpdate, onRemove }: {
   busy: string | null; days: TripSnapshot["days"]; places: PlaceSummary[]; reservations: TripReservation[]
-  onCreate: (input: ReservationInput) => Promise<void>; onUpdate: (id: string, input: ReservationInput) => Promise<void>; onRemove: (id: string) => Promise<void>
+  onCreate: (input: ReservationInput) => Promise<void>
+  onDraft: (sourceText: string) => Promise<ReservationDraft | null>
+  onUpdate: (id: string, input: ReservationInput) => Promise<void>; onRemove: (id: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState<ReservationInput>(emptyReservation)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [draftText, setDraftText] = useState("")
+  const [showDraft, setShowDraft] = useState(false)
+  const [drafting, setDrafting] = useState(false)
+  const [draftNote, setDraftNote] = useState<string | null>(null)
   const saving = busy === "create-reservation" || busy === "update-reservation"
   function setField<Key extends keyof ReservationInput>(key: Key, value: ReservationInput[Key]) { setDraft((current) => ({ ...current, [key]: value })) }
   function startEdit(reservation: TripReservation) {
@@ -315,9 +341,35 @@ function ReservationManager({ busy, days, places, reservations, onCreate, onUpda
     setFormError(null)
     if (editingId) await onUpdate(editingId, draft)
     else await onCreate(draft)
-    setDraft(emptyReservation); setEditingId(null)
+    setDraft(emptyReservation); setEditingId(null); setDraftNote(null)
+  }
+  async function draftFromText() {
+    if (!draftText.trim()) return setDraftNote("Paste the booking details first.")
+    setDrafting(true)
+    setDraftNote(null)
+    try {
+      const parsed = await onDraft(draftText)
+      if (!parsed) {
+        setDraftNote("Could not draft this reservation. Fill the form manually.")
+        return
+      }
+      setDraft((current) => ({ ...current, ...parsed }))
+      setDraftNote("Draft is unsaved. Review the fields, then press Save reservation.")
+    } finally {
+      setDrafting(false)
+    }
   }
   return <div className="reservation-manager">
+    <div className="reservation-draft">
+      <button className="secondary-button" type="button" onClick={() => setShowDraft((current) => !current)}>Draft from pasted text</button>
+      {showDraft && (
+        <div className="reservation-draft-form">
+          <label>Paste booking details<textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder="e.g. Hotel check-in on Sep 3 at 15:00, confirmation 12345" /></label>
+          <button className="secondary-button" type="button" disabled={drafting} onClick={() => void draftFromText()}>{drafting ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}Draft fields</button>
+        </div>
+      )}
+      {draftNote && <p className="account-status" role="status">{draftNote}</p>}
+    </div>
     <div className="reservation-form" aria-label={editingId ? "Edit reservation" : "New reservation"}>
       <div className="form-heading"><strong>{editingId ? "Edit reservation" : "Add reservation"}</strong>{editingId && <button type="button" aria-label="Cancel reservation edit" onClick={() => { setEditingId(null); setDraft(emptyReservation); setFormError(null) }}><X aria-hidden="true" size={15} />Cancel</button>}</div>
       <label>Reservation title<input value={draft.title} maxLength={200} onChange={(event) => setField("title", event.target.value)} placeholder="e.g. Palace Museum entry" /></label>
@@ -355,6 +407,94 @@ function SuggestionPanel({ suggestion, busy, onConfirm }: { suggestion: AgentSug
       <button className="primary-button" type="button" disabled={busy} onClick={onConfirm}>
         {busy ? <LoaderCircle className="spin" aria-hidden="true" size={18} /> : <Check aria-hidden="true" size={18} />}
         Confirm these changes
+      </button>
+    </div>
+  )
+}
+
+function DayEditor({ day, busy, onSave }: { day: TripSnapshot["days"][number] | null; busy: string | null; onSave: (fields: DayEditFields) => Promise<void> }) {
+  const [date, setDate] = useState(day?.date ?? "")
+  const [title, setTitle] = useState(day?.title ?? "")
+  const [notes, setNotes] = useState(day?.notes ?? "")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setDate(day?.date ?? "")
+    setTitle(day?.title ?? "")
+    setNotes(day?.notes ?? "")
+  }, [day?.id, day?.date, day?.title, day?.notes])
+
+  async function save() {
+    setSaving(true)
+    try {
+      await onSave({ date: date || null, title: title.trim() || null, notes })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="day-editor" aria-label={`Day ${day?.dayNumber ?? ""} details`}>
+      <div className="form-heading"><strong>Day {day?.dayNumber ?? ""} details</strong></div>
+      <div className="day-editor-fields">
+        <label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <label>Title<input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} placeholder={`Day ${day?.dayNumber ?? ""}`} /></label>
+      </div>
+      <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Anything to remember for this day" /></label>
+      <button className="secondary-button" type="button" disabled={saving || busy !== null} onClick={() => void save()}>
+        {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}Save day details
+      </button>
+    </section>
+  )
+}
+
+function StopEditor({ stop, days, busy, onMove, onSave }: {
+  stop: TripSnapshot["stops"][number]
+  days: TripSnapshot["days"]
+  busy: string | null
+  onMove: (dayNumber: number) => Promise<void>
+  onSave: (fields: StopEditFields) => Promise<void>
+}) {
+  const [startTime, setStartTime] = useState(stop.startTime ? stop.startTime.slice(0, 5) : "")
+  const [duration, setDuration] = useState(String(stop.durationMinutes ?? 90))
+  const [transport, setTransport] = useState(stop.transportMode ?? "")
+  const [notes, setNotes] = useState(stop.notes ?? "")
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      await onSave({
+        startTime: startTime ? `${startTime}:00` : null,
+        durationMinutes: Number(duration) || null,
+        transportMode: (transport || null) as TransportMode | null,
+        notes,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="stop-editor">
+      <div className="stop-editor-fields">
+        <label>Start time<input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
+        <label>Duration (min)<input type="number" min={1} max={1440} value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
+        <label>Transport
+          <select value={transport} onChange={(event) => setTransport(event.target.value)}>
+            <option value="">Not set</option><option value="walk">Walk</option><option value="transit">Transit</option>
+            <option value="taxi">Taxi</option><option value="bike">Bike</option><option value="other">Other</option>
+          </select>
+        </label>
+        <label>Move to day
+          <select value={stop.dayNumber ?? 1} onChange={(event) => void onMove(Number(event.target.value))}>
+            {days.map((day) => <option key={day.id} value={day.dayNumber}>Day {day.dayNumber}</option>)}
+          </select>
+        </label>
+      </div>
+      <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Private note for this stop" /></label>
+      <button className="secondary-button" type="button" disabled={saving || busy !== null} onClick={() => void save()}>
+        {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}Save stop
       </button>
     </div>
   )

@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { LocationSharingSnapshot, PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
+import type { LocationSharingSnapshot, PlaceSummary, ReservationDraft, TripSnapshot } from "../../../../../packages/shared/src"
 import { MineView, type MineViewProps } from "./MineView"
 
 const trip: TripSnapshot = {
@@ -82,6 +82,12 @@ function createProps(): MineViewProps {
       profile: null,
       status: "idle",
       onSave: vi.fn(async () => undefined),
+    },
+    itineraryEditing: {
+      onEditStop: vi.fn(async () => undefined),
+      onMoveStopToDay: vi.fn(async () => undefined),
+      onEditDay: vi.fn(async () => undefined),
+      onDraftReservation: vi.fn(async () => null),
     },
     onAddDay: vi.fn(async () => 3),
     onAddPlace: vi.fn(async () => undefined),
@@ -224,5 +230,55 @@ describe("MineView", () => {
     expect((screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText("Location sharing is unavailable in preview.")).toBeTruthy()
     expect(screen.queryByText(/demo member/i)).toBeNull()
+  })
+
+  it("saves edited day details", async () => {
+    const props = createProps()
+    render(<MineView {...props} />)
+    const user = userEvent.setup()
+
+    await user.type(screen.getByLabelText("Title"), "Museum morning")
+    await user.click(screen.getByRole("button", { name: "Save day details" }))
+
+    expect(props.itineraryEditing.onEditDay).toHaveBeenCalledWith(2, expect.objectContaining({ title: "Museum morning" }))
+  })
+
+  it("edits a stop's transport and notes through the inline editor", async () => {
+    const props = createProps()
+    render(<MineView {...props} />)
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole("button", { name: "Edit Jingshan Park" }))
+    await user.selectOptions(screen.getByLabelText("Transport"), "taxi")
+    await user.click(screen.getByRole("button", { name: "Save stop" }))
+
+    expect(props.itineraryEditing.onEditStop).toHaveBeenCalledWith(
+      "stop-1",
+      expect.objectContaining({ transportMode: "taxi" }),
+    )
+  })
+
+  it("drafts a reservation from pasted text without saving it", async () => {
+    const props = createProps()
+    props.itineraryEditing.onDraftReservation = vi.fn(async (): Promise<ReservationDraft | null> => ({
+      category: "accommodation",
+      title: "Hotel check-in",
+      startsAt: null,
+      endsAt: null,
+      status: "planned",
+      provider: "Example Hotel",
+      confirmationCode: "12345",
+      notes: "",
+    }))
+    render(<MineView {...props} />)
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole("button", { name: "Draft from pasted text" }))
+    await user.type(screen.getByLabelText("Paste booking details"), "Hotel check-in, confirmation 12345")
+    await user.click(screen.getByRole("button", { name: "Draft fields" }))
+
+    expect(props.itineraryEditing.onDraftReservation).toHaveBeenCalledWith("Hotel check-in, confirmation 12345")
+    expect(await screen.findByText(/Draft is unsaved/i)).toBeTruthy()
+    expect(props.onCreateReservation).not.toHaveBeenCalled()
   })
 })

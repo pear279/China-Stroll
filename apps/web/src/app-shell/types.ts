@@ -1,4 +1,4 @@
-import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationInput, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
+import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationDraft, ReservationInput, TransportMode, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
@@ -33,10 +33,31 @@ export type MembershipControls = {
   onRemoveMember: (memberUserId: string) => Promise<void>
 }
 
+export type StopEditFields = {
+  startTime?: string | null
+  durationMinutes?: number | null
+  transportMode?: TransportMode | null
+  notes?: string
+}
+
+export type DayEditFields = {
+  date?: string | null
+  title?: string | null
+  notes?: string
+}
+
+export type ItineraryEditControls = {
+  onEditStop: (stopId: string, fields: StopEditFields) => Promise<void>
+  onMoveStopToDay: (stopId: string, dayNumber: number) => Promise<void>
+  onEditDay: (dayNumber: number, fields: DayEditFields) => Promise<void>
+  onDraftReservation: (sourceText: string) => Promise<ReservationDraft | null>
+}
+
 export type AppShellProps = {
   busy: string | null
   message: string | null
   mode: AppMode
+  itineraryEditing: ItineraryEditControls
   locationSharing: LocationSharingControls
   membership: MembershipControls
   profile: ProfileControls

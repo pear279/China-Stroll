@@ -15,6 +15,7 @@ export function AppShell({
   busy,
   message,
   mode,
+  itineraryEditing,
   locationSharing,
   membership,
   profile,
@@ -177,6 +178,7 @@ export function AppShell({
                 busy={busy}
                 message={message}
                 mode={mode}
+                itineraryEditing={itineraryEditing}
                 locationSharing={locationSharing}
                 membership={membership}
                 profile={profile}

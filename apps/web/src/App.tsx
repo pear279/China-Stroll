@@ -2,15 +2,15 @@ import type { Session } from "@supabase/supabase-js"
 import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
+import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type ReservationDraft, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
-import type { AccountStateStatus } from "./app-shell/types"
+import type { AccountStateStatus, DayEditFields, StopEditFields } from "./app-shell/types"
 import { createPlaceRepository } from "./data/placeRepository"
 import { useLocationSharing } from "./features/location/useLocationSharing"
 import { JoinTripView } from "./features/members/JoinTripView"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
-import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
+import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, editDemoDay, editDemoStop, moveDemoStopToDay, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
@@ -405,6 +405,71 @@ export function App() {
     })
   }
 
+  async function editStop(stopId: string, fields: StopEditFields) {
+    if (!trip) return
+    const stop = trip.stops.find((item) => item.id === stopId)
+    if (mode === "preview") {
+      if (stop) setTrip(editDemoStop(trip, stopId, fields))
+      return
+    }
+    if (!session) return
+    await run("edit-stop", async () => {
+      await api.applyTripChanges(session.access_token, trip, [{
+        op: "update_stop",
+        stopId,
+        startTime: fields.startTime ?? stop?.startTime ?? "09:00",
+        durationMinutes: fields.durationMinutes ?? stop?.durationMinutes ?? 90,
+        sortOrder: stop?.sortOrder ?? 0,
+        transportMode: fields.transportMode,
+        notes: fields.notes,
+      }])
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Stop updated.")
+    })
+  }
+
+  async function moveStopToDay(stopId: string, dayNumber: number) {
+    if (!trip) return
+    const stop = trip.stops.find((item) => item.id === stopId)
+    if (!stop || (stop.dayNumber ?? 1) === dayNumber) return
+    if (mode === "preview") {
+      setTrip(moveDemoStopToDay(trip, stopId, dayNumber))
+      setMessage(`Moved to day ${dayNumber}.`)
+      return
+    }
+    if (!session) return
+    const targetSort = trip.stops.filter((item) => (item.dayNumber ?? 1) === dayNumber).length
+    await run("move-stop", async () => {
+      await api.applyTripChanges(session.access_token, trip, [{ op: "move_stop", stopId, dayNumber, sortOrder: targetSort }])
+      await loadTrip(session.access_token, trip.id)
+      setMessage(`Moved to day ${dayNumber}.`)
+    })
+  }
+
+  async function editDay(dayNumber: number, fields: DayEditFields) {
+    if (!trip) return
+    if (mode === "preview") {
+      setTrip(editDemoDay(trip, dayNumber, fields))
+      setMessage("Day details updated.")
+      return
+    }
+    if (!session) return
+    await run("edit-day", async () => {
+      await api.updateTripDay(session.access_token, trip, dayNumber, fields)
+      await loadTrip(session.access_token, trip.id)
+      setMessage("Day details updated.")
+    })
+  }
+
+  async function draftReservation(sourceText: string): Promise<ReservationDraft | null> {
+    if (mode === "preview" || !session || !trip) return null
+    try {
+      return await api.createReservationDraft(session.access_token, trip.id, sourceText)
+    } catch {
+      return null
+    }
+  }
+
   if (mode === "loading") return <LoadingScreen />
 
   const joinToken = location.pathname.startsWith("/join/")
@@ -454,6 +519,12 @@ export function App() {
         onDisable: locationSharing.disable,
         onRetryDisable: locationSharing.retryDisable,
         onRefresh: locationSharing.refresh,
+      }}
+      itineraryEditing={{
+        onEditStop: editStop,
+        onMoveStopToDay: moveStopToDay,
+        onEditDay: editDay,
+        onDraftReservation: draftReservation,
       }}
       membership={{
         isOwner: members.some((member) => member.isCurrentUser && member.role === "owner"),
