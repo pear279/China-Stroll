@@ -1,16 +1,9 @@
 import type { Phrase } from "../../../../packages/shared/src"
 
 export const paymentGuidance = {
-  title: "Payments in China",
-  summary:
-    "Alipay and WeChat Pay are widely accepted. International bank cards may not work everywhere, and some smaller merchants accept only local payment methods.",
-  steps: [
-    "Set up Alipay or WeChat Pay before you travel and link an accepted card or top-up method.",
-    "Carry a backup payment method and some cash for small merchants and transport.",
-    "Keep your passport handy: identity checks may be required for some payments or top-ups.",
-  ],
-  note:
-    "Acceptance varies by merchant and can change. Confirm the payment method with the merchant before ordering.",
+  title: "支付",
+  summary: "Alipay 与微信支付使用广泛。国际银行卡不一定处处可用，部分小商户仅支持本地支付方式。",
+  note: "各商户接受方式可能变化，下单前请与商家确认。",
 }
 
 export const commonPhrases: Phrase[] = [
@@ -22,25 +15,54 @@ export const commonPhrases: Phrase[] = [
   { en: "I don't understand", zh: "我听不懂", pinyin: "wǒ tīng bù dǒng" },
 ]
 
-export const serviceContacts = {
-  emergency: [
-    { label: "Police", number: "110", href: "tel:110" },
-    { label: "Fire", number: "119", href: "tel:119" },
-    { label: "Medical", number: "120", href: "tel:120" },
-  ],
-  helplines: [
-    { label: "Government service hotline", number: "12345", href: "tel:12345" },
-    { label: "China Railway", number: "12306", href: "tel:12306" },
-  ],
-  note:
-    "For a hotel, restaurant, or attraction service line, verify the number on its official listing before calling.",
-}
+export type LinkIcon = { label: string; url: string }
 
-export const exchangeCurrencies = [
-  { code: "CNY", label: "Chinese yuan (CNY)" },
-  { code: "USD", label: "US dollar (USD)" },
-  { code: "EUR", label: "Euro (EUR)" },
-  { code: "GBP", label: "British pound (GBP)" },
-  { code: "JPY", label: "Japanese yen (JPY)" },
-  { code: "AUD", label: "Australian dollar (AUD)" },
-] as const
+export const navigationLinks: LinkIcon[] = [
+  { label: "Apple Maps", url: "https://maps.apple.com/" },
+  { label: "Google Maps", url: "https://www.google.com/maps" },
+  { label: "高德地图", url: "https://www.amap.com/" },
+]
+
+export const rideLinks: LinkIcon[] = [
+  { label: "支付宝", url: "https://www.alipay.com/" },
+  { label: "滴滴", url: "https://www.didiglobal.com/" },
+  { label: "高德打车", url: "https://www.amap.com/" },
+]
+
+export const paymentLinks: LinkIcon[] = [
+  { label: "Alipay", url: "https://www.alipay.com/" },
+  { label: "WeChat Pay", url: "https://pay.weixin.qq.com/" },
+]
+
+export type HotlineCategory = { label: string; items: { label: string; number: string; href: string }[] }
+
+export const hotlineCategories: HotlineCategory[] = [
+  {
+    label: "常用",
+    items: [
+      { label: "政务服务便民热线", number: "12345", href: "tel:12345" },
+      { label: "铁路客服", number: "12306", href: "tel:12306" },
+      { label: "消费者投诉", number: "12315", href: "tel:12315" },
+    ],
+  },
+  {
+    label: "景点",
+    items: [
+      { label: "全国旅游服务热线", number: "12301", href: "tel:12301" },
+    ],
+  },
+  {
+    label: "饭店",
+    items: [
+      { label: "市场监督服务热线", number: "12315", href: "tel:12315" },
+    ],
+  },
+  {
+    label: "酒店",
+    items: [
+      { label: "全国旅游服务热线", number: "12301", href: "tel:12301" },
+    ],
+  },
+]
+
+export const serviceNote = "景点、饭店、酒店的具体服务热线以官方公布为准，入住或订餐前请先向官方确认。"

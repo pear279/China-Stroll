@@ -172,7 +172,7 @@ export function AppShell({
               />
             )}
           />
-          <Route path="/tools" element={<ToolsView mode={mode} accessToken={accessToken} places={places} />} />
+          <Route path="/tools" element={<ToolsView mode={mode} accessToken={accessToken} />} />
           <Route
             path="/me"
             element={(

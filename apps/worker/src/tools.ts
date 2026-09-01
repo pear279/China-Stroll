@@ -85,3 +85,42 @@ export async function translateText(
     clearTimeout(timeoutId)
   }
 }
+
+const chatReplySchema = z.object({ reply: z.string().trim().min(1).max(2000) })
+
+export async function chatCompletion(
+  config: SiliconFlowConfig,
+  message: string,
+  fetcher: typeof fetch = fetch,
+): Promise<string | null> {
+  if (!config.apiKey) return null
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetcher(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.chatModel,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a friendly, concise travel assistant for China. Return one JSON object with only the key reply. Keep the reply short and warm. Do not invent facts, opening hours, prices, or phone numbers.",
+          },
+          { role: "user", content: message },
+        ],
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`siliconflow_status_${response.status}`)
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content
+    if (!content) throw new Error("siliconflow_empty_response")
+    return chatReplySchema.parse(JSON.parse(content)).reply
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}

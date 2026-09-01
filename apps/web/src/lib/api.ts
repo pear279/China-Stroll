@@ -323,4 +323,10 @@ export const api = {
       body: JSON.stringify({ text, from, to }),
     })
   },
+  chat(accessToken: string, message: string) {
+    return request<{ reply: string; generatedAt: string }>("/v1/chat", accessToken, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    })
+  },
 }

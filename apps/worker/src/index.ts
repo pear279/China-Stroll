@@ -62,6 +62,7 @@ import {
   suggestionRisksSchema,
   suggestionRequestSchema,
   suggestionStatusSchema,
+  chatRequestSchema,
   translationRequestSchema,
   tripCommandResultSchema,
   tripInvitationPreviewSchema,
@@ -72,7 +73,7 @@ import {
   userProfileInputSchema,
 } from "./contracts"
 import { generateRecommendationExplanations, generateReservationDraft, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
-import { fetchExchangeQuote, translateText } from "./tools"
+import { chatCompletion, fetchExchangeQuote, translateText } from "./tools"
 import { answerPlaceQuestion } from "./placeIntelligence"
 import { TavilyWebSearchProvider } from "./webSearch"
 import { rankPlaceRecommendations } from "../../../packages/shared/src/place-discovery"
@@ -102,7 +103,7 @@ type Variables = {
 
 type WorkerContext = Context<{ Bindings: WorkerBindings; Variables: Variables }>
 
-export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library", "/v1/profile", "/v1/translations"] as const
+export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library", "/v1/profile", "/v1/translations", "/v1/chat"] as const
 
 export function requiresAuthentication(pathname: string) {
   return PROTECTED_PREFIXES.some(
@@ -1225,6 +1226,17 @@ app.post("/v1/translations", async (context) => {
     provider: "siliconflow",
     generatedAt: new Date().toISOString(),
   })
+})
+
+app.post("/v1/chat", async (context) => {
+  const parsed = chatRequestSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Enter a message."), 400)
+  const reply = await chatCompletion(siliconFlowConfigFromBindings(context.env), parsed.data.message).catch((error) => {
+    console.error(JSON.stringify({ message: "siliconflow_chat_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+    return null
+  })
+  if (!reply) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "Chat is temporarily unavailable."), 503)
+  return context.json({ reply, generatedAt: new Date().toISOString() })
 })
 
 app.post("/v1/trips/:tripId/private-places", async (context) => {

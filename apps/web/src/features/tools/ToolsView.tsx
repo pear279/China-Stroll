@@ -1,213 +1,169 @@
-import { ArrowLeftRight, Check, Copy, ExternalLink, Languages, LoaderCircle, MapPinned, Phone, WalletCards } from "lucide-react"
+import { ArrowLeft, ExternalLink, LoaderCircle, MessageCircle, Send } from "lucide-react"
 import { useState } from "react"
-import type { ExchangeQuote, Locale, PlaceSummary, TranslationResult } from "../../../../../packages/shared/src"
 import type { AppMode } from "../../app-shell/types"
-import { commonPhrases, exchangeCurrencies, paymentGuidance, serviceContacts } from "../../data/toolsContent"
+import { commonPhrases, hotlineCategories, navigationLinks, paymentGuidance, paymentLinks, rideLinks, serviceNote, type LinkIcon } from "../../data/toolsContent"
 import { api } from "../../lib/api"
-import { amapSearchUrl, appleMapsUrl, didiWebUrl, googleMapsUrl } from "../../lib/navigation"
 
 type ToolsViewProps = {
   mode: AppMode
   accessToken: string | null
-  places: PlaceSummary[]
 }
 
-export function ToolsView({ mode, accessToken, places }: ToolsViewProps) {
-  const [placeId, setPlaceId] = useState(places[0]?.id ?? "")
+export function ToolsView({ mode, accessToken }: ToolsViewProps) {
+  const [showChat, setShowChat] = useState(false)
 
   return (
     <section className="module-view tools-view" aria-labelledby="tools-heading">
       <header className="module-heading">
         <div>
-          <span className="eyebrow">Practical support</span>
-          <h1 id="tools-heading">Travel tools</h1>
-          <p>Navigation, payment guidance, translation, and verified service numbers.</p>
+          <span className="eyebrow">工具</span>
+          <h1 id="tools-heading">工具</h1>
         </div>
       </header>
 
-      <div className="tool-grid">
-        <NavigationSection places={places} placeId={placeId} onPlace={setPlaceId} />
+      <div className="tool-stack">
+        <LinkSection title="导航" links={navigationLinks} />
+        <LinkSection title="打车" links={rideLinks} note="跳转第三方平台，China Stroll 不代下单。" />
         <PaymentSection />
-        <TranslationSection mode={mode} accessToken={accessToken} />
+        <TranslationSection mode={mode} accessToken={accessToken} onOpenChat={() => setShowChat(true)} />
         <ServiceHelpSection />
       </div>
+
+      {showChat && <ChatPanel accessToken={accessToken} onClose={() => setShowChat(false)} />}
     </section>
   )
 }
 
-function NavigationSection({ places, placeId, onPlace }: { places: PlaceSummary[]; placeId: string; onPlace: (id: string) => void }) {
-  const place = places.find((item) => item.id === placeId) ?? null
+function LinkSection({ title, links, note }: { title: string; links: LinkIcon[]; note?: string }) {
   return (
-    <article className="tool-card">
-      <MapPinned aria-hidden="true" size={24} />
-      <div><span className="eyebrow">Navigation and rides</span><h2>Open a reviewed place</h2></div>
-      <label className="tool-select">
-        Choose a place
-        <select value={placeId} onChange={(event) => onPlace(event.target.value)}>
-          {places.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-      </label>
-      {place?.coordinate ? (
-        <nav className="tool-links" aria-label="Navigation providers">
-          <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps<ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps<ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">Amap<ExternalLink aria-hidden="true" size={14} /></a>
-        </nav>
-      ) : (
-        <p className="tool-status">This place has no reviewed coordinate, so navigation links are unavailable.</p>
-      )}
-      <a className="tool-ride-link" href={didiWebUrl()} target="_blank" rel="noreferrer">Open Didi ride-hailing<ExternalLink aria-hidden="true" size={14} /></a>
-      <small>Ride-hailing opens the provider's site or app. China Stroll does not create a booking.</small>
-    </article>
+    <section className="tool-section" aria-labelledby={`tool-${title}`}>
+      <h2 id={`tool-${title}`}>{title}</h2>
+      <div className="tool-icon-links">
+        {links.map((link) => (
+          <a key={link.label} href={link.url} target="_blank" rel="noreferrer">
+            <span className="tool-link-monogram" aria-hidden="true">{link.label[0]}</span>
+            <strong>{link.label}</strong>
+            <ExternalLink aria-hidden="true" size={14} />
+          </a>
+        ))}
+      </div>
+      {note && <small className="tool-section-note">{note}</small>}
+    </section>
   )
 }
 
 function PaymentSection() {
-  const [base, setBase] = useState("CNY")
-  const [quote, setQuote] = useState("USD")
-  const [state, setState] = useState<{ status: "idle" | "loading" | "ready" | "unavailable"; quote: ExchangeQuote | null }>({ status: "idle", quote: null })
-
-  async function fetchRate() {
-    setState({ status: "loading", quote: null })
-    try {
-      const result = await api.getExchangeRate(base, quote)
-      setState(result.available ? { status: "ready", quote: result.quote } : { status: "unavailable", quote: null })
-    } catch {
-      setState({ status: "unavailable", quote: null })
-    }
-  }
-
   return (
-    <article className="tool-card">
-      <WalletCards aria-hidden="true" size={24} />
-      <div><span className="eyebrow">Payment and exchange</span><h2>{paymentGuidance.title}</h2></div>
-      <p>{paymentGuidance.summary}</p>
-      <ol className="tool-steps">
-        {paymentGuidance.steps.map((step) => <li key={step}>{step}</li>)}
-      </ol>
-      <div className="exchange-controls">
-        <label>From
-          <select value={base} onChange={(event) => setBase(event.target.value)}>
-            {exchangeCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
-          </select>
-        </label>
-        <label>To
-          <select value={quote} onChange={(event) => setQuote(event.target.value)}>
-            {exchangeCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
-          </select>
-        </label>
-        <button className="secondary-button" type="button" disabled={state.status === "loading"} onClick={() => void fetchRate()}>
-          {state.status === "loading" ? <LoaderCircle className="spin" size={16} /> : null}Get rate
-        </button>
+    <section className="tool-section" aria-labelledby="tool-payment">
+      <h2 id="tool-payment">支付</h2>
+      <div className="tool-icon-links">
+        {paymentLinks.map((link) => (
+          <a key={link.label} href={link.url} target="_blank" rel="noreferrer">
+            <span className="tool-link-monogram" aria-hidden="true">{link.label[0]}</span>
+            <strong>{link.label}</strong>
+            <ExternalLink aria-hidden="true" size={14} />
+          </a>
+        ))}
       </div>
-      {state.status === "ready" && state.quote && (
-        <p className="exchange-result" role="status">
-          1 {state.quote.base} ≈ {state.quote.rate} {state.quote.quote} · {state.quote.provider} · {new Date(state.quote.retrievedAt).toLocaleTimeString()}
-        </p>
-      )}
-      {state.status === "unavailable" && (
-        <p className="tool-status" role="status">Live rates are unavailable right now. The payment guidance above still applies.</p>
-      )}
-      <small>{paymentGuidance.note}</small>
-    </article>
+      <p className="tool-section-copy">{paymentGuidance.summary}</p>
+      <small className="tool-section-note">{paymentGuidance.note}</small>
+    </section>
   )
 }
 
-function TranslationSection({ mode, accessToken }: { mode: AppMode; accessToken: string | null }) {
-  const [text, setText] = useState("")
-  const [from, setFrom] = useState<Locale>("en")
-  const [to, setTo] = useState<Locale>("zh-CN")
-  const [result, setResult] = useState<TranslationResult | null>(null)
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
-  const [copied, setCopied] = useState(false)
-
+function TranslationSection({ mode, accessToken, onOpenChat }: { mode: AppMode; accessToken: string | null; onOpenChat: () => void }) {
+  const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null)
   const signedIn = mode === "account" && Boolean(accessToken)
 
-  async function translate() {
-    if (!signedIn || !text.trim()) return
-    setStatus("loading")
-    setCopied(false)
-    try {
-      setResult(await api.translateText(accessToken as string, text, from, to))
-      setStatus("idle")
-    } catch {
-      setResult(null)
-      setStatus("error")
-    }
-  }
-
-  async function copyResult() {
-    if (!result) return
-    try {
-      await navigator.clipboard?.writeText(result.translatedText)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
-    <article className="tool-card">
-      <Languages aria-hidden="true" size={24} />
-      <div><span className="eyebrow">Translation and conversation</span><h2>Translate text</h2></div>
-      {!signedIn ? (
-        <p className="tool-status">Translation needs a signed-in account. Common phrases below stay available offline.</p>
-      ) : (
-        <>
-          <label>Your text<textarea value={text} maxLength={4000} onChange={(event) => setText(event.target.value)} placeholder="Type or paste text to translate" /></label>
-          <div className="translation-controls">
-            <label>From
-              <select value={from} onChange={(event) => setFrom(event.target.value as Locale)}>
-                <option value="en">English</option><option value="zh-CN">中文</option>
-              </select>
-            </label>
-            <button className="swap-button" type="button" aria-label="Swap languages" onClick={() => { setFrom(to); setTo(from) }}><ArrowLeftRight size={16} /></button>
-            <label>To
-              <select value={to} onChange={(event) => setTo(event.target.value as Locale)}>
-                <option value="en">English</option><option value="zh-CN">中文</option>
-              </select>
-            </label>
-          </div>
-          <button className="secondary-button" type="button" disabled={status === "loading" || !text.trim()} onClick={() => void translate()}>
-            {status === "loading" ? <LoaderCircle className="spin" size={16} /> : <Languages size={16} />}Translate
-          </button>
-          {status === "error" && <p className="tool-status" role="alert">Translation is temporarily unavailable. Common phrases remain usable.</p>}
-          {result && (
-            <div className="translation-result" role="status">
-              <p>{result.translatedText}</p>
-              <button type="button" onClick={() => void copyResult()}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? "Copied" : "Copy"}</button>
-            </div>
-          )}
-        </>
-      )}
-      <div className="phrase-pack">
-        <strong>Common phrases</strong>
-        <ul>
-          {commonPhrases.map((phrase) => (
-            <li key={phrase.en}><span>{phrase.en}</span><strong>{phrase.zh}</strong><small>{phrase.pinyin}</small></li>
-          ))}
-        </ul>
+    <section className="tool-section" aria-labelledby="tool-translation">
+      <h2 id="tool-translation">AI翻译 / 对话</h2>
+
+      <div className="phrase-list">
+        {commonPhrases.map((phrase) => {
+          const expanded = selectedPhrase === phrase.en
+          return (
+            <button key={phrase.en} type="button" className={expanded ? "is-expanded" : undefined} onClick={() => setSelectedPhrase(expanded ? null : phrase.en)}>
+              <span>{phrase.en}</span>
+              {expanded ? <strong>{phrase.zh}</strong> : null}
+              {expanded && <small>{phrase.pinyin}</small>}
+            </button>
+          )
+        })}
       </div>
-    </article>
+      <small className="tool-section-note">点击常用语显示对应中文，便于展示给当地人看。</small>
+
+      <button className="tool-chat-button" type="button" onClick={onOpenChat}>
+        <MessageCircle aria-hidden="true" size={17} />
+        AI问答
+        {!signedIn && <small>需登录</small>}
+      </button>
+    </section>
   )
 }
 
 function ServiceHelpSection() {
   return (
-    <article className="tool-card emergency-card">
-      <Phone aria-hidden="true" size={24} />
-      <div><span className="eyebrow">Service help</span><h2>Emergency and helplines</h2></div>
-      <nav aria-label="Emergency phone numbers">
-        {serviceContacts.emergency.map((contact) => (
-          <a key={contact.number} href={contact.href}>{contact.label} {contact.number}</a>
+    <section className="tool-section" aria-labelledby="tool-service">
+      <h2 id="tool-service">服务热线</h2>
+      {hotlineCategories.map((category) => (
+        <div key={category.label} className="hotline-category">
+          <h3>{category.label}</h3>
+          <div className="hotline-items">
+            {category.items.map((item) => (
+              <a key={`${category.label}-${item.number}`} href={item.href}>
+                <span>{item.label}</span>
+                <strong>{item.number}</strong>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+      <small className="tool-section-note">{serviceNote}</small>
+    </section>
+  )
+}
+
+type ChatMessage = { role: "user" | "assistant"; content: string }
+
+function ChatPanel({ accessToken, onClose }: { accessToken: string | null; onClose: () => void }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  async function send() {
+    if (!accessToken || !input.trim() || busy) return
+    const text = input.trim()
+    setInput("")
+    setMessages((current) => [...current, { role: "user", content: text }])
+    setBusy(true)
+    try {
+      const result = await api.chat(accessToken, text)
+      setMessages((current) => [...current, { role: "assistant", content: result.reply }])
+    } catch {
+      setMessages((current) => [...current, { role: "assistant", content: "暂时无法回答，请稍后再试。" }])
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="chat-overlay">
+      <header className="chat-header">
+        <button type="button" aria-label="返回" onClick={onClose}><ArrowLeft size={20} /></button>
+        <strong>AI问答</strong>
+      </header>
+      <div className="chat-messages" role="log">
+        {messages.length === 0 && <p className="chat-empty">问一问出行、语言、文化等日常问题。</p>}
+        {messages.map((message, index) => (
+          <div key={index} className={message.role === "user" ? "chat-bubble chat-bubble--user" : "chat-bubble"}>{message.content}</div>
         ))}
-      </nav>
-      <nav aria-label="Service helplines">
-        {serviceContacts.helplines.map((contact) => (
-          <a key={contact.number} href={contact.href}>{contact.label} {contact.number}</a>
-        ))}
-      </nav>
-      <small>{serviceContacts.note}</small>
-    </article>
+        {busy && <div className="chat-bubble"><LoaderCircle className="spin" size={15} /></div>}
+      </div>
+      <form className="chat-input" onSubmit={(event) => { event.preventDefault(); void send() }}>
+        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入问题…" aria-label="输入问题" />
+        <button type="submit" disabled={busy || !input.trim()} aria-label="发送"><Send size={17} /></button>
+      </form>
+    </div>
   )
 }

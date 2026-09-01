@@ -508,6 +508,41 @@ input:focus { border-color: #b33a2e; }
 .place-card--list .place-image-button { height: 100%; }
 .place-card--list .place-image-button img { height: 100%; }
 
+.tool-stack { display: grid; gap: 1rem; }
+.tool-section { padding: 1.1rem; border: 1px solid #d4ccbf; border-radius: .6rem; background: #fffdf8; }
+.tool-section h2 { margin: 0 0 .8rem; font-size: 1.2rem; }
+.tool-section h3 { margin: 0 0 .45rem; font-size: .9rem; color: #9a342b; }
+.tool-icon-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+.tool-icon-links a { min-height: 3.2rem; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .45rem; padding: .5rem .65rem; border: 1px solid #d4cabd; border-radius: .5rem; color: #3d352e; background: #fffdf8; text-decoration: none; }
+.tool-icon-links a strong { font-size: .8rem; font-weight: 800; }
+.tool-link-monogram { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; background: #efe6d8; color: #7f2d26; font-weight: 800; }
+.tool-section-note { display: block; margin-top: .6rem; color: #776e64; font-size: .72rem; line-height: 1.5; }
+.tool-section-copy { margin: .6rem 0 0; color: #5f574f; font-size: .82rem; line-height: 1.55; }
+.phrase-list { display: grid; gap: .45rem; }
+.phrase-list button { min-height: 2.9rem; display: grid; gap: .15rem; padding: .55rem .7rem; border: 1px solid #ded6c9; border-radius: .5rem; color: #3d352e; background: #fffdf8; text-align: left; }
+.phrase-list button.is-expanded { border-color: #9f342a; background: #fdf0ee; }
+.phrase-list button span { font-size: .85rem; }
+.phrase-list button strong { font-size: 1.2rem; color: #9f342a; }
+.phrase-list button small { color: #9a8d7e; font-size: .72rem; }
+.tool-chat-button { width: 100%; min-height: 3rem; display: flex; align-items: center; justify-content: center; gap: .45rem; margin-top: .8rem; border: 1px solid #9f342a; border-radius: .5rem; color: #fffaf1; background: #9f342a; font-weight: 800; }
+.tool-chat-button small { font-weight: 600; opacity: .8; }
+.hotline-category { margin-bottom: .7rem; }
+.hotline-items { display: grid; gap: .4rem; }
+.hotline-items a { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 2.7rem; padding: .45rem .7rem; border: 1px solid #ded6c9; border-radius: .45rem; color: #3d352e; background: #fffdf8; text-decoration: none; }
+.hotline-items a span { color: #5f574f; font-size: .8rem; }
+.hotline-items a strong { color: #9f342a; font-size: 1rem; }
+.chat-overlay { position: fixed; z-index: 70; inset: 0; display: flex; flex-direction: column; background: #f7f4ed; }
+.chat-header { display: flex; align-items: center; gap: .6rem; min-height: 3.4rem; padding: 0 1rem; border-bottom: 1px solid #e6e0d5; background: #fffdf8; }
+.chat-header button { width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border: 1px solid #d7cfc2; border-radius: 50%; color: #625a52; background: #fffdf8; }
+.chat-header strong { font-size: 1rem; }
+.chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .6rem; padding: 1rem; }
+.chat-empty { align-self: center; margin-top: 2rem; color: #9a8d7e; font-size: .82rem; }
+.chat-bubble { max-width: 80%; padding: .65rem .8rem; border-radius: .9rem .9rem .9rem .2rem; background: #fffdf8; color: #3d352e; font-size: .85rem; line-height: 1.5; }
+.chat-bubble--user { align-self: flex-end; border-radius: .9rem .9rem .2rem .9rem; background: #9f342a; color: #fffaf1; }
+.chat-input { display: flex; gap: .5rem; padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); border-top: 1px solid #e6e0d5; background: #fffdf8; }
+.chat-input input { flex: 1; min-width: 0; min-height: 2.9rem; padding: .45rem .7rem; border: 1px solid #cfc6b7; border-radius: .45rem; color: #2a2521; background: #fffdf8; font-size: .85rem; }
+.chat-input button { width: 2.9rem; height: 2.9rem; display: grid; place-items: center; border: 1px solid #9f342a; border-radius: .45rem; color: #fffaf1; background: #9f342a; }
+
 @media (max-width: 900px) {
   .welcome-layout { grid-template-columns: 1fr; padding-top: 2rem; background: #f5f1e8; }
   .welcome-copy .brand { margin-bottom: 4rem; }

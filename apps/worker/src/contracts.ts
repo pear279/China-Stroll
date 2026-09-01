@@ -121,6 +121,10 @@ export const translationRequestSchema = z.object({
   to: z.enum(["en", "zh-CN"]),
 }).refine((value) => value.from !== value.to, { message: "Choose two different languages." })
 
+export const chatRequestSchema = z.object({
+  message: z.string().trim().min(1).max(1000),
+})
+
 export const privatePlaceInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
   type: z.enum(["hotel", "restaurant", "meeting_point", "other"]).default("other"),

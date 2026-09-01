@@ -165,7 +165,7 @@ describe("AppShell", () => {
   it.each([
     ["/attractions", "景点"],
     ["/map", "地图"],
-    ["/tools", "Travel tools"],
+    ["/tools", "工具"],
     ["/me", "My trip"],
   ])("renders %s", async (path, heading) => {
     render(<MemoryRouter initialEntries={[path]}><AppShell {...props} /></MemoryRouter>)
