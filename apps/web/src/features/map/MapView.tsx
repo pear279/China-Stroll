@@ -1,5 +1,5 @@
 import { Clock3, Crosshair, LoaderCircle, MapPinOff } from "lucide-react"
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot } from "../../../../../packages/shared/src"
 import type { LocationSharingControls, LocationStatus, NearbyRadius } from "../../app-shell/types"
 import { MapActionSheet } from "./MapActionSheet"
@@ -48,9 +48,11 @@ export function MapView({
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
   const dayReservations = (trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)
-  const memberLocations = (locationSharing.snapshot?.visibleLocations ?? []).filter((member) => {
+  const visibleLocationSnapshot = locationSharing.snapshot?.visibleLocations ?? []
+  const locationTime = useLiveLocationTime(visibleLocationSnapshot)
+  const memberLocations = visibleLocationSnapshot.filter((member) => {
     const expiresAt = Date.parse(member.expiresAt)
-    return Number.isFinite(expiresAt) && expiresAt > Date.now()
+    return Number.isFinite(expiresAt) && expiresAt > locationTime
   })
 
   return (
@@ -86,7 +88,7 @@ export function MapView({
         {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}><span>Day {day.dayNumber}</span><small>{day.date ?? "Date open"}</small></button>)}
       </div>
 
-      <MemberLocationContext locations={memberLocations} status={locationSharing.status} />
+      <MemberLocationContext locations={memberLocations} now={locationTime} status={locationSharing.status} />
 
       <div className="map-module-grid">
         <div className="map-stage">
@@ -132,10 +134,13 @@ export function MapView({
   )
 }
 
-function MemberLocationContext({ locations, status }: {
+function MemberLocationContext({ locations, now, status }: {
   locations: SharedMemberLocation[]
+  now: number
   status: LocationSharingControls["status"]
 }) {
+  const warning = memberLocationWarning(status)
+
   if (locations.length > 0) {
     return (
       <section className="member-location-context" aria-labelledby="member-location-heading">
@@ -149,11 +154,12 @@ function MemberLocationContext({ locations, status }: {
               <span className="member-location-avatar" aria-hidden="true">{member.initials}</span>
               <span>
                 <strong>{member.displayName}</strong>
-                <small>{formatLastUpdate(member.updatedAt)} · {formatExpiry(member.expiresAt)}</small>
+                <small>{formatLastUpdate(member.updatedAt, now)} · {formatExpiry(member.expiresAt, now)}</small>
               </span>
             </li>
           ))}
         </ul>
+        {warning && <div className="member-location-feedback is-error" role="alert">{warning}</div>}
       </section>
     )
   }
@@ -169,28 +175,72 @@ function MemberLocationContext({ locations, status }: {
   if (status === "expired") {
     return <div className="member-location-feedback" role="status">Your shared current point expired. No location history is shown.</div>
   }
+  if (warning) return <div className="member-location-feedback is-error" role="alert">{warning}</div>
+  return null
+}
+
+function memberLocationWarning(status: LocationSharingControls["status"]) {
   if (status === "permission-denied") {
-    return <div className="member-location-feedback is-error" role="alert">Your location is not updating. Other map and itinerary features still work.</div>
+    return "Your location is not updating. Other map and itinerary features still work."
   }
   if (status === "dependency-unavailable" || status === "upload-failed" || status === "revoke-failed") {
-    return <div className="member-location-feedback is-error" role="alert">Shared locations could not be refreshed. Map browsing and itinerary still work.</div>
+    return "Shared locations could not be refreshed. Map browsing and itinerary still work."
   }
   return null
 }
 
-function formatLastUpdate(value: string) {
+function useLiveLocationTime(locations: SharedMemberLocation[]) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const currentTime = Date.now()
+    const nextDelay = nextLocationRefreshDelay(locations, currentTime)
+    if (nextDelay === null) return
+
+    const timer = window.setTimeout(() => setNow(Date.now()), nextDelay)
+    return () => window.clearTimeout(timer)
+  }, [locations, now])
+
+  return now
+}
+
+function nextLocationRefreshDelay(locations: SharedMemberLocation[], now: number) {
+  let nextDelay: number | null = null
+
+  for (const location of locations) {
+    const expiresAt = Date.parse(location.expiresAt)
+    if (!Number.isFinite(expiresAt) || expiresAt <= now) continue
+
+    const expiryDelay = expiresAt - now
+    nextDelay = nextDelay === null ? expiryDelay : Math.min(nextDelay, expiryDelay)
+
+    const updatedAt = Date.parse(location.updatedAt)
+    if (!Number.isFinite(updatedAt)) continue
+    const age = now - updatedAt
+    const updateDelay = age < 0 ? -age : 60_000 - (age % 60_000)
+    nextDelay = Math.min(nextDelay, updateDelay)
+
+    const remainingMinutes = Math.ceil(expiryDelay / 60_000)
+    const expiryLabelDelay = expiryDelay - Math.max(0, remainingMinutes - 1) * 60_000
+    nextDelay = Math.min(nextDelay, expiryLabelDelay)
+  }
+
+  return nextDelay === null ? null : Math.max(1, Math.min(nextDelay, 2_147_000_000))
+}
+
+function formatLastUpdate(value: string, now: number) {
   const updatedAt = Date.parse(value)
   if (!Number.isFinite(updatedAt)) return "Update time unavailable"
-  const minutes = Math.max(0, Math.floor((Date.now() - updatedAt) / 60_000))
+  const minutes = Math.max(0, Math.floor((now - updatedAt) / 60_000))
   if (minutes < 1) return "Updated just now"
   if (minutes === 1) return "Updated 1 min ago"
   if (minutes < 60) return `Updated ${minutes} min ago`
   return `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
 }
 
-function formatExpiry(value: string) {
+function formatExpiry(value: string, now: number) {
   const expiresAt = Date.parse(value)
   if (!Number.isFinite(expiresAt)) return "expiry unavailable"
-  const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60_000))
+  const minutes = Math.max(1, Math.ceil((expiresAt - now) / 60_000))
   return `expires in ${minutes} min`
 }
