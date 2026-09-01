@@ -42,12 +42,29 @@ async function revokeStaleSharing(accessToken: string, tripId: string) {
   }
 }
 
+type PendingEnableScope = {
+  accessToken: string
+  revokePromise: Promise<void> | null
+  serverEnabled: boolean
+  tripId: string
+}
+
+function compensatePendingEnable(scope: PendingEnableScope) {
+  if (!scope.serverEnabled && !scope.revokePromise) return Promise.resolve()
+  if (!scope.revokePromise) {
+    scope.serverEnabled = false
+    scope.revokePromise = revokeStaleSharing(scope.accessToken, scope.tripId)
+  }
+  return scope.revokePromise
+}
+
 export function useLocationSharing({ accessToken, tripId, enabled }: UseLocationSharingOptions): LocationSharingController {
   const available = enabled && Boolean(accessToken && tripId)
   const [status, setStatus] = useState<LocationSharingStatus>(available ? "loading" : "dependency-unavailable")
   const [snapshot, setSnapshot] = useState<LocationSharingSnapshot | null>(null)
   const watchIdRef = useRef<number | null>(null)
   const operationRef = useRef(0)
+  const pendingEnableRef = useRef<PendingEnableScope | null>(null)
 
   const clearForegroundWatch = useCallback(() => {
     if (watchIdRef.current === null) return
@@ -63,6 +80,15 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
 
     const operation = ++operationRef.current
     const isStale = () => operationRef.current !== operation
+    const previousPendingEnable = pendingEnableRef.current
+    if (previousPendingEnable) void compensatePendingEnable(previousPendingEnable)
+    const pendingEnable: PendingEnableScope = {
+      accessToken,
+      revokePromise: null,
+      serverEnabled: false,
+      tripId,
+    }
+    pendingEnableRef.current = pendingEnable
     clearForegroundWatch()
     setStatus("enabling")
     setSnapshot((current) => current ? { ...current, status: "enabling" } : current)
@@ -74,8 +100,9 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
       if (!isStale()) setStatus("dependency-unavailable")
       return
     }
+    pendingEnable.serverEnabled = true
     if (isStale()) {
-      await revokeStaleSharing(accessToken, tripId)
+      await compensatePendingEnable(pendingEnable)
       return
     }
     setSnapshot({ ...enabledSnapshot, status: "enabling" })
@@ -85,13 +112,15 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
       position = await requestCurrentPosition()
     } catch (error) {
       if (isStale()) {
-        await revokeStaleSharing(accessToken, tripId)
+        await compensatePendingEnable(pendingEnable)
         return
       }
       const failureStatus = locationFailureStatus(error)
       try {
         const revokedSnapshot = await api.setLocationSharing(accessToken, tripId, false)
         if (isStale()) return
+        pendingEnable.serverEnabled = false
+        if (pendingEnableRef.current === pendingEnable) pendingEnableRef.current = null
         setSnapshot({ ...revokedSnapshot, status: failureStatus })
         setStatus(failureStatus)
       } catch {
@@ -102,7 +131,7 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
       return
     }
     if (isStale()) {
-      await revokeStaleSharing(accessToken, tripId)
+      await compensatePendingEnable(pendingEnable)
       return
     }
 
@@ -116,12 +145,14 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
       )
     } catch {
       if (isStale()) {
-        await revokeStaleSharing(accessToken, tripId)
+        await compensatePendingEnable(pendingEnable)
         return
       }
       try {
         const revokedSnapshot = await api.setLocationSharing(accessToken, tripId, false)
         if (isStale()) return
+        pendingEnable.serverEnabled = false
+        if (pendingEnableRef.current === pendingEnable) pendingEnableRef.current = null
         setSnapshot({ ...revokedSnapshot, status: "upload-failed" })
         setStatus("upload-failed")
       } catch {
@@ -132,21 +163,26 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
       return
     }
     if (isStale()) {
-      await revokeStaleSharing(accessToken, tripId)
+      await compensatePendingEnable(pendingEnable)
       return
     }
 
+    pendingEnable.serverEnabled = false
+    if (pendingEnableRef.current === pendingEnable) pendingEnableRef.current = null
     setSnapshot({ ...enabledSnapshot, enabled: true, expiresAt: initialUpload.expiresAt, status: "sharing" })
     setStatus("sharing")
     let queuedPosition: { latitude: number; longitude: number } | null = null
     let watchUploadInFlight = false
+    let watchStopped = false
+    let watchUploadGeneration = 0
     const uploadLatestWatchPosition = () => {
-      if (watchUploadInFlight || !queuedPosition || isStale()) return
+      if (watchStopped || watchUploadInFlight || !queuedPosition || isStale()) return
       const nextPosition = queuedPosition
+      const uploadGeneration = watchUploadGeneration
       queuedPosition = null
       watchUploadInFlight = true
       void api.updateCurrentLocation(accessToken, tripId, nextPosition.latitude, nextPosition.longitude).then((upload) => {
-        if (isStale()) return
+        if (watchStopped || uploadGeneration !== watchUploadGeneration || isStale()) return
         setSnapshot((current) => current ? {
           ...current,
           enabled: true,
@@ -155,21 +191,26 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
         } : current)
         setStatus("sharing")
       }).catch(() => {
-        if (isStale()) return
+        if (watchStopped || uploadGeneration !== watchUploadGeneration || isStale()) return
         setSnapshot((current) => current ? { ...current, status: "dependency-unavailable" } : current)
         setStatus("dependency-unavailable")
       }).finally(() => {
+        if (watchStopped || uploadGeneration !== watchUploadGeneration || isStale()) return
         watchUploadInFlight = false
         uploadLatestWatchPosition()
       })
     }
     watchIdRef.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
+        if (watchStopped || isStale()) return
         queuedPosition = { latitude: coords.latitude, longitude: coords.longitude }
         uploadLatestWatchPosition()
       },
       (error) => {
-        if (isStale()) return
+        if (watchStopped || isStale()) return
+        watchStopped = true
+        watchUploadGeneration += 1
+        queuedPosition = null
         clearForegroundWatch()
         const failureStatus = locationFailureStatus(error)
         setSnapshot((current) => current ? { ...current, status: failureStatus } : current)
@@ -181,6 +222,11 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
 
   const disableSharing = useCallback(async () => {
     const operation = ++operationRef.current
+    const pendingEnable = pendingEnableRef.current
+    if (pendingEnable) {
+      pendingEnable.serverEnabled = false
+      pendingEnableRef.current = null
+    }
     clearForegroundWatch()
     if (!available || !accessToken || !tripId) {
       setStatus("dependency-unavailable")
@@ -228,6 +274,11 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
     return () => {
       operationRef.current += 1
       clearForegroundWatch()
+      const pendingEnable = pendingEnableRef.current
+      if (pendingEnable) {
+        pendingEnableRef.current = null
+        void compensatePendingEnable(pendingEnable)
+      }
     }
   }, [accessToken, available, clearForegroundWatch, enableSharing, tripId])
 

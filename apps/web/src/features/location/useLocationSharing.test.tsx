@@ -42,6 +42,7 @@ function deferred<Value>() {
 
 function installGeolocation({ errorCode }: { errorCode?: number } = {}) {
   let watchSuccess: PositionCallback | null = null
+  let watchError: PositionErrorCallback | null = null
   const getCurrentPosition = vi.fn<Geolocation["getCurrentPosition"]>((success, error) => {
     if (errorCode) {
       error?.({ code: errorCode, message: "location failed", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
@@ -49,8 +50,9 @@ function installGeolocation({ errorCode }: { errorCode?: number } = {}) {
     }
     success({ coords: { latitude: 39.9163, longitude: 116.3972 } } as GeolocationPosition)
   })
-  const watchPosition = vi.fn<Geolocation["watchPosition"]>((success) => {
+  const watchPosition = vi.fn<Geolocation["watchPosition"]>((success, error) => {
     watchSuccess = success
+    watchError = error ?? null
     return 41
   })
   const clearWatch = vi.fn<Geolocation["clearWatch"]>()
@@ -65,6 +67,10 @@ function installGeolocation({ errorCode }: { errorCode?: number } = {}) {
     emitWatchPosition(latitude: number, longitude: number) {
       if (!watchSuccess) throw new Error("Location watch has not started.")
       watchSuccess({ coords: { latitude, longitude } } as GeolocationPosition)
+    },
+    emitWatchError(code: number) {
+      if (!watchError) throw new Error("Location watch has not started.")
+      watchError({ code, message: "watch failed", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
     },
   }
 }
@@ -82,7 +88,7 @@ describe("useLocationSharing", () => {
 
   afterEach(() => {
     cleanup()
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it("starts a foreground watch only after the initial point uploads and clears it before revoke", async () => {
@@ -167,6 +173,9 @@ describe("useLocationSharing", () => {
     await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1))
     rerender({ tripId: "trip-2" })
 
+    await waitFor(() => expect(api.setLocationSharing).toHaveBeenCalledWith("access-token", "trip-1", false))
+    expect(api.updateCurrentLocation).not.toHaveBeenCalled()
+
     await act(async () => {
       if (!resolvePosition) throw new Error("Initial position was not requested.")
       resolvePosition({ coords: { latitude: 39.9163, longitude: 116.3972 } } as GeolocationPosition)
@@ -175,6 +184,30 @@ describe("useLocationSharing", () => {
 
     expect(api.updateCurrentLocation).not.toHaveBeenCalled()
     expect(api.setLocationSharing).toHaveBeenCalledWith("access-token", "trip-1", false)
+  })
+
+  it("revokes immediately when unmounted during initial positioning", async () => {
+    const geolocation = installGeolocation()
+    let resolvePosition: PositionCallback | null = null
+    geolocation.getCurrentPosition.mockImplementation((success) => { resolvePosition = success })
+    const { result, unmount } = renderHook(() => useLocationSharing(options))
+    await waitFor(() => expect(result.current.status).toBe("off"))
+
+    let enablePromise!: Promise<void>
+    act(() => { enablePromise = result.current.enable() })
+    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1))
+    unmount()
+
+    await waitFor(() => expect(api.setLocationSharing).toHaveBeenCalledWith("access-token", "trip-1", false))
+    expect(api.updateCurrentLocation).not.toHaveBeenCalled()
+
+    await act(async () => {
+      if (!resolvePosition) throw new Error("Initial position was not requested.")
+      resolvePosition({ coords: { latitude: 39.9163, longitude: 116.3972 } } as GeolocationPosition)
+      await enablePromise
+    })
+
+    expect(api.updateCurrentLocation).not.toHaveBeenCalled()
   })
 
   it("serializes watch uploads so a newer point cannot be overwritten by an older request", async () => {
@@ -208,6 +241,34 @@ describe("useLocationSharing", () => {
 
     expect(result.current.snapshot?.expiresAt).toBe("2026-08-31T12:12:00.000Z")
     expect(api.updateCurrentLocation).toHaveBeenNthCalledWith(3, "access-token", "trip-1", 39.92, 116.4)
+  })
+
+  it("invalidates in-flight and queued watch uploads after a watch error", async () => {
+    const geolocation = installGeolocation()
+    const inFlightUpload = deferred<Pick<LocationSharingSnapshot, "tripId" | "enabled" | "expiresAt">>()
+    vi.mocked(api.updateCurrentLocation)
+      .mockResolvedValueOnce({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:10:00.000Z" })
+      .mockImplementationOnce(() => inFlightUpload.promise)
+      .mockResolvedValueOnce({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:12:00.000Z" })
+    const { result } = renderHook(() => useLocationSharing(options))
+    await waitFor(() => expect(result.current.status).toBe("off"))
+    await act(() => result.current.enable())
+
+    act(() => {
+      geolocation.emitWatchPosition(39.91, 116.39)
+      geolocation.emitWatchPosition(39.92, 116.4)
+      geolocation.emitWatchError(1)
+    })
+    expect(result.current.status).toBe("permission-denied")
+
+    await act(async () => {
+      inFlightUpload.resolve({ tripId: "trip-1", enabled: true, expiresAt: "2026-08-31T12:11:00.000Z" })
+      await inFlightUpload.promise
+    })
+
+    expect(api.updateCurrentLocation).toHaveBeenCalledTimes(2)
+    expect(result.current.status).toBe("permission-denied")
+    expect(result.current.snapshot?.expiresAt).toBe("2026-08-31T12:10:00.000Z")
   })
 
   it("leaves sharing off when foreground location permission is denied", async () => {
