@@ -3,6 +3,7 @@ import coordinateReviews from "../../../data/coordinate-reviews.json"
 import {
   buildSampleSuggestion,
   collectPlaceCategories,
+  createTripInvitationSchema,
   filterPlaceSummaries,
   formatCategoryLabel,
   formatDurationHours,
@@ -13,9 +14,24 @@ import {
   placeQuestionResponseSchema,
   resolvePlaceImage,
   samplePlaces,
+  userProfileInputSchema,
   type PlaceSummary,
   type TripStop,
 } from "./index"
+
+describe("account and membership contracts", () => {
+  it("accepts and trims a bounded profile input", () => {
+    expect(userProfileInputSchema.parse({ displayName: " Alex Chen ", interfaceLocale: "en", contentLocale: "zh-CN", countryCode: "US", travelPreferences: { pace: "relaxed", mobility: "stroller" } })).toMatchObject({ displayName: "Alex Chen", countryCode: "US" })
+  })
+  it("rejects owner invitations and invalid profile bounds", () => {
+    expect(() => createTripInvitationSchema.parse({ role: "owner", expiresInHours: 24 })).toThrow()
+    const base = { displayName: "Alex Chen", interfaceLocale: "en" as const, contentLocale: "zh-CN" as const, countryCode: "US", travelPreferences: { pace: "relaxed" } }
+    expect(() => userProfileInputSchema.parse({ ...base, displayName: "x".repeat(81) })).toThrow()
+    expect(() => userProfileInputSchema.parse({ ...base, countryCode: "us" })).toThrow()
+    expect(() => userProfileInputSchema.parse({ ...base, travelPreferences: { unknown: "value" } })).toThrow()
+    expect(() => userProfileInputSchema.parse({ ...base, travelPreferences: { pace: "x".repeat(2048) } })).toThrow()
+  })
+})
 
 describe("sample place coordinates", () => {
   it("keeps every map sample tied to a reviewed WGS84 display anchor", () => {

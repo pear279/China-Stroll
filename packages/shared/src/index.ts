@@ -4,9 +4,50 @@ import { haversineKilometres } from "./place-discovery"
 export * from "./place-contracts"
 export * from "./place-discovery"
 
+import { z } from "zod"
+
 export type Coordinate = [longitude: number, latitude: number]
 
 export type Locale = "en" | "zh-CN"
+
+export type UserProfile = {
+  userId: string
+  displayName: string
+  interfaceLocale: Locale
+  contentLocale: Locale
+  countryCode: string | null
+  travelPreferences: Record<string, string | boolean | number>
+}
+export type UserProfileInput = Omit<UserProfile, "userId">
+export type TripMemberRole = "owner" | "editor" | "viewer"
+export type TripMemberSummary = { userId: string; displayName: string; role: TripMemberRole; joinedAt: string | null; isCurrentUser: boolean }
+export type TripInvitationSummary = { id: string; tripId: string; role: Exclude<TripMemberRole, "owner">; expiresAt: string; useCount: number; maxUses: number; revokedAt: string | null }
+export type TripInvitationPreview = { tripId: string; tripName: string; role: Exclude<TripMemberRole, "owner">; expiresAt: string; status: "ready" | "expired" | "revoked" | "consumed" }
+export type CreateTripInvitationInput = { role: "editor" | "viewer"; expiresInHours: 1 | 24 | 72 | 168 }
+
+const profilePreferenceValueSchema = z.union([z.string(), z.boolean(), z.number()])
+export const localeSchema = z.enum(["en", "zh-CN"])
+export const tripMemberRoleSchema = z.enum(["owner", "editor", "viewer"])
+export const tripMemberEditableRoleSchema = z.enum(["editor", "viewer"])
+export const invitationExpirySchema = z.union([z.literal(1), z.literal(24), z.literal(72), z.literal(168)])
+export const travelPreferencesSchema = z.object({
+  pace: profilePreferenceValueSchema.optional(), mobility: profilePreferenceValueSchema.optional(),
+  interests: profilePreferenceValueSchema.optional(), dietary: profilePreferenceValueSchema.optional(),
+}).strict().superRefine((preferences, context) => {
+  if (new TextEncoder().encode(JSON.stringify(preferences)).byteLength > 2048) {
+    context.addIssue({ code: "custom", message: "travel preferences must be at most 2 KiB when serialized" })
+  }
+})
+const displayNameSchema = z.string().trim().min(1).max(80)
+const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/).nullable()
+export const userProfileInputSchema = z.object({ displayName: displayNameSchema, interfaceLocale: localeSchema, contentLocale: localeSchema, countryCode: countryCodeSchema, travelPreferences: travelPreferencesSchema })
+export const userProfileSchema = userProfileInputSchema.extend({ userId: z.uuid() })
+export const tripMemberSummarySchema = z.object({ userId: z.uuid(), displayName: displayNameSchema, role: tripMemberRoleSchema, joinedAt: z.iso.datetime({ offset: true }).nullable(), isCurrentUser: z.boolean() })
+export const tripInvitationSummarySchema = z.object({ id: z.uuid(), tripId: z.uuid(), role: tripMemberEditableRoleSchema, expiresAt: z.iso.datetime({ offset: true }), useCount: z.int().nonnegative(), maxUses: z.int().positive(), revokedAt: z.iso.datetime({ offset: true }).nullable() })
+export const tripInvitationPreviewSchema = z.object({ tripId: z.uuid(), tripName: z.string().trim().min(1).max(120), role: tripMemberEditableRoleSchema, expiresAt: z.iso.datetime({ offset: true }), status: z.enum(["ready", "expired", "revoked", "consumed"]) })
+export const createTripInvitationSchema = z.object({ role: tripMemberEditableRoleSchema, expiresInHours: invitationExpirySchema })
+export const invitationTokenSchema = z.string().min(43).max(128).regex(/^[A-Za-z0-9_-]+$/)
+export const acceptTripInvitationSchema = z.object({ token: invitationTokenSchema })
 
 export type LocationSharingStatus =
   | "loading"

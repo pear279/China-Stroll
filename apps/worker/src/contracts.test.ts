@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
   addStopSchema,
+  acceptTripInvitationSchema,
   agentChangesSchema,
+  createTripInvitationSchema,
   createTripSchema,
   currentLocationResponseSchema,
   currentLocationSchema,
@@ -15,6 +17,13 @@ import {
 } from "./contracts"
 
 describe("worker contracts", () => {
+  it("accepts minimum-length URL-safe invitation tokens", () => {
+    expect(acceptTripInvitationSchema.parse({ token: "a".repeat(43) }).token).toHaveLength(43)
+  })
+  it("accepts only editor or viewer invitation roles", () => {
+    expect(createTripInvitationSchema.parse({ role: "editor", expiresInHours: 72 })).toEqual({ role: "editor", expiresInHours: 72 })
+    expect(() => createTripInvitationSchema.parse({ role: "owner", expiresInHours: 24 })).toThrow()
+  })
   it("accepts only explicit boolean sharing choices", () => {
     expect(locationSharingToggleSchema.safeParse({ enabled: true }).success).toBe(true)
     expect(locationSharingToggleSchema.safeParse({ enabled: "true" }).success).toBe(false)
