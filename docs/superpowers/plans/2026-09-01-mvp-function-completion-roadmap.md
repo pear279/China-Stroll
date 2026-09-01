@@ -33,11 +33,11 @@
 
 ### Package 2: Complete Itinerary and Reservation Editing
 
-- [ ] Create a detailed package plan from the approved spec before changing code.
-- [ ] Stop time/duration/transport/notes editing and cross-day movement.
-- [ ] Trip-day date/title/notes editing.
-- [ ] AI reservation parsing to an editable, explicitly unsaved draft.
-- [ ] Refresh the shared trip snapshot after account writes and mirror transitions in preview.
+- [x] Create a detailed package plan from the approved spec before changing code.
+- [x] Stop time/duration/transport/notes editing and cross-day movement.
+- [x] Trip-day date/title/notes editing.
+- [x] AI reservation parsing to an editable, explicitly unsaved draft.
+- [x] Refresh the shared trip snapshot after account writes and mirror transitions in preview.
 
 ### Package 3: Tools 1.0
 
