@@ -3,10 +3,10 @@ import { NavLink } from "react-router-dom"
 import type { ModulePath } from "./types"
 
 export const MODULES = [
-  { path: "/attractions", label: "Attractions", icon: Binoculars },
-  { path: "/map", label: "Map", icon: Map },
-  { path: "/tools", label: "Tools", icon: Wrench },
-  { path: "/me", label: "Mine", icon: UserRound },
+  { path: "/attractions", label: "景点", icon: Binoculars },
+  { path: "/map", label: "地图", icon: Map },
+  { path: "/tools", label: "工具", icon: Wrench },
+  { path: "/me", label: "我的", icon: UserRound },
 ] as const satisfies readonly { path: ModulePath; label: string; icon: LucideIcon }[]
 
 export function BottomNavigation() {

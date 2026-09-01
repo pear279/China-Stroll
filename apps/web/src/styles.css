@@ -542,6 +542,15 @@ input:focus { border-color: #b33a2e; }
 .chat-input { display: flex; gap: .5rem; padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); border-top: 1px solid #e6e0d5; background: #fffdf8; }
 .chat-input input { flex: 1; min-width: 0; min-height: 2.9rem; padding: .45rem .7rem; border: 1px solid #cfc6b7; border-radius: .45rem; color: #2a2521; background: #fffdf8; font-size: .85rem; }
 .chat-input button { width: 2.9rem; height: 2.9rem; display: grid; place-items: center; border: 1px solid #9f342a; border-radius: .45rem; color: #fffaf1; background: #9f342a; }
+.mine-profile-header { display: flex; align-items: center; gap: .8rem; margin-bottom: 1rem; padding: .9rem; border: 1px solid #d6caa9; border-radius: .6rem; background: #fff9e9; }
+.mine-avatar { width: 3.2rem; height: 3.2rem; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #9f342a; color: #fffaf1; font-size: 1.3rem; font-weight: 800; }
+.mine-profile-copy { display: grid; gap: .35rem; min-width: 0; }
+.mine-profile-copy > strong { color: #3d352e; font-size: 1.05rem; }
+.mine-profile-tags { display: flex; flex-wrap: wrap; gap: .35rem; }
+.mine-profile-tags em { padding: .18rem .55rem; border-radius: 999px; background: #efe6d8; color: #7f2d26; font-size: .72rem; font-style: normal; font-weight: 750; }
+.mine-tab-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin-bottom: 1rem; padding: .25rem; border: 1px solid #d4cabd; border-radius: .5rem; background: #fffdf8; }
+.mine-tab-toggle button { min-height: 2.6rem; border: 0; border-radius: .35rem; color: #5f574f; background: transparent; font-weight: 800; }
+.mine-tab-toggle button.is-active { color: #fffaf1; background: #9f342a; }
 
 @media (max-width: 900px) {
   .welcome-layout { grid-template-columns: 1fr; padding-top: 2rem; background: #f5f1e8; }

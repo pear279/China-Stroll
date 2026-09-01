@@ -61,12 +61,17 @@ export function MineView({
   const [placeToAdd, setPlaceToAdd] = useState("")
   const [draggedStopId, setDraggedStopId] = useState<string | null>(null)
   const [editingStopId, setEditingStopId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"stops" | "reservations">("stops")
   const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
   const dayStops = [...trip.stops]
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
   const plannedPlaceIds = new Set(trip.stops.map((stop) => stop.placeId).filter(Boolean))
   const availablePlaces = places.filter((place) => !plannedPlaceIds.has(place.id))
+  const displayName = profile.profile?.displayName || "旅行者"
+  const preferenceTags = profile.profile
+    ? Object.values(profile.profile.travelPreferences).filter((value): value is string => typeof value === "string").slice(0, 5)
+    : []
 
   async function handleAddDay() {
     const dayNumber = await onAddDay()
@@ -92,6 +97,16 @@ export function MineView({
         </button>
       </header>
 
+      <div className="mine-profile-header">
+        <span className="mine-avatar" aria-hidden="true">{displayName[0] ?? "游"}</span>
+        <div className="mine-profile-copy">
+          <strong>{displayName}</strong>
+          <span className="mine-profile-tags">
+            {preferenceTags.length === 0 ? <em>尚未设置偏好</em> : preferenceTags.map((tag) => <em key={tag}>{tag}</em>)}
+          </span>
+        </div>
+      </div>
+
       <div className="day-tabs" aria-label="Trip days">
         {trip.days.map((day) => (
           <button
@@ -105,6 +120,11 @@ export function MineView({
         ))}
       </div>
 
+      <div className="mine-tab-toggle" role="group" aria-label="日程列表类型">
+        <button type="button" className={activeTab === "stops" ? "is-active" : undefined} aria-pressed={activeTab === "stops"} onClick={() => setActiveTab("stops")}>景点列表</button>
+        <button type="button" className={activeTab === "reservations" ? "is-active" : undefined} aria-pressed={activeTab === "reservations"} onClick={() => setActiveTab("reservations")}>预约列表</button>
+      </div>
+
       <DayEditor
         day={trip.days.find((day) => day.dayNumber === selectedDay) ?? null}
         busy={busy}
@@ -114,6 +134,7 @@ export function MineView({
       {message && <div className="status-banner" role="status"><Check aria-hidden="true" size={18} />{message}</div>}
 
       <div className="mine-grid">
+        {activeTab === "stops" && (
         <section className="itinerary-panel" aria-labelledby="itinerary-heading">
           <div className="section-heading">
             <div><span className="eyebrow">Schedule</span><h2 id="itinerary-heading">Day {selectedDay} itinerary</h2></div>
@@ -180,6 +201,7 @@ export function MineView({
             </ol>
           )}
         </section>
+        )}
 
         <section className="assistant-card" aria-labelledby="assistant-heading">
           <div className="assistant-icon"><Sparkles aria-hidden="true" size={22} /></div>
@@ -201,6 +223,7 @@ export function MineView({
           )}
         </section>
 
+        {activeTab === "reservations" && (
         <section className="reservation-panel" aria-labelledby="reservations-heading">
           <div className="section-heading"><div><span className="eyebrow">Booking log</span><h2 id="reservations-heading">Reservations</h2></div><span className="count-chip">{(trip.reservations ?? []).length} saved</span></div>
           <ReservationManager
@@ -214,6 +237,7 @@ export function MineView({
             onUpdate={onUpdateReservation}
           />
         </section>
+        )}
 
         <LocationSharingCard mode={mode} sharing={locationSharing} />
 

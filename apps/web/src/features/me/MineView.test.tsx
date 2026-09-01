@@ -137,6 +137,7 @@ describe("MineView", () => {
     render(<MineView {...props} />)
     const user = userEvent.setup()
 
+    await user.click(screen.getByRole("button", { name: "预约列表" }))
     await user.type(screen.getByLabelText("Reservation title"), "Museum entry")
     await user.selectOptions(screen.getByLabelText("Type"), "attraction")
     await user.click(screen.getByRole("button", { name: "Save reservation" }))
@@ -278,6 +279,7 @@ describe("MineView", () => {
     render(<MineView {...props} />)
     const user = userEvent.setup()
 
+    await user.click(screen.getByRole("button", { name: "预约列表" }))
     await user.click(screen.getByRole("button", { name: "Draft from pasted text" }))
     await user.type(screen.getByLabelText("Paste booking details"), "Hotel check-in, confirmation 12345")
     await user.click(screen.getByRole("button", { name: "Draft fields" }))
