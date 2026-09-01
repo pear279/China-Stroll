@@ -1151,6 +1151,17 @@ export type Database = {
         }
         Returns: Json
       }
+      update_mvp_trip_day: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_day_number: number
+          p_expected_version: number
+          p_input: Json
+          p_trip_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
