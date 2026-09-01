@@ -1,7 +1,7 @@
 import { Clock3, Crosshair, LoaderCircle, MapPinOff } from "lucide-react"
 import { lazy, Suspense } from "react"
-import type { Coordinate, PlaceSummary, TripSnapshot } from "../../../../../packages/shared/src"
-import type { LocationStatus, NearbyRadius } from "../../app-shell/types"
+import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot } from "../../../../../packages/shared/src"
+import type { LocationSharingControls, LocationStatus, NearbyRadius } from "../../app-shell/types"
 import { MapActionSheet } from "./MapActionSheet"
 
 const TravelMap = lazy(() =>
@@ -17,6 +17,7 @@ export type MapViewProps = {
   selectedPlaceId: string | null
   trip: TripSnapshot
   userCoordinate: Coordinate | null
+  locationSharing: LocationSharingControls
   onAddPlace: (placeId: string, dayNumber: number) => Promise<void>
   onOpenDetails: (placeId: string) => void
   onRadius: (radius: NearbyRadius) => void
@@ -34,6 +35,7 @@ export function MapView({
   selectedPlaceId,
   trip,
   userCoordinate,
+  locationSharing,
   onAddPlace,
   onOpenDetails,
   onRadius,
@@ -46,6 +48,10 @@ export function MapView({
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
   const dayReservations = (trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)
+  const memberLocations = (locationSharing.snapshot?.visibleLocations ?? []).filter((member) => {
+    const expiresAt = Date.parse(member.expiresAt)
+    return Number.isFinite(expiresAt) && expiresAt > Date.now()
+  })
 
   return (
     <section className="module-view map-view" aria-labelledby="map-heading">
@@ -80,10 +86,13 @@ export function MapView({
         {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}><span>Day {day.dayNumber}</span><small>{day.date ?? "Date open"}</small></button>)}
       </div>
 
+      <MemberLocationContext locations={memberLocations} status={locationSharing.status} />
+
       <div className="map-module-grid">
         <div className="map-stage">
           <Suspense fallback={<div className="map-shell" role="status"><LoaderCircle className="spin" aria-hidden="true" size={22} />Preparing map…</div>}>
             <TravelMap
+              memberLocations={memberLocations}
               stops={trip.stops}
               places={places}
               selectedPlaceId={selectedPlaceId}
@@ -121,4 +130,67 @@ export function MapView({
       </div>
     </section>
   )
+}
+
+function MemberLocationContext({ locations, status }: {
+  locations: SharedMemberLocation[]
+  status: LocationSharingControls["status"]
+}) {
+  if (locations.length > 0) {
+    return (
+      <section className="member-location-context" aria-labelledby="member-location-heading">
+        <div>
+          <span className="eyebrow">Current points only</span>
+          <h2 id="member-location-heading">Members sharing now</h2>
+        </div>
+        <ul>
+          {locations.map((member) => (
+            <li key={member.userId}>
+              <span className="member-location-avatar" aria-hidden="true">{member.initials}</span>
+              <span>
+                <strong>{member.displayName}</strong>
+                <small>{formatLastUpdate(member.updatedAt)} · {formatExpiry(member.expiresAt)}</small>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  if (status === "loading" || status === "enabling" || status === "revoke-pending") {
+    return (
+      <div className="member-location-feedback" role="status">
+        <LoaderCircle className="spin" aria-hidden="true" size={16} />
+        Checking shared locations…
+      </div>
+    )
+  }
+  if (status === "expired") {
+    return <div className="member-location-feedback" role="status">Your shared current point expired. No location history is shown.</div>
+  }
+  if (status === "permission-denied") {
+    return <div className="member-location-feedback is-error" role="alert">Your location is not updating. Other map and itinerary features still work.</div>
+  }
+  if (status === "dependency-unavailable" || status === "upload-failed" || status === "revoke-failed") {
+    return <div className="member-location-feedback is-error" role="alert">Shared locations could not be refreshed. Map browsing and itinerary still work.</div>
+  }
+  return null
+}
+
+function formatLastUpdate(value: string) {
+  const updatedAt = Date.parse(value)
+  if (!Number.isFinite(updatedAt)) return "Update time unavailable"
+  const minutes = Math.max(0, Math.floor((Date.now() - updatedAt) / 60_000))
+  if (minutes < 1) return "Updated just now"
+  if (minutes === 1) return "Updated 1 min ago"
+  if (minutes < 60) return `Updated ${minutes} min ago`
+  return `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+}
+
+function formatExpiry(value: string) {
+  const expiresAt = Date.parse(value)
+  if (!Number.isFinite(expiresAt)) return "expiry unavailable"
+  const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60_000))
+  return `expires in ${minutes} min`
 }

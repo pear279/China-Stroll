@@ -47,12 +47,12 @@ Existing core tables:
 - Users/trips: `user_profiles`, `trips`, `trip_members`, `trip_invitations`, `trip_days`, `trip_stops`.
 - Personal/agent: `place_library_items`, `reservations`, `agent_suggestions`, `trip_change_log`.
 
-Planned location-sharing tables:
+Implemented location-sharing tables:
 
 - `trip_location_sharing_preferences`: one row per trip member, containing `trip_id`, `user_id`, `enabled`, `enabled_at`, `expires_at`, `updated_at`.
 - `trip_member_locations`: at most one current point per trip member, containing WGS84 coordinate, accuracy, recorded time and expiry.
 
-RLS rules must require current trip membership for reads, the same authenticated user for preference/location writes, and an enabled non-expired preference. Disabling sharing deletes or makes the current location unreadable in the same server-side command. Historical location trails are out of scope for the first version.
+RLS requires current active trip membership for reads and exposes only enabled, non-expired points. Browser clients cannot write these tables directly: service-role-only commands verify the authenticated actor and active membership before changing the preference or latest point. Disabling sharing revokes the current point in the same server-side command. Historical location trails are out of scope for the first version.
 
 Private place records and photos need separate tables before implementation; visibility defaults to `private`. Public community records must not reuse private storage paths or bypass moderation state.
 
@@ -94,8 +94,13 @@ Next required endpoints:
 - Reservation create/read/update/delete.
 - Member invitation/acceptance.
 - Preference-aware place recommendation.
-- Location sharing enable/disable, current location update and associated-member read.
 - User profile read/update.
+
+Implemented location-sharing endpoints:
+
+- Read sharing state and server-filtered visible peer points.
+- Enable or disable the caller's trip-scoped sharing preference.
+- Replace the caller's single current WGS84 point and refresh its ten-minute expiry.
 
 All trip writes use a command id, expected trip version, permission check and change log. AI-generated changes use the same write path as explicit user changes.
 
@@ -123,7 +128,9 @@ The Map module renders the selected day's ordered itinerary separately from near
 
 ### Location sharing
 
-Mine or Map privacy control → show associated members and sharing explanation → user enables switch → foreground geolocation permission → server stores an expiring current point → RLS exposes it only to current trip members. Turning the switch off stops browser watches and revokes server visibility.
+Mine privacy control → show associated members and sharing explanation → user enables switch → foreground geolocation permission → server stores one current point with a ten-minute expiry → RLS exposes it only to current active trip members. Turning the switch off first stops browser watches, then revokes server visibility; failed revocation remains visible and retryable while server expiry is the fallback.
+
+Map consumes the same server-filtered snapshot. It renders unexpired peer points with a visually distinct member marker, identity, relative update time and expiry context. It never connects member positions or presents a route/history trail; sharing failures leave ordinary map and itinerary browsing available.
 
 ### AI recommendation
 

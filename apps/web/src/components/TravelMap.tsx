@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from "react"
 import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl"
 import { Map, MapMarker, MapRoute, MarkerContent } from "../../../../components/ui/map"
-import type { PlaceSummary, TripStop } from "../../../../packages/shared/src"
+import type { PlaceSummary, SharedMemberLocation, TripStop } from "../../../../packages/shared/src"
 
 type TravelMapProps = {
+  memberLocations: SharedMemberLocation[]
   stops: TripStop[]
   places: PlaceSummary[]
   selectedPlaceId: string | null
@@ -24,7 +25,7 @@ const mapStyle: StyleSpecification = {
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 }
 
-export function TravelMap({ stops, places, selectedPlaceId, userCoordinate, onSelect }: TravelMapProps) {
+export function TravelMap({ memberLocations, stops, places, selectedPlaceId, userCoordinate, onSelect }: TravelMapProps) {
   const mapRef = useRef<MapLibreMap | null>(null)
   const stopIds = useMemo(() => new Set(stops.map((stop) => stop.placeId)), [stops])
   const routeCoordinates = useMemo(
@@ -71,6 +72,23 @@ export function TravelMap({ stops, places, selectedPlaceId, userCoordinate, onSe
             <MarkerContent><span className="user-location-marker" aria-label="Your approximate location" /></MarkerContent>
           </MapMarker>
         )}
+        {memberLocations.map((member) => (
+          <MapMarker
+            key={member.userId}
+            longitude={member.coordinate[0]}
+            latitude={member.coordinate[1]}
+            anchor="center"
+          >
+            <MarkerContent>
+              <span
+                className="member-location-marker"
+                aria-label={`${member.displayName}’s shared current location`}
+              >
+                {member.initials}
+              </span>
+            </MarkerContent>
+          </MapMarker>
+        ))}
         {routeCoordinates.length > 1 && (
           <MapRoute id="trip" coordinates={routeCoordinates} color="#b33a2e" width={3} dashArray={[2, 2]} />
         )}

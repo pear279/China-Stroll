@@ -157,6 +157,7 @@ export function AppShell({
                 selectedPlaceId={selectedPlaceId}
                 trip={trip}
                 userCoordinate={userCoordinate}
+                locationSharing={locationSharing}
                 onAddPlace={onAddPlace}
                 onOpenDetails={openDetails}
                 onRadius={setNearbyRadius}
