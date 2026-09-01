@@ -16,6 +16,8 @@ export function AppShell({
   message,
   mode,
   locationSharing,
+  membership,
+  profile,
   placeRepository,
   places,
   placesState,
@@ -176,6 +178,8 @@ export function AppShell({
                 message={message}
                 mode={mode}
                 locationSharing={locationSharing}
+                membership={membership}
+                profile={profile}
                 places={places}
                 selectedDay={selectedDay}
                 selectedPlaceId={selectedPlaceId}

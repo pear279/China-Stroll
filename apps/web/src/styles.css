@@ -310,7 +310,7 @@ input:focus { border-color: #b33a2e; }
 .emergency-card a { min-height: 2.75rem; display: grid; place-items: center; border: 1px solid #bdaea0; color: #8f3028; background: #fff; font-weight: 800; text-decoration: none; }
 .emergency-card small { color: #786f65; line-height: 1.5; }
 .mine-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 1rem; }
-.itinerary-panel, .mine-empty-card, .reservation-panel, .location-sharing-card { padding: 1.2rem; border: 1px solid #d4ccbf; background: #fffdf8; }
+.itinerary-panel, .mine-empty-card, .reservation-panel, .location-sharing-card, .account-card { padding: 1.2rem; border: 1px solid #d4ccbf; background: #fffdf8; }
 .mine-view .assistant-card { margin-top: 0; }
 .mine-empty-card { min-height: 180px; }
 .mine-empty-card > svg { color: #9a342b; }
@@ -334,6 +334,40 @@ input:focus { border-color: #b33a2e; }
 .location-sharing-status.is-error { border-color: #e0b9b3; background: #fff3f1; color: #842f28; }
 .location-member-count { color: #756d63; }
 .location-retry-button { justify-self: start; min-height: 2.65rem; }
+.account-card { display: grid; align-content: start; gap: .85rem; min-width: 0; }
+.account-card .section-heading { margin-bottom: .35rem; }
+.account-card .section-heading > svg { color: #9a342b; }
+.account-signin-note, .account-status { margin: 0; padding: .75rem; border: 1px dashed #c8beaf; color: #6f675e; font-size: .8rem; line-height: 1.5; }
+.account-status { display: flex; align-items: center; gap: .45rem; }
+.account-status.is-error { border-color: #e0b9b3; background: #fff3f1; color: #842f28; }
+.profile-form { display: grid; gap: .7rem; }
+.profile-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.profile-form input, .profile-form select { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; }
+.profile-row { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.profile-form .primary-button { width: fit-content; min-height: 2.6rem; display: inline-flex; align-items: center; gap: .35rem; }
+.member-list, .invitation-list { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
+.member-list li, .invitation-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .75rem; border: 1px solid #ded6c9; background: #fffdf8; }
+.member-copy { display: grid; gap: .18rem; min-width: 0; }
+.member-copy strong { display: flex; align-items: center; gap: .45rem; }
+.member-copy span { color: #776e64; font-size: .73rem; }
+.you-chip { padding: .08rem .4rem; border-radius: 999px; background: #efe6d8; color: #7f2d26; font-size: .68rem; font-weight: 800; }
+.remove-member { width: 2rem; height: 2rem; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #d7cfc2; border-radius: .3rem; color: #9b342a; background: #fffdf8; }
+.invitation-create { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
+.invitation-row { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.invitation-create label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
+.invitation-create select { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .82rem; }
+.invitation-create .secondary-button { width: 100%; min-height: 2.6rem; }
+.invite-url { display: grid; gap: .4rem; }
+.invite-url-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem; }
+.invite-url input { min-width: 0; min-height: 2.55rem; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #2a2521; background: #fffdf8; font: inherit; font-size: .78rem; }
+.invite-url button { min-height: 2.55rem; display: inline-flex; align-items: center; gap: .3rem; padding: 0 .7rem; border: 1px solid #cfc6b7; border-radius: .35rem; color: #7f2d26; background: #fffdf8; font-size: .76rem; font-weight: 750; }
+.invite-url small { display: flex; align-items: flex-start; gap: .35rem; color: #6f675e; font-size: .72rem; line-height: 1.45; }
+.join-layout { min-height: 100vh; display: grid; place-items: center; padding: 1.1rem; background: #f5f1e8; }
+.join-card { width: min(100%, 26rem); display: grid; justify-items: center; gap: .85rem; padding: 2rem 1.4rem; border: 1px solid #d4ccbf; background: #fffdf8; text-align: center; }
+.join-card .brand-seal { margin-bottom: .25rem; }
+.join-card h1 { margin: .2rem 0 0; font-size: 1.7rem; }
+.join-card p { margin: 0; color: #6f675e; line-height: 1.6; }
+.join-card .primary-button, .join-card .secondary-button { width: 100%; }
 .reservation-manager { display: grid; gap: 1rem; }
 .reservation-form { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #ded6c9; background: #f9f6ef; }
 .reservation-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .74rem; font-weight: 750; }
@@ -430,6 +464,10 @@ input:focus { border-color: #b33a2e; }
   .attraction-day-picker { width: 100%; justify-content: space-between; }
   .reservation-fields { grid-template-columns: 1fr; }
   .reservation-form .primary-button { width: 100%; justify-content: center; min-height: 2.9rem; }
+  .profile-row, .invitation-row { grid-template-columns: 1fr; }
+  .profile-form .primary-button { width: 100%; justify-content: center; min-height: 2.9rem; }
+  .invite-url-row { grid-template-columns: 1fr; }
+  .invite-url button { justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

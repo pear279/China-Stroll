@@ -14,6 +14,7 @@ export type LocationSharingController = {
   enable: () => Promise<void>
   disable: () => Promise<void>
   retryDisable: () => Promise<void>
+  refresh: () => Promise<void>
 }
 
 const positionOptions: PositionOptions = {
@@ -320,11 +321,26 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
     }
   }, [accessToken, available, clearForegroundWatch, enableSharing, tripId])
 
+  const refreshSharing = useCallback(async () => {
+    if (!available || !accessToken || !tripId) return
+    try {
+      const nextSnapshot = await api.getLocationSharing(accessToken, tripId)
+      setSnapshot((current) => current ? {
+        ...current,
+        activeMemberCount: nextSnapshot.activeMemberCount,
+        visibleLocations: nextSnapshot.visibleLocations,
+      } : nextSnapshot)
+    } catch {
+      // Keep the last snapshot; the server expiry remains the fallback.
+    }
+  }, [accessToken, available, tripId])
+
   return {
     status,
     snapshot,
     enable: enableSharing,
     disable: disableSharing,
     retryDisable: disableSharing,
+    refresh: refreshSharing,
   }
 }

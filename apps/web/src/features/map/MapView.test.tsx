@@ -71,6 +71,7 @@ function createProps(): MapViewProps {
       onEnable: vi.fn(async () => undefined),
       onDisable: vi.fn(async () => undefined),
       onRetryDisable: vi.fn(async () => undefined),
+      onRefresh: vi.fn(async () => undefined),
     },
     onAddPlace: vi.fn(async () => undefined),
     onOpenDetails: vi.fn(),

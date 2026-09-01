@@ -1,10 +1,13 @@
 import type { Session } from "@supabase/supabase-js"
 import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
-import { type AgentSuggestion, type PlaceSummary, type ReservationInput, type TripSnapshot } from "../../../packages/shared/src"
+import { useLocation, useNavigate } from "react-router-dom"
+import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
+import type { AccountStateStatus } from "./app-shell/types"
 import { createPlaceRepository } from "./data/placeRepository"
 import { useLocationSharing } from "./features/location/useLocationSharing"
+import { JoinTripView } from "./features/members/JoinTripView"
 import { api, ApiRequestError } from "./lib/api"
 import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
@@ -13,6 +16,8 @@ import { hasSupabaseConfig, supabase } from "./lib/supabase"
 type Mode = "loading" | "signed-out" | "preview" | "account"
 
 export function App() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>("loading")
   const [session, setSession] = useState<Session | null>(null)
   const [trip, setTrip] = useState<TripSnapshot | null>(null)
@@ -21,6 +26,11 @@ export function App() {
   const [places, setPlaces] = useState<PlaceSummary[]>([])
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() => new Set())
   const [placesState, setPlacesState] = useState<"idle" | "loading" | "ready" | "failed">("idle")
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [profileStatus, setProfileStatus] = useState<AccountStateStatus>("idle")
+  const [members, setMembers] = useState<TripMemberSummary[]>([])
+  const [invitations, setInvitations] = useState<TripInvitationSummary[]>([])
+  const [membershipStatus, setMembershipStatus] = useState<AccountStateStatus>("idle")
   const placeRepository = useMemo(
     () => (mode === "preview"
       ? createPlaceRepository("static")
@@ -111,6 +121,50 @@ export function App() {
     })
     return () => { active = false }
   }, [mode, session])
+
+  useEffect(() => {
+    if (mode !== "account" || !session) return
+    let active = true
+    setProfileStatus("loading")
+    void api.getProfile(session.access_token)
+      .then((nextProfile) => {
+        if (active) {
+          setProfile(nextProfile)
+          setProfileStatus("ready")
+        }
+      })
+      .catch(() => {
+        if (active) setProfileStatus("failed")
+      })
+    return () => { active = false }
+  }, [mode, session])
+
+  useEffect(() => {
+    if (mode !== "account" || !session || !trip) return
+    let active = true
+    setMembershipStatus("loading")
+    void api.getTripMembers(session.access_token, trip.id)
+      .then(async ({ members: nextMembers }) => {
+        if (!active) return
+        setMembers(nextMembers)
+        const isOwner = nextMembers.some((member) => member.isCurrentUser && member.role === "owner")
+        if (isOwner) {
+          try {
+            const { invitations: nextInvitations } = await api.getTripInvitations(session.access_token, trip.id)
+            if (active) setInvitations(nextInvitations)
+          } catch {
+            if (active) setInvitations([])
+          }
+        } else {
+          setInvitations([])
+        }
+        if (active) setMembershipStatus("ready")
+      })
+      .catch(() => {
+        if (active) setMembershipStatus("failed")
+      })
+    return () => { active = false }
+  }, [mode, session, trip?.id])
 
   async function run<T>(label: string, task: () => Promise<T>): Promise<T | undefined> {
     setBusy(label)
@@ -313,7 +367,64 @@ export function App() {
     })
   }
 
+  async function saveProfile(input: UserProfileInput) {
+    if (mode !== "account" || !session) return
+    await run("save-profile", async () => {
+      const updated = await api.updateProfile(session.access_token, input)
+      setProfile(updated)
+      setMessage("Profile saved.")
+    })
+  }
+
+  async function createInvitation(input: CreateTripInvitationInput): Promise<string | null> {
+    if (mode !== "account" || !session || !trip) return null
+    const result = await run("create-invitation", async () => {
+      const created = await api.createTripInvitation(session.access_token, trip.id, input)
+      setInvitations((current) => [created.invitation, ...current])
+      return created.inviteUrl
+    })
+    return result ?? null
+  }
+
+  async function revokeInvitation(invitationId: string) {
+    if (mode !== "account" || !session || !trip) return
+    await run("revoke-invitation", async () => {
+      await api.revokeTripInvitation(session.access_token, trip.id, invitationId)
+      setInvitations((current) => current.filter((invitation) => invitation.id !== invitationId))
+      setMessage("Invitation revoked.")
+    })
+  }
+
+  async function removeMember(memberUserId: string) {
+    if (mode !== "account" || !session || !trip) return
+    await run("remove-member", async () => {
+      await api.removeTripMember(session.access_token, trip.id, memberUserId)
+      setMembers((current) => current.filter((member) => member.userId !== memberUserId))
+      setMessage("Member removed. They can no longer see this trip.")
+      await locationSharing.refresh()
+    })
+  }
+
   if (mode === "loading") return <LoadingScreen />
+
+  const joinToken = location.pathname.startsWith("/join/")
+    ? decodeURIComponent(location.pathname.slice("/join/".length))
+    : null
+  if (joinToken) {
+    return (
+      <JoinTripView
+        token={joinToken}
+        accessToken={session?.access_token ?? null}
+        onAccepted={async (tripId) => {
+          localStorage.setItem("china-stroll-trip-id", tripId)
+          if (session) await loadTrip(session.access_token, tripId)
+          navigate("/me")
+        }}
+        onGoHome={() => navigate("/")}
+      />
+    )
+  }
+
   if (mode === "signed-out") {
     return (
       <WelcomeScreen
@@ -342,6 +453,21 @@ export function App() {
         onEnable: locationSharing.enable,
         onDisable: locationSharing.disable,
         onRetryDisable: locationSharing.retryDisable,
+        onRefresh: locationSharing.refresh,
+      }}
+      membership={{
+        isOwner: members.some((member) => member.isCurrentUser && member.role === "owner"),
+        members,
+        invitations,
+        status: membershipStatus,
+        onCreateInvitation: createInvitation,
+        onRevokeInvitation: revokeInvitation,
+        onRemoveMember: removeMember,
+      }}
+      profile={{
+        profile,
+        status: profileStatus,
+        onSave: saveProfile,
       }}
       placeRepository={placeRepository}
       places={places}

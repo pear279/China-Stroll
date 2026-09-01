@@ -1,13 +1,17 @@
 import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
 import { useState } from "react"
 import type { AgentSuggestion, PlaceSummary, ReservationInput, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
-import type { AppMode, LocationSharingControls } from "../../app-shell/types"
+import type { AppMode, LocationSharingControls, MembershipControls, ProfileControls } from "../../app-shell/types"
+import { ProfileCard } from "./ProfileCard"
+import { TripMembersCard } from "./TripMembersCard"
 
 export type MineViewProps = {
   busy: string | null
   message: string | null
   mode: AppMode
   locationSharing: LocationSharingControls
+  membership: MembershipControls
+  profile: ProfileControls
   selectedDay: number
   selectedPlaceId: string | null
   testIdentity: string | null
@@ -31,6 +35,8 @@ export function MineView({
   message,
   mode,
   locationSharing,
+  membership,
+  profile,
   selectedDay,
   selectedPlaceId,
   testIdentity,
@@ -188,6 +194,19 @@ export function MineView({
         </section>
 
         <LocationSharingCard mode={mode} sharing={locationSharing} />
+
+        <ProfileCard mode={mode} profile={profile.profile} status={profile.status} onSave={profile.onSave} />
+
+        <TripMembersCard
+          mode={mode}
+          isOwner={membership.isOwner}
+          members={membership.members}
+          invitations={membership.invitations}
+          status={membership.status}
+          onCreateInvitation={membership.onCreateInvitation}
+          onRevokeInvitation={membership.onRevokeInvitation}
+          onRemoveMember={membership.onRemoveMember}
+        />
       </div>
     </section>
   )

@@ -1,9 +1,10 @@
-import type { AgentSuggestion, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationInput, TripSnapshot } from "../../../../packages/shared/src"
+import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, ReservationInput, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 
 export type AppMode = "preview" | "account"
 export type PlacesState = "idle" | "loading" | "ready" | "failed"
 export type LocationStatus = "idle" | "loading" | "ready" | "failed"
+export type AccountStateStatus = "idle" | "loading" | "ready" | "failed"
 export type NearbyRadius = 1 | 3 | 5
 export type ModulePath = "/attractions" | "/map" | "/tools" | "/me"
 
@@ -13,6 +14,23 @@ export type LocationSharingControls = {
   onEnable: () => Promise<void>
   onDisable: () => Promise<void>
   onRetryDisable: () => Promise<void>
+  onRefresh: () => Promise<void>
+}
+
+export type ProfileControls = {
+  profile: UserProfile | null
+  status: AccountStateStatus
+  onSave: (input: UserProfileInput) => Promise<void>
+}
+
+export type MembershipControls = {
+  isOwner: boolean
+  members: TripMemberSummary[]
+  invitations: TripInvitationSummary[]
+  status: AccountStateStatus
+  onCreateInvitation: (input: CreateTripInvitationInput) => Promise<string | null>
+  onRevokeInvitation: (invitationId: string) => Promise<void>
+  onRemoveMember: (memberUserId: string) => Promise<void>
 }
 
 export type AppShellProps = {
@@ -20,6 +38,8 @@ export type AppShellProps = {
   message: string | null
   mode: AppMode
   locationSharing: LocationSharingControls
+  membership: MembershipControls
+  profile: ProfileControls
   placeRepository: PlaceRepository
   places: PlaceSummary[]
   placesState: PlacesState
