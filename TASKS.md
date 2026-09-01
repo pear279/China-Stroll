@@ -113,6 +113,11 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: `supabase/migrations/20260901190000_add_private_places.sql`, `create_mvp_private_place`/`add_mvp_private_stop`, private-place Worker endpoints, Mine `PrivatePlacesCard`, `private_place_id` stop/reservation links.
   - Verified: two clean PostgreSQL 17 rebuilds with private-place permission/RLS/partial-coordinate/idempotency tests; private places are a separate trust class and never reach public place APIs; Mine creates and adds private places to a day. typecheck, lint, 222 tests, web/Functions/Worker builds, and `db:verify` passed on 2026-09-01. Formal basemap provider/attribution and Beijing network checks remain in Package 6 acceptance.
 
+- [x] Package 6 — Unified Acceptance (2026-09-01)
+  - Goal: run the full gate and record an acceptance checklist against Product success criteria before merge.
+  - Files: `docs/superpowers/plans/2026-09-01-unified-acceptance.md`.
+  - Verified: `npm run typecheck`, `npm run lint` (0 warnings), `npm test` (29 files / 222 tests), `npm run build`, `npm run db:verify`, and `git diff --check` all passed on 2026-09-01. Two-account, 390px/desktop screenshot, real-device navigation, and Beijing-network checks are deferred to release acceptance against a deployed environment; Package 5 (private records + offline) is postponed by product decision.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.

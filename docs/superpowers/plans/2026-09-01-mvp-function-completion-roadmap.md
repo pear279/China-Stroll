@@ -64,10 +64,10 @@
 
 ### Package 6: Unified Acceptance and Release
 
-- [ ] Create an acceptance checklist directly from Product success criteria and all five package reports.
+- [x] Create an acceptance checklist directly from Product success criteria and all five package reports.
 - [ ] Run two-account invitation, membership removal, trip permission, and location-sharing flows.
 - [ ] Run 390px and desktop normal/empty/error/weak-network/offline walkthroughs across all modules.
 - [ ] Check navigation providers, basemap attribution, Beijing network behavior, media privacy, sources, secrets, and logs.
-- [ ] Run `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run db:verify`.
+- [x] Run `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run db:verify`.
 - [ ] Update `TASKS.md` and `ARCHITECTURE.md`, then request explicit merge/push/release authorization.
 
