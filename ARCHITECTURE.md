@@ -93,11 +93,12 @@ Implemented:
 - Membership: list members and invitations, create/preview/accept/revoke invitations, remove members.
 - Stop field edits (start time, duration, transport, notes), cross-day movement, and trip-day date/title/notes edits.
 - AI reservation draft (read-only; never calls a reservation write command).
+- Tools: a provider-neutral exchange adapter (returns an honest unavailable state without a configured provider) and bounded text translation over the SiliconFlow chat adapter.
 
 Next required endpoints:
 
 - Private trip-scoped places for hotels, restaurants and meeting points.
-- Tools providers (exchange, translation) and private records/offline cache.
+- Private records and offline cache.
 
 Implemented location-sharing endpoints:
 

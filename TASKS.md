@@ -103,6 +103,11 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: `supabase/migrations/20260901170000_extend_trip_edits.sql`, `update_mvp_trip_day`, day/reservation-draft Worker endpoints, Mine `DayEditor`/`StopEditor` and reservation draft, `editDemoStop`/`moveDemoStopToDay`/`editDemoDay` preview helpers.
   - Verified: two clean PostgreSQL 17 rebuilds with extended `update_stop` transport/notes and `update_mvp_trip_day` permission/conflict/idempotency/validation tests; Worker day-edit and reservation-draft routes; Mine editing UI and preview mirroring. typecheck, lint, 209 tests, web/Functions/Worker builds, and `db:verify` passed on 2026-09-01.
 
+- [x] Package 3 — Tools 1.0 (2026-09-01)
+  - Goal: navigation/ride deep links, reviewed payment guidance, timestamped exchange quotes, bounded text translation, and reviewed service contacts with honest offline/unavailable states.
+  - Files: `apps/web/src/data/toolsContent.ts`, `apps/worker/src/tools.ts`, `GET /v1/exchange-rates`, `POST /v1/translations`, rebuilt `ToolsView`.
+  - Verified: exchange adapter returns null without a provider; translation returns null without an API key and routes through the authenticated Worker boundary; ToolsView renders real emergency/helpline links, navigation links, payment guidance, common phrases, and no fabricated rate before a live request. typecheck, lint, 222 tests, web/Functions/Worker builds passed on 2026-09-01.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.

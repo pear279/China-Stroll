@@ -41,11 +41,11 @@
 
 ### Package 3: Tools 1.0
 
-- [ ] Create a detailed package plan from the approved spec before changing code.
-- [ ] Offline-reviewed payment guidance, common phrases, and service contacts.
-- [ ] Timestamped exchange quote adapter and UI with honest unavailable state.
-- [ ] Bounded text translation adapter and UI with copy/swap controls.
-- [ ] Selected-place navigation and ride-provider deep links without booking claims.
+- [x] Create a detailed package plan from the approved spec before changing code.
+- [x] Offline-reviewed payment guidance, common phrases, and service contacts.
+- [x] Timestamped exchange quote adapter and UI with honest unavailable state.
+- [x] Bounded text translation adapter and UI with copy/swap controls.
+- [x] Selected-place navigation and ride-provider deep links without booking claims.
 
 ### Package 4: Private Places and Map Completion
 
