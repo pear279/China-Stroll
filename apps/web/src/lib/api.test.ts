@@ -133,3 +133,82 @@ describe("location-sharing transport", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+
+describe("profile and membership transport", () => {
+  const fetchMock = vi.fn()
+
+  afterEach(() => {
+    fetchMock.mockReset()
+    vi.unstubAllGlobals()
+  })
+
+  it("reads and updates the caller's profile", async () => {
+    const { api } = await import("./api")
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      userId: "user-1",
+      displayName: "Alex",
+      interfaceLocale: "en",
+      contentLocale: "en",
+      countryCode: "US",
+      travelPreferences: {},
+    })))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.getProfile("access-token")
+    await api.updateProfile("access-token", {
+      displayName: "Alex",
+      interfaceLocale: "en",
+      contentLocale: "zh-CN",
+      countryCode: "US",
+      travelPreferences: { pace: "relaxed" },
+    })
+
+    const getCall = fetchMock.mock.calls[0] as [string, RequestInit]
+    const putCall = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(getCall[0]).toContain("/v1/profile")
+    expect((getCall[1].headers as Headers).get("Authorization")).toBe("Bearer access-token")
+    expect(putCall[0]).toContain("/v1/profile")
+    expect(putCall[1].method).toBe("PUT")
+    expect(putCall[1].body).toContain("zh-CN")
+  })
+
+  it("lists members and manages invitations and removal through the trip boundary", async () => {
+    const { api } = await import("./api")
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ members: [] })))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.getTripMembers("access-token", "trip-1")
+    await api.createTripInvitation("access-token", "trip-1", { role: "viewer", expiresInHours: 24 })
+    await api.previewTripInvitation("access-token", "raw-token-value-here-raw-token-value-here")
+    await api.acceptTripInvitation("access-token", "raw-token-value-here-raw-token-value-here")
+    await api.revokeTripInvitation("access-token", "trip-1", "invitation-1")
+    await api.removeTripMember("access-token", "trip-1", "member-1")
+
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+
+    const membersCall = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(membersCall[0]).toContain("/v1/trips/trip-1/members")
+    expect((membersCall[1].headers as Headers).get("Authorization")).toBe("Bearer access-token")
+
+    const createCall = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(createCall[0]).toContain("/v1/trips/trip-1/invitations")
+    expect(createCall[1].method).toBe("POST")
+    expect(createCall[1].body).toBe(JSON.stringify({ role: "viewer", expiresInHours: 24 }))
+
+    const previewCall = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(previewCall[0]).toContain("/v1/trip-invitations/raw-token-value-here")
+    expect((previewCall[1].headers as Headers).get("Authorization")).toBe("Bearer access-token")
+
+    const acceptCall = fetchMock.mock.calls[3] as [string, RequestInit]
+    expect(acceptCall[0]).toContain("/accept")
+    expect(acceptCall[1].method).toBe("POST")
+
+    const revokeCall = fetchMock.mock.calls[4] as [string, RequestInit]
+    expect(revokeCall[0]).toContain("/v1/trips/trip-1/invitations/invitation-1")
+    expect(revokeCall[1].method).toBe("DELETE")
+
+    const removeCall = fetchMock.mock.calls[5] as [string, RequestInit]
+    expect(removeCall[0]).toContain("/v1/trips/trip-1/members/member-1")
+    expect(removeCall[1].method).toBe("DELETE")
+  })
+})

@@ -20,20 +20,25 @@ import {
   type ReservationCategory,
   type ReservationStatus,
   type TripSnapshot,
+  type UserProfile,
 } from "../../../packages/shared/src"
 import type { Database } from "../../../supabase/database.types"
 import {
   addStopSchema,
   addTripDaySchema,
+  acceptInvitationResultSchema,
   createReservationSchema,
   deleteReservationSchema,
   agentChangesSchema,
   apiError,
   confirmSuggestionSchema,
+  createInvitationResultSchema,
+  createTripInvitationSchema,
   createTripSchema,
   currentLocationResponseSchema,
   currentLocationSchema,
   editTripStopsSchema,
+  invitationTokenSchema,
   isReviewOverdue,
   localeSchema,
   locationSharingToggleResponseSchema,
@@ -45,12 +50,17 @@ import {
   placeListQuerySchema,
   placeQuestionSchema,
   placeRecommendationSchema,
+  removeMemberResultSchema,
+  revokeInvitationResultSchema,
   savePlaceSchema,
   suggestionRisksSchema,
   suggestionRequestSchema,
   suggestionStatusSchema,
   tripCommandResultSchema,
+  tripInvitationPreviewSchema,
+  tripMemberSummarySchema,
   updateReservationSchema,
+  userProfileInputSchema,
 } from "./contracts"
 import { generateRecommendationExplanations, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
 import { answerPlaceQuestion } from "./placeIntelligence"
@@ -81,7 +91,7 @@ type Variables = {
 
 type WorkerContext = Context<{ Bindings: WorkerBindings; Variables: Variables }>
 
-export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library"] as const
+export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library", "/v1/profile"] as const
 
 export function requiresAuthentication(pathname: string) {
   return PROTECTED_PREFIXES.some(
@@ -944,6 +954,174 @@ app.delete("/v1/trips/:tripId/reservations/:reservationId", async (context) => {
   return context.json(tripCommandResultSchema.parse(data))
 })
 
+function generateInvitationToken() {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  let binary = ""
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+async function hashInvitationToken(token: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+app.get("/v1/profile", async (context) => {
+  const userId = context.get("user").id
+  const { data, error } = await context
+    .get("admin")
+    .from("user_profiles")
+    .select("display_name,interface_locale,content_locale,country_code,travel_preferences")
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (error) return mapDatabaseError(context, error)
+  const profile: UserProfile = {
+    userId,
+    displayName: data?.display_name ?? "",
+    interfaceLocale: localeSchema.parse(data?.interface_locale ?? "en"),
+    contentLocale: localeSchema.parse(data?.content_locale ?? "en"),
+    countryCode: data?.country_code ?? null,
+    travelPreferences: (data?.travel_preferences ?? {}) as Record<string, string | boolean | number>,
+  }
+  return context.json(profile)
+})
+
+app.put("/v1/profile", async (context) => {
+  const parsed = userProfileInputSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Check your profile details."), 400)
+  const userId = context.get("user").id
+  const input = parsed.data
+  const { error } = await context
+    .get("admin")
+    .from("user_profiles")
+    .upsert({
+      user_id: userId,
+      display_name: input.displayName,
+      interface_locale: input.interfaceLocale,
+      content_locale: input.contentLocale,
+      country_code: input.countryCode,
+      travel_preferences: input.travelPreferences,
+    }, { onConflict: "user_id" })
+  if (error) return mapDatabaseError(context, error)
+  const profile: UserProfile = {
+    userId,
+    displayName: input.displayName,
+    interfaceLocale: input.interfaceLocale,
+    contentLocale: input.contentLocale,
+    countryCode: input.countryCode,
+    travelPreferences: input.travelPreferences,
+  }
+  return context.json(profile)
+})
+
+app.get("/v1/trips/:tripId/members", async (context) => {
+  const tripId = context.req.param("tripId")
+  const userId = context.get("user").id
+  const { data: members, error } = await context
+    .get("admin")
+    .from("trip_members")
+    .select("user_id,role,joined_at")
+    .eq("trip_id", tripId)
+    .eq("status", "active")
+  if (error) return mapDatabaseError(context, error)
+  if (!members?.some((member) => member.user_id === userId)) {
+    return context.json(apiError("NOT_FOUND", "Trip not found."), 404)
+  }
+  const memberIds = members.map((member) => member.user_id)
+  const { data: profiles, error: profileError } = await context
+    .get("admin")
+    .from("user_profiles")
+    .select("user_id,display_name")
+    .in("user_id", memberIds)
+  if (profileError) return mapDatabaseError(context, profileError)
+  const displayNameById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile.display_name]))
+  const summaries = members.map((member) =>
+    tripMemberSummarySchema.parse({
+      userId: member.user_id,
+      displayName: displayNameById.get(member.user_id) ?? "Trip member",
+      role: member.role,
+      joinedAt: member.joined_at,
+      isCurrentUser: member.user_id === userId,
+    }),
+  )
+  return context.json({ members: summaries })
+})
+
+app.post("/v1/trips/:tripId/invitations", async (context) => {
+  const parsed = createTripInvitationSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Choose a role and an expiry for the invitation."), 400)
+  const token = generateInvitationToken()
+  const tokenHash = await hashInvitationToken(token)
+  const { data, error } = await context.get("admin").rpc("create_mvp_trip_invitation", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_command_id: crypto.randomUUID(),
+    p_token_hash: tokenHash,
+    p_role: parsed.data.role,
+    p_expires_in_hours: parsed.data.expiresInHours,
+  })
+  if (error) return mapDatabaseError(context, error)
+  const result = createInvitationResultSchema.parse(data)
+  const webOrigin = context.env.WEB_ORIGIN.replace(/\/$/, "")
+  return context.json({ invitation: result.invitation, inviteUrl: `${webOrigin}/join/${token}` }, 201)
+})
+
+app.get("/v1/trip-invitations/:token", async (context) => {
+  const token = invitationTokenSchema.safeParse(context.req.param("token"))
+  if (!token.success) return context.json(apiError("VALIDATION_FAILED", "This invitation link is not valid."), 400)
+  const tokenHash = await hashInvitationToken(token.data)
+  const { data, error } = await context.get("admin").rpc("preview_mvp_trip_invitation", {
+    p_actor_id: context.get("user").id,
+    p_token_hash: tokenHash,
+  })
+  if (error) return mapDatabaseError(context, error)
+  return context.json(tripInvitationPreviewSchema.parse(data))
+})
+
+app.post("/v1/trip-invitations/:token/accept", async (context) => {
+  const token = invitationTokenSchema.safeParse(context.req.param("token"))
+  if (!token.success) return context.json(apiError("VALIDATION_FAILED", "This invitation link is not valid."), 400)
+  const tokenHash = await hashInvitationToken(token.data)
+  const { data, error } = await context.get("admin").rpc("accept_mvp_trip_invitation", {
+    p_actor_id: context.get("user").id,
+    p_token_hash: tokenHash,
+    p_command_id: crypto.randomUUID(),
+  })
+  if (error) return mapDatabaseError(context, error)
+  const result = acceptInvitationResultSchema.parse(data)
+  return context.json({
+    tripId: result.tripId,
+    version: result.version,
+    invitationId: result.invitationId,
+    member: result.member,
+  })
+})
+
+app.delete("/v1/trips/:tripId/invitations/:invitationId", async (context) => {
+  const { data, error } = await context.get("admin").rpc("revoke_mvp_trip_invitation", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_invitation_id: context.req.param("invitationId"),
+    p_command_id: crypto.randomUUID(),
+  })
+  if (error) return mapDatabaseError(context, error)
+  const result = revokeInvitationResultSchema.parse(data)
+  return context.json({ tripId: result.tripId, invitationId: result.invitationId, revokedAt: result.revokedAt })
+})
+
+app.delete("/v1/trips/:tripId/members/:memberUserId", async (context) => {
+  const { data, error } = await context.get("admin").rpc("remove_mvp_trip_member", {
+    p_actor_id: context.get("user").id,
+    p_trip_id: context.req.param("tripId"),
+    p_member_user_id: context.req.param("memberUserId"),
+    p_command_id: crypto.randomUUID(),
+  })
+  if (error) return mapDatabaseError(context, error)
+  const result = removeMemberResultSchema.parse(data)
+  return context.json({ tripId: result.tripId, removedUserId: result.removedUserId })
+})
+
 app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {
   const parsed = suggestionRequestSchema.safeParse(await context.req.json().catch(() => ({})))
   if (!parsed.success) {
@@ -1075,6 +1253,15 @@ function mapDatabaseError(context: Parameters<typeof apiErrorResponse>[0], error
   }
   if (message.includes("suggestion_expired")) {
     return apiErrorResponse(context, 410, "SUGGESTION_EXPIRED", "This suggestion expired. Generate a new one.")
+  }
+  if (message.includes("invitation_expired")) {
+    return apiErrorResponse(context, 410, "INVITATION_EXPIRED", "This invitation link has expired.")
+  }
+  if (message.includes("invitation_unavailable")) {
+    return apiErrorResponse(context, 410, "INVITATION_UNAVAILABLE", "This invitation is no longer available.")
+  }
+  if (message.includes("member_conflict")) {
+    return apiErrorResponse(context, 409, "MEMBER_CONFLICT", "That membership change cannot be applied.")
   }
   if (error.code === "PGRST116" || message.includes("not_found")) {
     return apiErrorResponse(context, 404, "NOT_FOUND", "The requested trip item was not found.")

@@ -30,6 +30,7 @@ const env = {
 const actorId = "00000000-0000-4000-8000-000000000001"
 const peerId = "00000000-0000-4000-8000-000000000002"
 const tripId = "00000000-0000-4000-8000-000000000010"
+const invitationId = "00000000-0000-4000-8000-000000000020"
 
 function queryResult(
   data: unknown,
@@ -285,6 +286,287 @@ describe("worker routes", () => {
       error: { code: "VALIDATION_FAILED" },
     })
   })
+
+  it("returns the caller's normalized profile", async () => {
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "user_profiles") {
+        return queryResult({
+          display_name: "Alex Chen",
+          interface_locale: "en",
+          content_locale: "zh-CN",
+          country_code: "US",
+          travel_preferences: { pace: "relaxed" },
+        }, null, "maybeSingle")
+      }
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request("/v1/profile", { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      userId: actorId,
+      displayName: "Alex Chen",
+      interfaceLocale: "en",
+      contentLocale: "zh-CN",
+      countryCode: "US",
+      travelPreferences: { pace: "relaxed" },
+    })
+  })
+
+  it("returns profile defaults when no profile row exists", async () => {
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "user_profiles") return queryResult(null, null, "maybeSingle")
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request("/v1/profile", { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      userId: actorId,
+      displayName: "",
+      interfaceLocale: "en",
+      contentLocale: "en",
+      countryCode: null,
+      travelPreferences: {},
+    })
+  })
+
+  it("upserts the caller's profile", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "user_profiles") return { upsert }
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request(
+      "/v1/profile",
+      {
+        method: "PUT",
+        headers: { Authorization: "Bearer valid-test-token", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: "Alex Chen",
+          interfaceLocale: "en",
+          contentLocale: "zh-CN",
+          countryCode: "US",
+          travelPreferences: { pace: "relaxed" },
+        }),
+      },
+      env,
+    )
+
+    expect(response.status).toBe(200)
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: actorId, display_name: "Alex Chen", country_code: "US" }),
+      { onConflict: "user_id" },
+    )
+  })
+
+  it("returns active trip members with joined display names", async () => {
+    const profiles = queryResult(
+      [{ user_id: actorId, display_name: "Alex" }, { user_id: peerId, display_name: null }],
+      null,
+      "in",
+    )
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "trip_members") {
+        return queryResult([
+          { user_id: actorId, role: "owner", joined_at: null },
+          { user_id: peerId, role: "editor", joined_at: "2026-09-01T00:00:00.000Z" },
+        ], null, "eq")
+      }
+      if (table === "user_profiles") return profiles
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/members`, { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      members: [
+        { userId: actorId, displayName: "Alex", role: "owner", joinedAt: null, isCurrentUser: true },
+        { userId: peerId, displayName: "Trip member", role: "editor", joinedAt: "2026-09-01T00:00:00.000Z", isCurrentUser: false },
+      ],
+    })
+  })
+
+  it("hides members from a caller who is not an active member", async () => {
+    supabaseMocks.adminFrom.mockImplementation((table: string) => {
+      if (table === "trip_members") {
+        return queryResult([{ user_id: peerId, role: "editor", joined_at: null }], null, "eq")
+      }
+      throw new Error(`Unexpected admin table: ${table}`)
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/members`, { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } })
+  })
+
+  it("creates an invitation and returns a one-time link without echoing the token hash", async () => {
+    const invitation = {
+      id: invitationId,
+      tripId,
+      role: "editor",
+      expiresAt: "2026-09-02T00:00:00.000Z",
+      useCount: 0,
+      maxUses: 1,
+      revokedAt: null,
+    }
+    supabaseMocks.rpc.mockResolvedValue({
+      data: { tripId, version: 1, commandId: crypto.randomUUID(), invitation },
+      error: null,
+    })
+
+    const response = await app.request(
+      `/v1/trips/${tripId}/invitations`,
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer valid-test-token", "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "editor", expiresInHours: 24 }),
+      },
+      env,
+    )
+
+    expect(response.status).toBe(201)
+    const rpcArgs = supabaseMocks.rpc.mock.calls[0][1] as Record<string, unknown>
+    expect(rpcArgs.p_token_hash).toMatch(/^[0-9a-f]{64}$/)
+    expect(rpcArgs.p_role).toBe("editor")
+    expect(rpcArgs.p_expires_in_hours).toBe(24)
+    expect(rpcArgs.p_actor_id).toBe(actorId)
+    expect(rpcArgs.p_trip_id).toBe(tripId)
+    const payload = await response.json() as { inviteUrl: string; invitation: typeof invitation }
+    expect(payload.invitation).toEqual(invitation)
+    expect(payload.inviteUrl).toMatch(/^http:\/\/localhost:5173\/join\/[A-Za-z0-9_-]{43}$/)
+    expect(payload.inviteUrl).not.toContain(rpcArgs.p_token_hash as string)
+  })
+
+  it("previews an invitation from its token", async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: { tripId, tripName: "Family trip", role: "viewer", expiresAt: "2026-09-02T00:00:00.000Z", status: "ready" },
+      error: null,
+    })
+
+    const token = "a".repeat(43)
+    const response = await app.request(`/v1/trip-invitations/${token}`, { headers: { Authorization: "Bearer valid-test-token" } }, env)
+
+    expect(response.status).toBe(200)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("preview_mvp_trip_invitation", {
+      p_actor_id: actorId,
+      p_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    })
+    await expect(response.json()).resolves.toEqual({
+      tripId,
+      tripName: "Family trip",
+      role: "viewer",
+      expiresAt: "2026-09-02T00:00:00.000Z",
+      status: "ready",
+    })
+  })
+
+  it("accepts an invitation and returns the joined trip", async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: {
+        tripId,
+        version: 2,
+        commandId: crypto.randomUUID(),
+        invitationId,
+        member: { userId: actorId, role: "viewer" },
+      },
+      error: null,
+    })
+
+    const token = "b".repeat(43)
+    const response = await app.request(`/v1/trip-invitations/${token}/accept`, {
+      method: "POST",
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+
+    expect(response.status).toBe(200)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("accept_mvp_trip_invitation", expect.objectContaining({
+      p_actor_id: actorId,
+      p_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    }))
+    await expect(response.json()).resolves.toEqual({
+      tripId,
+      version: 2,
+      invitationId,
+      member: { userId: actorId, role: "viewer" },
+    })
+  })
+
+  it("revokes an invitation", async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: { tripId, version: 1, commandId: crypto.randomUUID(), invitationId, revokedAt: "2026-09-01T12:00:00.000Z" },
+      error: null,
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/invitations/${invitationId}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+
+    expect(response.status).toBe(200)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("revoke_mvp_trip_invitation", {
+      p_actor_id: actorId,
+      p_trip_id: tripId,
+      p_invitation_id: invitationId,
+      p_command_id: expect.any(String),
+    })
+    await expect(response.json()).resolves.toEqual({ tripId, invitationId, revokedAt: "2026-09-01T12:00:00.000Z" })
+  })
+
+  it("removes a trip member", async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: { tripId, version: 1, commandId: crypto.randomUUID(), removedUserId: peerId },
+      error: null,
+    })
+
+    const response = await app.request(`/v1/trips/${tripId}/members/${peerId}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+
+    expect(response.status).toBe(200)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("remove_mvp_trip_member", {
+      p_actor_id: actorId,
+      p_trip_id: tripId,
+      p_member_user_id: peerId,
+      p_command_id: expect.any(String),
+    })
+    await expect(response.json()).resolves.toEqual({ tripId, removedUserId: peerId })
+  })
+
+  it("maps an expired invitation to 410", async () => {
+    supabaseMocks.rpc.mockResolvedValue({ data: null, error: { message: "INVITATION_EXPIRED" } })
+    const response = await app.request(`/v1/trip-invitations/${"c".repeat(43)}`, {
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+    expect(response.status).toBe(410)
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "INVITATION_EXPIRED" } })
+  })
+
+  it("maps an unavailable invitation to 410", async () => {
+    supabaseMocks.rpc.mockResolvedValue({ data: null, error: { message: "INVITATION_UNAVAILABLE invitation used" } })
+    const response = await app.request(`/v1/trip-invitations/${"d".repeat(43)}/accept`, {
+      method: "POST",
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+    expect(response.status).toBe(410)
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "INVITATION_UNAVAILABLE" } })
+  })
+
+  it("maps a member conflict to 409", async () => {
+    supabaseMocks.rpc.mockResolvedValue({ data: null, error: { message: "MEMBER_CONFLICT owner cannot be removed" } })
+    const response = await app.request(`/v1/trips/${tripId}/members/${peerId}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer valid-test-token" },
+    }, env)
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "MEMBER_CONFLICT" } })
+  })
 })
 
 describe("authentication boundary", () => {
@@ -308,5 +590,10 @@ describe("authentication boundary", () => {
   it("does not let a lookalike prefix bypass authentication", () => {
     expect(requiresAuthentication("/v1/tripsomething")).toBe(false)
     expect(PROTECTED_PREFIXES).toContain("/v1/trips")
+  })
+
+  it("protects the profile endpoint", () => {
+    expect(requiresAuthentication("/v1/profile")).toBe(true)
+    expect(PROTECTED_PREFIXES).toContain("/v1/profile")
   })
 })

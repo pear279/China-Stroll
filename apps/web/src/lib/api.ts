@@ -1,6 +1,7 @@
 import type {
   AgentSuggestion,
   AgentChange,
+  CreateTripInvitationInput,
   LocationSharingSnapshot,
   Locale,
   PlaceDetail,
@@ -12,7 +13,12 @@ import type {
   PlaceRecommendationInput,
   PlaceRecommendationResponse,
   ReservationInput,
+  TripInvitationPreview,
+  TripInvitationSummary,
+  TripMemberSummary,
   TripSnapshot,
+  UserProfile,
+  UserProfileInput,
 } from "../../../../packages/shared/src"
 
 export function resolveApiBaseUrl(isProduction: boolean, configuredUrl?: string) {
@@ -226,6 +232,49 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ expectedVersion: trip.version, commandId: crypto.randomUUID() }),
       },
+    )
+  },
+  getProfile(accessToken: string) {
+    return request<UserProfile>("/v1/profile", accessToken)
+  },
+  updateProfile(accessToken: string, input: UserProfileInput) {
+    return request<UserProfile>("/v1/profile", accessToken, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    })
+  },
+  getTripMembers(accessToken: string, tripId: string) {
+    return request<{ members: TripMemberSummary[] }>(`/v1/trips/${encodeURIComponent(tripId)}/members`, accessToken)
+  },
+  createTripInvitation(accessToken: string, tripId: string, input: CreateTripInvitationInput) {
+    return request<{ invitation: TripInvitationSummary; inviteUrl: string }>(
+      `/v1/trips/${encodeURIComponent(tripId)}/invitations`,
+      accessToken,
+      { method: "POST", body: JSON.stringify(input) },
+    )
+  },
+  previewTripInvitation(accessToken: string, token: string) {
+    return request<TripInvitationPreview>(`/v1/trip-invitations/${encodeURIComponent(token)}`, accessToken)
+  },
+  acceptTripInvitation(accessToken: string, token: string) {
+    return request<{ tripId: string; version: number; invitationId: string; member: { userId: string; role: "editor" | "viewer" } }>(
+      `/v1/trip-invitations/${encodeURIComponent(token)}/accept`,
+      accessToken,
+      { method: "POST", body: JSON.stringify({}) },
+    )
+  },
+  revokeTripInvitation(accessToken: string, tripId: string, invitationId: string) {
+    return request<{ tripId: string; invitationId: string; revokedAt: string }>(
+      `/v1/trips/${encodeURIComponent(tripId)}/invitations/${encodeURIComponent(invitationId)}`,
+      accessToken,
+      { method: "DELETE" },
+    )
+  },
+  removeTripMember(accessToken: string, tripId: string, memberUserId: string) {
+    return request<{ tripId: string; removedUserId: string }>(
+      `/v1/trips/${encodeURIComponent(tripId)}/members/${encodeURIComponent(memberUserId)}`,
+      accessToken,
+      { method: "DELETE" },
     )
   },
 }

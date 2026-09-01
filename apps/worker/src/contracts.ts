@@ -1,5 +1,31 @@
 import { z } from "zod"
-export { acceptTripInvitationSchema, createTripInvitationSchema, invitationTokenSchema, tripInvitationPreviewSchema, tripInvitationSummarySchema, tripMemberRoleSchema, tripMemberSummarySchema, travelPreferencesSchema, userProfileInputSchema, userProfileSchema } from "../../../packages/shared/src"
+import {
+  acceptTripInvitationSchema,
+  createTripInvitationSchema,
+  invitationTokenSchema,
+  tripInvitationPreviewSchema,
+  tripInvitationSummarySchema,
+  tripMemberEditableRoleSchema,
+  tripMemberRoleSchema,
+  tripMemberSummarySchema,
+  travelPreferencesSchema,
+  userProfileInputSchema,
+  userProfileSchema,
+} from "../../../packages/shared/src"
+
+export {
+  acceptTripInvitationSchema,
+  createTripInvitationSchema,
+  invitationTokenSchema,
+  tripInvitationPreviewSchema,
+  tripInvitationSummarySchema,
+  tripMemberEditableRoleSchema,
+  tripMemberRoleSchema,
+  tripMemberSummarySchema,
+  travelPreferencesSchema,
+  userProfileInputSchema,
+  userProfileSchema,
+}
 
 export const localeSchema = z.enum(["en", "zh-CN"])
 
@@ -90,6 +116,36 @@ export const createReservationSchema = reservationFieldsSchema.extend({
 
 export const updateReservationSchema = createReservationSchema
 export const deleteReservationSchema = z.object({ expectedVersion: z.int().positive(), commandId: z.uuid() })
+
+export const createInvitationResultSchema = z.object({
+  tripId: z.uuid(),
+  version: z.int().positive(),
+  commandId: z.uuid(),
+  invitation: tripInvitationSummarySchema,
+})
+
+export const acceptInvitationResultSchema = z.object({
+  tripId: z.uuid(),
+  version: z.int().positive(),
+  commandId: z.uuid(),
+  invitationId: z.uuid(),
+  member: z.object({ userId: z.uuid(), role: tripMemberEditableRoleSchema }),
+})
+
+export const revokeInvitationResultSchema = z.object({
+  tripId: z.uuid(),
+  version: z.int().positive(),
+  commandId: z.uuid(),
+  invitationId: z.uuid(),
+  revokedAt: z.iso.datetime({ offset: true }),
+})
+
+export const removeMemberResultSchema = z.object({
+  tripId: z.uuid(),
+  version: z.int().positive(),
+  commandId: z.uuid(),
+  removedUserId: z.uuid(),
+})
 
 export const locationSharingToggleSchema = z.object({ enabled: z.boolean() }).strict()
 
@@ -199,6 +255,9 @@ export type ApiErrorCode =
   | "VERSION_CONFLICT"
   | "DUPLICATE_COMMAND"
   | "SUGGESTION_EXPIRED"
+  | "INVITATION_EXPIRED"
+  | "INVITATION_UNAVAILABLE"
+  | "MEMBER_CONFLICT"
   | "RATE_LIMITED"
   | "DEPENDENCY_UNAVAILABLE"
 
