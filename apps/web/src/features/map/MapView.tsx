@@ -191,6 +191,7 @@ function memberLocationWarning(status: LocationSharingControls["status"]) {
 
 function useLiveLocationTime(locations: SharedMemberLocation[]) {
   const [now, setNow] = useState(() => Date.now())
+  const currentTime = Date.now()
 
   useEffect(() => {
     const currentTime = Date.now()
@@ -201,7 +202,7 @@ function useLiveLocationTime(locations: SharedMemberLocation[]) {
     return () => window.clearTimeout(timer)
   }, [locations, now])
 
-  return now
+  return currentTime
 }
 
 function nextLocationRefreshDelay(locations: SharedMemberLocation[], now: number) {

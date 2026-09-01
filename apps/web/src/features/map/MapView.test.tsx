@@ -179,6 +179,30 @@ describe("MapView", () => {
     expect(screen.queryByRole("heading", { name: "Members sharing now" })).toBeNull()
   })
 
+  it("does not render a delayed location snapshot that expired after the original render", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2099-09-01T10:00:00.000Z"))
+    const props = createProps()
+    const { rerender } = render(<MapView {...props} />)
+
+    act(() => vi.advanceTimersByTime(5 * 60_000))
+    rerender(
+      <MapView
+        {...props}
+        locationSharing={{
+          ...props.locationSharing,
+          snapshot: {
+            ...sharingSnapshot,
+            visibleLocations: [{ ...memberPoint, expiresAt: "2099-09-01T10:02:00.000Z" }],
+          },
+        }}
+      />,
+    )
+
+    expect(screen.queryByLabelText("Alex’s shared current location")).toBeNull()
+    expect(screen.queryByRole("heading", { name: "Members sharing now" })).toBeNull()
+  })
+
   it("keeps map browsing available when shared locations cannot be refreshed", async () => {
     const props = createProps()
     props.locationSharing = { ...props.locationSharing, status: "dependency-unavailable", snapshot: null }
