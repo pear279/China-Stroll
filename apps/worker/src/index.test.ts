@@ -104,6 +104,7 @@ describe("worker routes", () => {
 
   it("returns sharing state and only visible unexpired peer points", async () => {
     const now = Date.now()
+    const profileQuery = queryResult([{ user_id: peerId, display_name: "Alex" }], null, "in")
     supabaseMocks.userFrom.mockImplementation((table: string) => {
       if (table === "trip_location_sharing_preferences") {
         return queryResult({
@@ -139,7 +140,7 @@ describe("worker routes", () => {
       throw new Error(`Unexpected user-scoped table: ${table}`)
     })
     supabaseMocks.adminFrom.mockImplementation((table: string) => {
-      if (table === "user_profiles") return queryResult([{ user_id: peerId, display_name: "Alex" }], null, "in")
+      if (table === "user_profiles") return profileQuery
       throw new Error(`Unexpected admin table: ${table}`)
     })
 
@@ -150,6 +151,7 @@ describe("worker routes", () => {
     )
 
     expect(response.status).toBe(200)
+    expect(profileQuery.in).toHaveBeenCalledWith("user_id", [peerId])
     await expect(response.json()).resolves.toEqual({
       tripId,
       enabled: true,

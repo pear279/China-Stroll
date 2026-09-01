@@ -88,6 +88,10 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_trip_id::text || ':' || p_actor_id::text, 0)
+  );
+
   if not exists (
     select 1
     from public.trip_members
@@ -144,6 +148,10 @@ begin
   if p_latitude not between -90 and 90 or p_longitude not between -180 and 180 then
     raise exception 'VALIDATION_FAILED WGS84 coordinate';
   end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_trip_id::text || ':' || p_actor_id::text, 0)
+  );
 
   if not exists (
     select 1

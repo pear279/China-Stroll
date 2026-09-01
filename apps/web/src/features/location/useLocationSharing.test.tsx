@@ -28,6 +28,18 @@ const enabledSnapshot: LocationSharingSnapshot = {
   expiresAt: "2026-08-31T12:10:00.000Z",
 }
 
+const peerSnapshot: LocationSharingSnapshot = {
+  ...offSnapshot,
+  visibleLocations: [{
+    userId: "peer-1",
+    displayName: "Alex",
+    initials: "A",
+    coordinate: [116.4, 39.9],
+    updatedAt: "2026-08-31T12:00:00.000Z",
+    expiresAt: "2026-08-31T12:10:00.000Z",
+  }],
+}
+
 const options = { accessToken: "access-token", tripId: "trip-1", enabled: true }
 
 function deferred<Value>() {
@@ -88,7 +100,86 @@ describe("useLocationSharing", () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.resetAllMocks()
+  })
+
+  it("refreshes moved and newly sharing peers without overlapping snapshot requests", async () => {
+    vi.useFakeTimers()
+    const refresh = deferred<LocationSharingSnapshot>()
+    vi.mocked(api.getLocationSharing)
+      .mockResolvedValueOnce(peerSnapshot)
+      .mockImplementationOnce(() => refresh.promise)
+    const { result } = renderHook(() => useLocationSharing(options))
+
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.snapshot?.visibleLocations).toHaveLength(1)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(api.getLocationSharing).toHaveBeenCalledTimes(2)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(90_000) })
+    expect(api.getLocationSharing).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      refresh.resolve({
+        ...peerSnapshot,
+        activeMemberCount: 3,
+        visibleLocations: [
+          { ...peerSnapshot.visibleLocations[0], coordinate: [116.41, 39.91] },
+          {
+            userId: "peer-2",
+            displayName: "Bea",
+            initials: "B",
+            coordinate: [116.42, 39.92],
+            updatedAt: "2026-08-31T12:01:00.000Z",
+            expiresAt: "2026-08-31T12:11:00.000Z",
+          },
+        ],
+      })
+      await refresh.promise
+    })
+
+    expect(result.current.snapshot?.activeMemberCount).toBe(3)
+    expect(result.current.snapshot?.visibleLocations).toHaveLength(2)
+    expect(result.current.snapshot?.visibleLocations[0]?.coordinate).toEqual([116.41, 39.91])
+  })
+
+  it("ignores an old trip refresh and stops refreshing after unmount", async () => {
+    vi.useFakeTimers()
+    const oldTripRefresh = deferred<LocationSharingSnapshot>()
+    let tripOneReads = 0
+    vi.mocked(api.getLocationSharing).mockImplementation(async (_token, requestedTripId) => {
+      if (requestedTripId === "trip-1") {
+        tripOneReads += 1
+        return tripOneReads === 1 ? peerSnapshot : oldTripRefresh.promise
+      }
+      return { ...offSnapshot, tripId: "trip-2", activeMemberCount: 1, visibleLocations: [] }
+    })
+    const { result, rerender, unmount } = renderHook(
+      ({ tripId }) => useLocationSharing({ ...options, tripId }),
+      { initialProps: { tripId: "trip-1" } },
+    )
+    await act(async () => { await Promise.resolve() })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(api.getLocationSharing).toHaveBeenCalledTimes(2)
+
+    rerender({ tripId: "trip-2" })
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.snapshot?.tripId).toBe("trip-2")
+
+    await act(async () => {
+      oldTripRefresh.resolve({ ...peerSnapshot, activeMemberCount: 4 })
+      await oldTripRefresh.promise
+    })
+    expect(result.current.snapshot?.tripId).toBe("trip-2")
+    expect(result.current.snapshot?.visibleLocations).toEqual([])
+
+    const readsBeforeUnmount = vi.mocked(api.getLocationSharing).mock.calls.length
+    unmount()
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
+    expect(api.getLocationSharing).toHaveBeenCalledTimes(readsBeforeUnmount)
   })
 
   it("starts a foreground watch only after the initial point uploads and clears it before revoke", async () => {

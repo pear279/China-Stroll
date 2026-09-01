@@ -34,11 +34,12 @@ fi
 
 for sql_file in \
   supabase/tests/mvp_business_schema.sql \
-  supabase/tests/mvp_trip_commands.sql
+  supabase/tests/mvp_trip_commands.sql \
+  supabase/tests/location_sharing_concurrency.sql
 do
   echo "Running $sql_file"
   docker exec -i "$db_container" \
-    psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
+    psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 --set db_host="$db_container" \
     < "$sql_file"
 done
 

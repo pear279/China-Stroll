@@ -50,9 +50,9 @@ Existing core tables:
 Implemented location-sharing tables:
 
 - `trip_location_sharing_preferences`: one row per trip member, containing `trip_id`, `user_id`, `enabled`, `enabled_at`, `expires_at`, `updated_at`.
-- `trip_member_locations`: at most one current point per trip member, containing WGS84 coordinate, accuracy, recorded time and expiry.
+- `trip_member_locations`: at most one current point per trip member, containing WGS84 latitude/longitude, sharing state, update time and expiry.
 
-RLS requires current active trip membership for reads and exposes only enabled, non-expired points. Browser clients cannot write these tables directly: service-role-only commands verify the authenticated actor and active membership before changing the preference or latest point. Disabling sharing revokes the current point in the same server-side command. Historical location trails are out of scope for the first version.
+RLS requires current active trip membership for reads and exposes only enabled, non-expired points. Browser clients cannot write these tables directly: service-role-only commands verify the authenticated actor and active membership before changing the preference or latest point. Enable/disable and current-point uploads serialize on the same trip-member transaction lock, so an overlapping upload cannot recreate a point after revocation. Disabling sharing revokes the current point in the same server-side command. Historical location trails are out of scope for the first version.
 
 Private place records and photos need separate tables before implementation; visibility defaults to `private`. Public community records must not reuse private storage paths or bypass moderation state.
 
@@ -130,7 +130,7 @@ The Map module renders the selected day's ordered itinerary separately from near
 
 Mine privacy control → show associated members and sharing explanation → user enables switch → foreground geolocation permission → server stores one current point with a ten-minute expiry → RLS exposes it only to current active trip members. Turning the switch off first stops browser watches, then revokes server visibility; failed revocation remains visible and retryable while server expiry is the fallback.
 
-Map consumes the same server-filtered snapshot. It renders unexpired peer points with a visually distinct member marker, identity, relative update time and expiry context. It never connects member positions or presents a route/history trail; sharing failures leave ordinary map and itinerary browsing available.
+Map consumes the same server-filtered snapshot. While the shared page controller is mounted, it refreshes that snapshot periodically with one request at a time; scope changes and unmounts invalidate delayed responses. It renders unexpired peer points with a visually distinct member marker, identity, relative update time and expiry context. It never connects member positions or presents a route/history trail; sharing failures leave ordinary map and itinerary browsing available.
 
 ### AI recommendation
 

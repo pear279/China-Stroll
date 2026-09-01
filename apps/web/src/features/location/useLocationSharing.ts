@@ -22,6 +22,8 @@ const positionOptions: PositionOptions = {
   timeout: 15_000,
 }
 
+const locationSnapshotRefreshMs = 30_000
+
 function requestCurrentPosition() {
   return new Promise<GeolocationPosition>((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, positionOptions)
@@ -64,6 +66,7 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
   const [snapshot, setSnapshot] = useState<LocationSharingSnapshot | null>(null)
   const watchIdRef = useRef<number | null>(null)
   const operationRef = useRef(0)
+  const scopeRef = useRef(0)
   const pendingEnableRef = useRef<PendingEnableScope | null>(null)
 
   const clearForegroundWatch = useCallback(() => {
@@ -248,7 +251,11 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
   }, [accessToken, available, clearForegroundWatch, tripId])
 
   useEffect(() => {
+    const scope = ++scopeRef.current
     const operation = ++operationRef.current
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+    let refreshInFlight = false
+    let stopped = false
     clearForegroundWatch()
     if (!available || !accessToken || !tripId) {
       setSnapshot(null)
@@ -257,22 +264,53 @@ export function useLocationSharing({ accessToken, tripId, enabled }: UseLocation
     }
 
     setStatus("loading")
-    void api.getLocationSharing(accessToken, tripId).then((nextSnapshot) => {
-      if (operationRef.current !== operation) return
-      setSnapshot(nextSnapshot)
-      if (nextSnapshot.enabled) {
-        void enableSharing()
-        return
+    const scopeIsCurrent = () => !stopped && scopeRef.current === scope
+    const scheduleRefresh = () => {
+      if (!scopeIsCurrent() || refreshTimer !== null) return
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null
+        void refreshSnapshot(false)
+      }, locationSnapshotRefreshMs)
+    }
+    const refreshSnapshot = async (initial: boolean) => {
+      if (!scopeIsCurrent() || refreshInFlight) return
+      refreshInFlight = true
+      try {
+        const nextSnapshot = await api.getLocationSharing(accessToken, tripId)
+        if (!scopeIsCurrent()) return
+        if (initial) {
+          if (operationRef.current !== operation) return
+          setSnapshot(nextSnapshot)
+          if (nextSnapshot.enabled) {
+            void enableSharing()
+          } else {
+            setStatus(nextSnapshot.status)
+          }
+        } else {
+          setSnapshot((current) => current ? {
+            ...current,
+            activeMemberCount: nextSnapshot.activeMemberCount,
+            visibleLocations: nextSnapshot.visibleLocations,
+          } : nextSnapshot)
+        }
+      } catch {
+        if (!scopeIsCurrent()) return
+        if (initial && operationRef.current === operation) {
+          setSnapshot(null)
+          setStatus("dependency-unavailable")
+        }
+      } finally {
+        refreshInFlight = false
+        scheduleRefresh()
       }
-      setStatus(nextSnapshot.status)
-    }).catch(() => {
-      if (operationRef.current !== operation) return
-      setSnapshot(null)
-      setStatus("dependency-unavailable")
-    })
+    }
+    void refreshSnapshot(true)
 
     return () => {
+      stopped = true
+      scopeRef.current += 1
       operationRef.current += 1
+      if (refreshTimer !== null) clearTimeout(refreshTimer)
       clearForegroundWatch()
       const pendingEnable = pendingEnableRef.current
       if (pendingEnable) {
