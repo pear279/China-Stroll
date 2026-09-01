@@ -35,7 +35,9 @@ fi
 for sql_file in \
   supabase/tests/mvp_business_schema.sql \
   supabase/tests/mvp_trip_commands.sql \
-  supabase/tests/location_sharing_concurrency.sql
+  supabase/tests/location_sharing_concurrency.sql \
+  supabase/tests/mvp_member_commands.sql \
+  supabase/tests/mvp_invitation_accept_concurrency.sql
 do
   echo "Running $sql_file"
   docker exec -i "$db_container" \

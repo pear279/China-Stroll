@@ -1090,6 +1090,50 @@ export type Database = {
         }
         Returns: Json
       }
+      create_mvp_trip_invitation: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_expires_in_hours: number
+          p_role: string
+          p_token_hash: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      preview_mvp_trip_invitation: {
+        Args: {
+          p_actor_id: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      accept_mvp_trip_invitation: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      revoke_mvp_trip_invitation: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_invitation_id: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
+      remove_mvp_trip_member: {
+        Args: {
+          p_actor_id: string
+          p_command_id: string
+          p_member_user_id: string
+          p_trip_id: string
+        }
+        Returns: Json
+      }
       set_mvp_location_sharing: {
         Args: {
           p_actor_id: string
