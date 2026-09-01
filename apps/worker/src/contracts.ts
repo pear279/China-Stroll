@@ -110,6 +110,17 @@ export const reservationDraftRequestSchema = z.object({
   sourceText: z.string().trim().min(2).max(4000),
 })
 
+export const exchangeRateQuerySchema = z.object({
+  base: z.string().regex(/^[A-Z]{3}$/).default("CNY"),
+  quote: z.string().regex(/^[A-Z]{3}$/).default("USD"),
+})
+
+export const translationRequestSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  from: z.enum(["en", "zh-CN"]),
+  to: z.enum(["en", "zh-CN"]),
+}).refine((value) => value.from !== value.to, { message: "Choose two different languages." })
+
 const reservationFieldsSchema = z.object({
   category: z.enum(["accommodation", "transport", "restaurant", "attraction", "activity"]),
   title: z.string().trim().min(1).max(200),

@@ -100,6 +100,7 @@ const repository: PlaceRepository = {
 }
 
 const props: AppShellProps = {
+  accessToken: null,
   busy: null,
   message: null,
   mode: "preview",

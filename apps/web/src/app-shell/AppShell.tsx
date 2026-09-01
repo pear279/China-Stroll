@@ -12,6 +12,7 @@ import type { AppShellProps, NearbyRadius } from "./types"
 import { useCurrentLocation } from "./useCurrentLocation"
 
 export function AppShell({
+  accessToken,
   busy,
   message,
   mode,
@@ -170,7 +171,7 @@ export function AppShell({
               />
             )}
           />
-          <Route path="/tools" element={<ToolsView />} />
+          <Route path="/tools" element={<ToolsView mode={mode} accessToken={accessToken} places={places} />} />
           <Route
             path="/me"
             element={(

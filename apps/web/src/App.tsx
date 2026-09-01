@@ -509,6 +509,7 @@ export function App() {
 
   return (
     <AppShell
+      accessToken={session?.access_token ?? null}
       busy={busy}
       message={message}
       mode={mode}

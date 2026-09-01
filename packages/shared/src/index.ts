@@ -134,6 +134,34 @@ export type TripReservation = {
 export type ReservationInput = Omit<TripReservation, "id" | "tripId">
 export type ReservationDraft = Omit<ReservationInput, "dayNumber" | "placeId">
 
+export type ExchangeQuote = {
+  base: string
+  quote: string
+  rate: number
+  provider: string
+  retrievedAt: string
+}
+
+export type TranslationRequest = {
+  text: string
+  from: Locale
+  to: Locale
+}
+
+export type TranslationResult = {
+  translatedText: string
+  from: Locale
+  to: Locale
+  provider: string
+  generatedAt: string
+}
+
+export type Phrase = {
+  en: string
+  zh: string
+  pinyin: string
+}
+
 export type AgentChange =
   | {
       op: "add_stop"

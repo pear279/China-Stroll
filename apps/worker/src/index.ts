@@ -39,6 +39,7 @@ import {
   currentLocationResponseSchema,
   currentLocationSchema,
   editTripStopsSchema,
+  exchangeRateQuerySchema,
   invitationTokenSchema,
   isReviewOverdue,
   localeSchema,
@@ -58,6 +59,7 @@ import {
   suggestionRisksSchema,
   suggestionRequestSchema,
   suggestionStatusSchema,
+  translationRequestSchema,
   tripCommandResultSchema,
   tripInvitationPreviewSchema,
   tripInvitationSummarySchema,
@@ -67,6 +69,7 @@ import {
   userProfileInputSchema,
 } from "./contracts"
 import { generateRecommendationExplanations, generateReservationDraft, generateTripSuggestion, siliconFlowConfigFromBindings } from "./siliconflow"
+import { fetchExchangeQuote, translateText } from "./tools"
 import { answerPlaceQuestion } from "./placeIntelligence"
 import { TavilyWebSearchProvider } from "./webSearch"
 import { rankPlaceRecommendations } from "../../../packages/shared/src/place-discovery"
@@ -84,6 +87,7 @@ type WidenConfiguredBindings = {
 export type WorkerBindings = WidenConfiguredBindings & WorkerSecretBindings & {
   SUPABASE_URL: string
   WEB_ORIGIN: string
+  EXCHANGE_RATE_URL?: string
 }
 
 type Variables = {
@@ -95,7 +99,7 @@ type Variables = {
 
 type WorkerContext = Context<{ Bindings: WorkerBindings; Variables: Variables }>
 
-export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library", "/v1/profile"] as const
+export const PROTECTED_PREFIXES = ["/v1/trips", "/v1/trip-invitations", "/v1/place-library", "/v1/profile", "/v1/translations"] as const
 
 export function requiresAuthentication(pathname: string) {
   return PROTECTED_PREFIXES.some(
@@ -1192,6 +1196,31 @@ app.post("/v1/trips/:tripId/reservation-drafts", async (context) => {
   })
   if (!draft) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "Could not draft this reservation. Enter it manually."), 503)
   return context.json(draft)
+})
+
+app.get("/v1/exchange-rates", async (context) => {
+  const parsed = exchangeRateQuerySchema.safeParse({ base: context.req.query("base"), quote: context.req.query("quote") })
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Choose a base and quote currency."), 400)
+  const quote = await fetchExchangeQuote(context.env.EXCHANGE_RATE_URL, parsed.data.base, parsed.data.quote)
+  if (!quote) return context.json({ available: false })
+  return context.json({ available: true, quote })
+})
+
+app.post("/v1/translations", async (context) => {
+  const parsed = translationRequestSchema.safeParse(await context.req.json().catch(() => null))
+  if (!parsed.success) return context.json(apiError("VALIDATION_FAILED", "Enter text and choose two different languages."), 400)
+  const translatedText = await translateText(siliconFlowConfigFromBindings(context.env), parsed.data).catch((error) => {
+    console.error(JSON.stringify({ message: "siliconflow_translation_failed", errorName: error instanceof Error ? error.name : "UnknownError" }))
+    return null
+  })
+  if (!translatedText) return context.json(apiError("DEPENDENCY_UNAVAILABLE", "Translation is temporarily unavailable."), 503)
+  return context.json({
+    translatedText,
+    from: parsed.data.from,
+    to: parsed.data.to,
+    provider: "siliconflow",
+    generatedAt: new Date().toISOString(),
+  })
 })
 
 app.post("/v1/trips/:tripId/agent-suggestions", async (context) => {

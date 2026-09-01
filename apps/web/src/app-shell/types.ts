@@ -54,6 +54,7 @@ export type ItineraryEditControls = {
 }
 
 export type AppShellProps = {
+  accessToken: string | null
   busy: string | null
   message: string | null
   mode: AppMode

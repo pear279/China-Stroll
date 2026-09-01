@@ -19,6 +19,12 @@ export function amapSearchUrl(name: string) {
   return `https://uri.amap.com/search?${query.toString()}`
 }
 
+// Opens the ride-hailing provider's site or app. China Stroll does not create a
+// booking, so this is a plain external link with no ride-request claim.
+export function didiWebUrl() {
+  return "https://www.didiglobal.com/"
+}
+
 export function haversineKilometres(from: Coordinate, to: Coordinate) {
   const radians = (value: number) => value * Math.PI / 180
   const deltaLat = radians(to[1] - from[1])

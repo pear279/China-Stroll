@@ -663,6 +663,20 @@ describe("worker routes", () => {
     expect(supabaseMocks.rpc).not.toHaveBeenCalled()
     await expect(response.json()).resolves.toMatchObject({ error: { code: "DEPENDENCY_UNAVAILABLE" } })
   })
+
+  it("reports live exchange rates as unavailable without a provider", async () => {
+    const response = await app.request("/v1/exchange-rates?base=CNY&quote=USD", {}, env)
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ available: false })
+  })
+
+  it("requires authentication before translating text", async () => {
+    const response = await app.request("/v1/translations", {
+      method: "POST",
+      body: JSON.stringify({ text: "Hello", from: "en", to: "zh-CN" }),
+    }, env)
+    expect(response.status).toBe(401)
+  })
 })
 
 describe("authentication boundary", () => {

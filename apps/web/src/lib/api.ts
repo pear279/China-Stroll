@@ -2,8 +2,9 @@ import type {
   AgentSuggestion,
   AgentChange,
   CreateTripInvitationInput,
-  LocationSharingSnapshot,
+  ExchangeQuote,
   Locale,
+  LocationSharingSnapshot,
   PlaceDetail,
   PlaceGuideResponse,
   PlaceLibraryItem,
@@ -14,6 +15,7 @@ import type {
   PlaceRecommendationResponse,
   ReservationDraft,
   ReservationInput,
+  TranslationResult,
   TripInvitationPreview,
   TripInvitationSummary,
   TripMemberSummary,
@@ -292,5 +294,16 @@ export const api = {
       accessToken,
       { method: "DELETE" },
     )
+  },
+  getExchangeRate(base: string, quote: string) {
+    return publicRequest<{ available: false } | { available: true; quote: ExchangeQuote }>(
+      `/v1/exchange-rates?base=${encodeURIComponent(base)}&quote=${encodeURIComponent(quote)}`,
+    )
+  },
+  translateText(accessToken: string, text: string, from: Locale, to: Locale) {
+    return request<TranslationResult>("/v1/translations", accessToken, {
+      method: "POST",
+      body: JSON.stringify({ text, from, to }),
+    })
   },
 }
