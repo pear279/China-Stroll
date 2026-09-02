@@ -19,6 +19,7 @@
     "build:functions": "wrangler pages functions build functions --outdir dist/pages-functions --project-directory . --compatibility-date=2026-08-27 --compatibility-flags=nodejs_compat",
     "build:worker": "wrangler deploy --dry-run --config apps/worker/wrangler.jsonc --outdir ../../dist/worker",
     "db:verify": "bash scripts/verify-local-database.sh",
+    "db:push": "supabase db push",
     "typecheck": "tsc -p apps/web/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit",
     "lint": "oxlint apps/worker/src functions apps/web/src packages/shared/src",
     "test": "vitest run",
