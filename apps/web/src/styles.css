@@ -162,22 +162,21 @@ input:focus { border-color: #b33a2e; }
 .place-search input, .place-filters select { min-height: 2.75rem; padding: .35rem .75rem; border: 1px solid #cfc6b7; border-radius: .4rem; color: #2a2521; background: #fffdf8; font-size: .82rem; }
 .place-filters select:focus { border-color: #b33a2e; }
 .filter-count { margin-left: auto; color: #776e64; font-size: .74rem; }
-.place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.place-card { overflow: hidden; border: 1px solid #d4ccbf; background: #fffdf8; }
-.place-image-button { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
-.place-image-button img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #eee8dd; }
-.place-card-placeholder { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-bottom: 1px solid #e3ddd3; background: #efe9de; }
-.place-card-placeholder span { color: #a4998a; font-family: "Stroll Serif", Georgia, serif; font-size: 2.1rem; font-weight: 700; letter-spacing: .04em; }
-.place-card-copy { padding: .7rem; }
-.place-card p { min-height: 0; color: #756d63; font-size: .74rem; line-height: 1.45; }
-.place-zh { color: #9c332b; font-family: serif; font-size: .78rem; font-weight: 800; letter-spacing: .08em; }
-.place-card h3 { margin: .25rem 0 .55rem; font-size: 1.25rem; }
-.place-card p { min-height: 3.8rem; color: #756d63; font-size: .78rem; line-height: 1.55; }
-.place-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; border-top: 1px solid #e3ddd3; }
-.place-card-footer span, .place-card-footer button { display: inline-flex; align-items: center; gap: .35rem; }
-.place-card-footer > div { display: flex; align-items: center; }
-.place-card-footer span { color: #756d63; font-size: .74rem; }
-.place-card-footer button { border: 0; padding: .45rem .6rem; color: #9e3027; background: transparent; font-size: .78rem; font-weight: 800; }
+.place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.place-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e3ddd3; border-radius: 12px; background: #fffdf8; }
+.place-card-media { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #eee8dd; }
+.place-card-hero { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; }
+.place-card-hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.place-card-name { position: absolute; right: 0; bottom: 0; left: 0; margin: 0; padding: 1.5rem .55rem .5rem; color: #fff; font-family: inherit; font-size: .92rem; font-weight: 600; line-height: 1.15; text-align: left; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; background: linear-gradient(to top, rgb(18 14 10 / .72), rgb(18 14 10 / .28) 55%, transparent); }
+.place-card-body { display: flex; flex-direction: column; gap: .5rem; padding: .6rem; }
+.place-card-meta { display: grid; gap: .15rem; }
+.place-card-category { color: #9c332b; font-size: .7rem; font-weight: 750; letter-spacing: .01em; }
+.place-card-facts { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .6rem; color: #756d63; font-size: .72rem; }
+.place-card-facts span { display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap; }
+.place-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; margin-top: auto; }
+.place-card-actions button { min-height: 2.1rem; display: inline-flex; align-items: center; justify-content: center; gap: .25rem; padding: .25rem .3rem; border: 1px solid #e3ddd3; border-radius: 8px; color: #8f3028; background: #fffdf8; font-size: .72rem; font-weight: 750; }
+.place-card-actions button:disabled { color: #486034; background: #eef3e7; opacity: 1; }
+.place-card:not(.place-card--list) .place-card-actions button span { display: none; }
 .detail-backdrop { position: fixed; z-index: 50; inset: 0; display: flex; justify-content: flex-end; background: rgb(30 25 20 / .46); }
 .detail-panel { position: relative; width: 100%; height: 100%; overflow-y: auto; background: #f7f4ed; }
 .detail-back { position: fixed; z-index: 2; top: 1rem; left: 1rem; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / .65); border-radius: 50%; color: #fff; background: rgb(33 29 25 / .72); }
@@ -244,13 +243,6 @@ input:focus { border-color: #b33a2e; }
 .radius-controls { display: flex; flex-wrap: wrap; gap: .45rem; align-items: end; }
 .radius-controls button { min-width: 3.3rem; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid #cfc6b8; border-radius: 999px; color: #5d554d; background: #fffdf8; }
 .radius-controls button.is-active { border-color: #9f342a; color: #fff; background: #9f342a; }
-.place-category { color: #9c332b; font-size: .72rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
-.place-card h2 { margin: .25rem 0 .4rem; font-size: 1.02rem; }
-.place-card-meta { display: flex; flex-wrap: wrap; gap: .55rem .7rem; color: #756d63; font-size: .74rem; }
-.place-card-meta span { display: inline-flex; align-items: center; gap: .35rem; }
-.place-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; margin-top: .8rem; padding-top: .8rem; border-top: 1px solid #e3ddd3; }
-.place-card-actions button { min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .42rem; border: 1px solid #d4cabd; border-radius: .35rem; color: #8f3028; background: transparent; font-size: .72rem; font-weight: 800; }
-.place-card-actions button:disabled { color: #486034; background: #eef3e7; opacity: 1; }
 .inline-reset-button { width: 100%; max-width: 18rem; margin: 1rem auto 0; }
 .recommendation-panel { display: grid; gap: 1rem; margin-bottom: 1.35rem; padding: clamp(1rem, 2.5vw, 1.4rem); border: 1px solid #d6caa9; background: linear-gradient(135deg, #fffaf0, #fff7e6); }
 .recommendation-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
@@ -529,9 +521,11 @@ input:focus { border-color: #b33a2e; }
 .display-mode-toggle button { min-height: 2.3rem; display: inline-flex; align-items: center; gap: .3rem; padding: 0 .55rem; border: 0; border-radius: .45rem; color: #5f574f; background: transparent; font-size: .82rem; font-weight: 750; }
 .display-mode-toggle button.is-active { color: #fffaf1; background: #9f342a; }
 .place-grid--list { grid-template-columns: 1fr; }
-.place-card--list { display: grid; grid-template-columns: 7.5rem 1fr; }
-.place-card--list .place-image-button { height: 100%; }
-.place-card--list .place-image-button img { height: 100%; }
+.place-card--list { display: grid; grid-template-columns: 40% minmax(0, 1fr); min-height: 150px; }
+.place-card--list .place-card-media { aspect-ratio: auto; height: 100%; min-height: 150px; }
+.place-card--list .place-card-name { padding: 1.5rem .6rem .55rem; font-size: .95rem; -webkit-line-clamp: 2; }
+.place-card--list .place-card-body { padding: .65rem .75rem; }
+.place-card--list .place-card-actions button { min-height: 2.4rem; font-size: .74rem; }
 
 .tool-stack { display: grid; gap: 1rem; }
 .tool-section { padding: 1.1rem; border: 1px solid #d4ccbf; border-radius: .6rem; background: #fffdf8; }
@@ -672,13 +666,6 @@ input:focus { border-color: #b33a2e; }
   .assistant-icon { position: static; margin-bottom: .8rem; }
   .place-grid { grid-template-columns: 1fr 1fr; gap: .75rem; }
   .place-grid--list { grid-template-columns: 1fr; }
-  .place-card { display: block; }
-  .place-image-button, .place-image-button img { height: auto; }
-  .place-card-placeholder { height: 100%; aspect-ratio: auto; border-bottom: 0; border-right: 1px solid #e3ddd3; }
-  .place-card p { min-height: 0; }
-  .place-card--list { display: grid; grid-template-columns: 6.5rem 1fr; }
-  .place-card--list .place-image-button { height: 100%; }
-  .place-card--list .place-image-button img { height: 100%; object-fit: cover; }
   .place-filters { grid-template-columns: 1fr; }
   .place-filters select, .place-search input { width: 100%; }
   .radius-controls { width: 100%; margin-left: 0; }

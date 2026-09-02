@@ -1,4 +1,4 @@
-import { Bookmark, Check, CircleAlert, Clock3, MapPinned, Milestone, Plus } from "lucide-react"
+import { Bookmark, Check, Clock3, MapPinned, Milestone, Plus } from "lucide-react"
 import {
   formatCategoryLabel,
   formatDurationHours,
@@ -7,7 +7,7 @@ import {
   type PlaceSummary,
 } from "../../../../../packages/shared/src"
 import { haversineKilometres } from "../../lib/navigation"
-import { useLocale, type TranslationKey } from "../../lib/i18n"
+import { useLocale } from "../../lib/i18n"
 
 type PlaceCardProps = {
   place: PlaceSummary
@@ -21,17 +21,6 @@ type PlaceCardProps = {
   onSave: (placeId: string) => Promise<void>
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
   onShowOnMap: (placeId: string) => void
-}
-
-function reviewLabel(reviewDueAt: string | null | undefined, t: (key: TranslationKey, vars?: Record<string, string | number>) => string) {
-  if (!reviewDueAt) {
-    return t("attr.reviewDatePending")
-  }
-
-  const date = reviewDueAt.slice(0, 10)
-  return reviewDueAt < new Date().toISOString()
-    ? t("attr.sourceRecheckDue", { date })
-    : t("attr.reviewDue", { date })
 }
 
 export function PlaceCard({
@@ -52,22 +41,24 @@ export function PlaceCard({
 
   return (
     <article className={mode === "list" ? "place-card place-card--list" : "place-card"}>
-      <button
-        className="place-image-button"
-        type="button"
-        aria-label={t("attr.detailsFor", { name: place.name })}
-        onClick={() => onDetails(place.id)}
-      >
-        <img src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
-      </button>
-      <div className="place-card-copy">
-        <span className="place-category">{formatCategoryLabel(place.categoryCode)}</span>
-        <h2>{place.name}</h2>
-        <p>{place.shortIntro}</p>
+      <div className="place-card-media">
+        <button
+          className="place-card-hero"
+          type="button"
+          aria-label={t("attr.detailsFor", { name: place.name })}
+          onClick={() => onDetails(place.id)}
+        >
+          <img src={resolvePlaceImage(place.id)} alt="" />
+        </button>
+        <h3 className="place-card-name">{place.name}</h3>
+      </div>
+      <div className="place-card-body">
         <div className="place-card-meta">
-          <span><Clock3 aria-hidden="true" size={15} />{formatDurationHours(place.durationMinutes)}</span>
-          {distanceKm !== null && <span><Milestone aria-hidden="true" size={15} />{t("common.kmAway", { n: distanceKm.toFixed(1) })}</span>}
-          <span><CircleAlert aria-hidden="true" size={15} />{reviewLabel(place.reviewDueAt, t)}</span>
+          <span className="place-card-category">{formatCategoryLabel(place.categoryCode)}</span>
+          <div className="place-card-facts">
+            <span><Clock3 aria-hidden="true" size={13} />{formatDurationHours(place.durationMinutes)}</span>
+            {distanceKm !== null && <span><Milestone aria-hidden="true" size={13} />{distanceKm.toFixed(1)} km</span>}
+          </div>
         </div>
         <div className="place-card-actions">
           <button
@@ -76,11 +67,12 @@ export function PlaceCard({
             disabled={busy === `save-${place.id}`}
             onClick={() => void onSave(place.id)}
           >
-            {saved ? <Check aria-hidden="true" size={16} /> : <Bookmark aria-hidden="true" size={16} />}
-            {saved ? t("attr.saved") : t("attr.save")}
+            {saved ? <Check aria-hidden="true" size={15} /> : <Bookmark aria-hidden="true" size={15} />}
+            <span>{saved ? t("attr.saved") : t("attr.save")}</span>
           </button>
           <button type="button" aria-label={t("attr.showOnMap", { name: place.name })} onClick={() => onShowOnMap(place.id)}>
-            <MapPinned aria-hidden="true" size={16} />{t("attr.map")}
+            <MapPinned aria-hidden="true" size={15} />
+            <span>{t("attr.map")}</span>
           </button>
           <button
             type="button"
@@ -88,8 +80,8 @@ export function PlaceCard({
             aria-label={planned ? t("attr.isPlanned", { name: place.name }) : t("attr.addToDayName", { name: place.name, day: selectedDay })}
             onClick={() => void onAdd(place.id, selectedDay)}
           >
-            {planned ? <Check aria-hidden="true" size={16} /> : <Plus aria-hidden="true" size={16} />}
-            {planned ? t("attr.planned") : t("common.dayN", { n: selectedDay })}
+            {planned ? <Check aria-hidden="true" size={15} /> : <Plus aria-hidden="true" size={15} />}
+            <span>{planned ? t("attr.planned") : t("common.dayN", { n: selectedDay })}</span>
           </button>
         </div>
       </div>
