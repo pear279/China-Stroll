@@ -1,5 +1,6 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { LocationSharingSnapshot, PlaceSummary, ReservationDraft, TripSnapshot } from "../../../../../packages/shared/src"
 import { MineView, type MineViewProps } from "./MineView"
@@ -108,46 +109,47 @@ function createProps(): MineViewProps {
   }
 }
 
+function renderMine(props: MineViewProps = createProps()) {
+  return render(<MemoryRouter><MineView {...props} /></MemoryRouter>)
+}
+
 describe("MineView", () => {
   afterEach(cleanup)
 
-  it("shows the selected day and forwards itinerary selection", async () => {
+  it("shows the selected day's stops as cards and forwards selection", async () => {
     const props = createProps()
-    render(<MineView {...props} />)
+    renderMine(props)
 
-    expect(screen.getByRole("heading", { name: "Day 2 itinerary" })).toBeTruthy()
-    await userEvent.click(screen.getAllByRole("button", { name: /Jingshan Park/ })[0])
+    expect(screen.getByRole("button", { name: /Jingshan Park.*min/ })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /Jingshan Park.*min/ }))
     expect(props.onSelectPlace).toHaveBeenCalledWith("jingshan-park")
   })
 
-  it("adds a reviewed attraction to the selected day and exposes order controls", async () => {
+  it("removes an added stop from the selected day", async () => {
     const props = createProps()
-    render(<MineView {...props} />)
-    const user = userEvent.setup()
+    renderMine(props)
 
-    await user.selectOptions(screen.getByLabelText("Add reviewed attraction"), "beihai-park")
-    await user.click(screen.getByRole("button", { name: "Add to Day 2" }))
-    expect(props.onAddPlace).toHaveBeenCalledWith("beihai-park", 2)
-    expect(screen.getByRole("button", { name: "Remove Jingshan Park" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Move Jingshan Park down" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Remove Jingshan Park" }))
+    expect(props.onRemoveStop).toHaveBeenCalledWith("stop-1")
   })
 
   it("saves a user-entered reservation draft", async () => {
     const props = createProps()
-    render(<MineView {...props} />)
+    renderMine(props)
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole("button", { name: "预约列表" }))
-    await user.click(screen.getByRole("button", { name: "添加预约" }))
-    await user.type(screen.getByLabelText("名称"), "Museum entry")
-    await user.selectOptions(screen.getByLabelText("预约类型"), "attraction")
-    await user.click(screen.getByRole("button", { name: "保存预约" }))
+    await user.click(screen.getByRole("button", { name: "Reservations" }))
+    await user.click(screen.getByRole("button", { name: "New reservation" }))
+    const dialog = await screen.findByRole("dialog", { name: "New reservation" })
+    await user.type(within(dialog).getByLabelText("Name"), "Museum entry")
+    await user.selectOptions(within(dialog).getByLabelText("Type"), "attraction")
+    await user.click(within(dialog).getByRole("button", { name: "Save reservation" }))
 
     expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))
   })
 
   it("renders location sharing off by default with explicit privacy limits", () => {
-    render(<MineView {...createProps()} />)
+    renderMine()
 
     expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("false")
     expect(screen.getByText("Location sharing is off")).toBeTruthy()
@@ -164,10 +166,10 @@ describe("MineView", () => {
       status: "sharing",
       snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing" },
     }
-    render(<MineView {...props} />)
+    renderMine(props)
 
     expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("true")
-    expect(screen.getByText("Sharing with 2 other active trip members.")).toBeTruthy()
+    expect(screen.getByText("Sharing with 2 other active trip member(s).")).toBeTruthy()
   })
 
   it("explains when no active peer can receive a shared point", () => {
@@ -177,7 +179,7 @@ describe("MineView", () => {
       status: "sharing",
       snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing", activeMemberCount: 1 },
     }
-    render(<MineView {...props} />)
+    renderMine(props)
 
     expect(screen.getByText("No other active trip members can view your location right now.")).toBeTruthy()
   })
@@ -189,10 +191,10 @@ describe("MineView", () => {
       status: "permission-denied",
       snapshot: { ...offLocationSnapshot, status: "permission-denied" },
     }
-    render(<MineView {...props} />)
+    renderMine(props)
 
     expect(screen.getByRole("alert").textContent).toContain("Location permission was denied")
-    expect(screen.getByRole("heading", { name: "Day 2 itinerary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /Jingshan Park.*min/ })).toBeTruthy()
   })
 
   it("offers a retry when server revocation fails", async () => {
@@ -202,7 +204,7 @@ describe("MineView", () => {
       status: "revoke-failed",
       snapshot: { ...offLocationSnapshot, enabled: true, status: "revoke-failed" },
     }
-    render(<MineView {...props} />)
+    renderMine(props)
 
     expect(screen.getByRole("alert").textContent).toContain("server revocation failed")
     await userEvent.click(screen.getByRole("button", { name: "Retry revocation" }))
@@ -216,7 +218,7 @@ describe("MineView", () => {
       status: "dependency-unavailable",
       snapshot: { ...offLocationSnapshot, enabled: true, status: "dependency-unavailable" },
     }
-    render(<MineView {...props} />)
+    renderMine(props)
 
     const sharingSwitch = screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement
     expect(sharingSwitch.disabled).toBe(false)
@@ -232,7 +234,7 @@ describe("MineView", () => {
       snapshot: null,
     }
     props.mode = "preview"
-    render(<MineView {...props} />)
+    renderMine(props)
 
     expect((screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText("Location sharing is unavailable in preview.")).toBeTruthy()
@@ -241,28 +243,13 @@ describe("MineView", () => {
 
   it("saves edited day details", async () => {
     const props = createProps()
-    render(<MineView {...props} />)
+    renderMine(props)
     const user = userEvent.setup()
 
     await user.type(screen.getByLabelText("Title"), "Museum morning")
     await user.click(screen.getByRole("button", { name: "Save day details" }))
 
     expect(props.itineraryEditing.onEditDay).toHaveBeenCalledWith(2, expect.objectContaining({ title: "Museum morning" }))
-  })
-
-  it("edits a stop's transport and notes through the inline editor", async () => {
-    const props = createProps()
-    render(<MineView {...props} />)
-    const user = userEvent.setup()
-
-    await user.click(screen.getByRole("button", { name: "Edit Jingshan Park" }))
-    await user.selectOptions(screen.getByLabelText("Transport"), "taxi")
-    await user.click(screen.getByRole("button", { name: "Save stop" }))
-
-    expect(props.itineraryEditing.onEditStop).toHaveBeenCalledWith(
-      "stop-1",
-      expect.objectContaining({ transportMode: "taxi" }),
-    )
   })
 
   it("drafts a reservation from pasted text without saving it", async () => {
@@ -277,17 +264,17 @@ describe("MineView", () => {
       confirmationCode: "12345",
       notes: "",
     }))
-    render(<MineView {...props} />)
+    renderMine(props)
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole("button", { name: "预约列表" }))
-    await user.click(screen.getByRole("button", { name: "添加预约" }))
-    await user.click(screen.getByRole("button", { name: "AI 代填草稿" }))
-    await user.type(screen.getByLabelText("粘贴预约信息"), "Hotel check-in, confirmation 12345")
-    await user.click(screen.getByRole("button", { name: "生成草稿" }))
+    await user.click(screen.getByRole("button", { name: "Reservations" }))
+    await user.click(screen.getByRole("button", { name: "New reservation" }))
+    await user.click(screen.getByRole("button", { name: "AI draft" }))
+    await user.type(screen.getByLabelText("AI draft"), "Hotel check-in, confirmation 12345")
+    await user.click(screen.getByRole("button", { name: "Generate draft" }))
 
     expect(props.itineraryEditing.onDraftReservation).toHaveBeenCalledWith("Hotel check-in, confirmation 12345")
-    expect(await screen.findByText(/已生成草稿/i)).toBeTruthy()
+    expect(await screen.findByText(/Draft generated/i)).toBeTruthy()
     expect(props.onCreateReservation).not.toHaveBeenCalled()
   })
 })

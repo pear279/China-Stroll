@@ -1,18 +1,20 @@
 import { Binoculars, Map, UserRound, Wrench, type LucideIcon } from "lucide-react"
 import { NavLink } from "react-router-dom"
+import { useLocale, type TranslationKey } from "../lib/i18n"
 import type { ModulePath } from "./types"
 
-export const MODULES = [
-  { path: "/attractions", label: "景点", icon: Binoculars },
-  { path: "/map", label: "地图", icon: Map },
-  { path: "/tools", label: "工具", icon: Wrench },
-  { path: "/me", label: "我的", icon: UserRound },
-] as const satisfies readonly { path: ModulePath; label: string; icon: LucideIcon }[]
+const MODULE_KEYS = [
+  { path: "/attractions", key: "nav.attractions", icon: Binoculars },
+  { path: "/map", key: "nav.map", icon: Map },
+  { path: "/tools", key: "nav.tools", icon: Wrench },
+  { path: "/me", key: "nav.mine", icon: UserRound },
+] as const satisfies readonly { path: ModulePath; key: TranslationKey; icon: LucideIcon }[]
 
 export function BottomNavigation() {
+  const { t } = useLocale()
   return (
     <nav className="bottom-navigation" aria-label="Primary">
-      {MODULES.map(({ path, label, icon: Icon }) => (
+      {MODULE_KEYS.map(({ path, key, icon: Icon }) => (
         <NavLink
           key={path}
           to={path}
@@ -21,7 +23,7 @@ export function BottomNavigation() {
           {({ isActive }) => (
             <>
               <Icon aria-hidden="true" size={20} />
-              <span>{label}</span>
+              <span>{t(key)}</span>
               {isActive && <span className="sr-only">Current page</span>}
             </>
           )}

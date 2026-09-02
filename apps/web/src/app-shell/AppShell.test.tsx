@@ -163,9 +163,9 @@ afterEach(() => {
 
 describe("AppShell", () => {
   it.each([
-    ["/attractions", "景点"],
-    ["/map", "地图"],
-    ["/tools", "工具"],
+    ["/attractions", "Attractions"],
+    ["/map", "Map"],
+    ["/tools", "Tools"],
     ["/me", "My trip"],
   ])("renders %s", async (path, heading) => {
     render(<MemoryRouter initialEntries={[path]}><AppShell {...props} /></MemoryRouter>)
@@ -174,7 +174,7 @@ describe("AppShell", () => {
 
   it("redirects unknown paths to Attractions", async () => {
     render(<MemoryRouter initialEntries={["/unknown"]}><AppShell {...props} /></MemoryRouter>)
-    expect(await screen.findByRole("heading", { name: "景点" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "Attractions" })).toBeTruthy()
   })
 
   it("keeps a selected place when moving from Attractions to Map", async () => {
@@ -182,14 +182,14 @@ describe("AppShell", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Show The Palace Museum on map" }))
 
-    expect(await screen.findByRole("heading", { name: "地图" })).toBeTruthy()
-    expect(screen.getByRole("dialog", { name: "The Palace Museum 地图操作" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy()
+    expect(screen.getByRole("dialog", { name: "The Palace Museum map actions" })).toBeTruthy()
   })
 
   it("filters attractions through the shared search state", async () => {
     render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
 
-    await userEvent.type(screen.getByRole("searchbox", { name: "搜索景点" }), "国博")
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search places" }), "国博")
 
     expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
     expect(screen.queryByRole("heading", { name: "The Palace Museum" })).toBeNull()
@@ -198,10 +198,10 @@ describe("AppShell", () => {
   it("passes only the visible attractions into recommendation candidates", async () => {
     render(<MemoryRouter initialEntries={["/attractions"]}><AppShell {...props} /></MemoryRouter>)
 
-    await userEvent.type(screen.getByRole("searchbox", { name: "搜索景点" }), "国博")
-    await userEvent.click(screen.getByRole("button", { name: "景点个性化推荐" }))
-    await userEvent.click(screen.getByRole("button", { name: "历史文化" }))
-    await userEvent.click(screen.getByRole("button", { name: "发送" }))
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search places" }), "国博")
+    await userEvent.click(screen.getByRole("button", { name: "Personalized recommendations" }))
+    await userEvent.click(screen.getByRole("button", { name: "History & culture" }))
+    await userEvent.click(screen.getByRole("button", { name: "Send" }))
 
     expect(repository.recommendPlaces).toHaveBeenCalledWith(expect.objectContaining({
       candidatePlaceIds: ["national-museum-of-china"],
@@ -217,7 +217,7 @@ describe("AppShell", () => {
     await user.click(opener)
     expect(await screen.findByRole("dialog", { name: "The Palace Museum" })).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "返回" }))
+    await user.click(screen.getByRole("button", { name: "Back" }))
 
     expect(document.activeElement).toBe(opener)
   })

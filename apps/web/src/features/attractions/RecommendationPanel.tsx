@@ -7,6 +7,7 @@ import type {
   PlaceRecommendationResponse,
   PlaceSummary,
 } from "../../../../../packages/shared/src"
+import { useLocale, type TranslationKey } from "../../lib/i18n"
 
 type RecommendationPanelProps = {
   places: PlaceSummary[]
@@ -23,19 +24,19 @@ type RecommendationPanelProps = {
 }
 
 const preferenceOptions = [
-  { id: "history", label: "历史文化" },
-  { id: "family", label: "亲子" },
-  { id: "photography", label: "摄影" },
-  { id: null, label: "美食" },
-  { id: null, label: "建筑" },
-  { id: null, label: "博物馆" },
-  { id: null, label: "自然风景" },
-  { id: null, label: "小众" },
-  { id: null, label: "夜游" },
-] as const satisfies Array<{ id: PlaceRecommendationInput["preferences"][number] | null; label: string }>
+  { id: "history", token: "history", labelKey: "attr.tagHistory" },
+  { id: "family", token: "family", labelKey: "attr.tagFamily" },
+  { id: "photography", token: "photography", labelKey: "attr.tagPhotography" },
+  { id: null, token: "food", labelKey: "attr.tagFood" },
+  { id: null, token: "architecture", labelKey: "attr.tagArchitecture" },
+  { id: null, token: "museum", labelKey: "attr.tagMuseum" },
+  { id: null, token: "nature", labelKey: "attr.tagNature" },
+  { id: null, token: "niche", labelKey: "attr.tagNiche" },
+  { id: null, token: "night", labelKey: "attr.tagNight" },
+] as const satisfies Array<{ id: PlaceRecommendationInput["preferences"][number] | null; token: string; labelKey: TranslationKey }>
 
 const labelToId = new Map<string, PlaceRecommendationInput["preferences"][number]>(
-  preferenceOptions.filter((option) => option.id !== null).map((option) => [option.label, option.id!] as const),
+  preferenceOptions.filter((option) => option.id !== null).map((option) => [option.token, option.id!] as const),
 )
 
 type RecommendationState =
@@ -57,6 +58,7 @@ export function RecommendationPanel({
   onDetails,
   onAdd,
 }: RecommendationPanelProps) {
+  const { t } = useLocale()
   const [input, setInput] = useState("")
   const [state, setState] = useState<RecommendationState>({ status: "idle" })
   const [busyPlaceId, setBusyPlaceId] = useState<string | null>(null)
@@ -68,11 +70,11 @@ export function RecommendationPanel({
   const selectedPreferences = [...new Set(tokens.filter((token) => labelToId.has(token)).map((token) => labelToId.get(token)!))]
   const context = tokens.filter((token) => !labelToId.has(token)).join(" ")
 
-  function addTag(label: string) {
+  function addTag(token: string) {
     const current = input.split(/\s+/).filter(Boolean)
-    if (current.includes(label)) return
-    if (current.filter((token) => preferenceOptions.some((option) => option.label === token)).length >= 5) return
-    setInput((value) => value.trim() ? `${value.trim()} ${label}` : label)
+    if (current.includes(token)) return
+    if (current.filter((item) => preferenceOptions.some((option) => option.token === item)).length >= 5) return
+    setInput((value) => value.trim() ? `${value.trim()} ${token}` : token)
   }
 
   async function handleSubmit() {
@@ -90,7 +92,7 @@ export function RecommendationPanel({
       })
       setState({ status: "ready", response })
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Recommendations are unavailable right now."
+      const message = error instanceof Error ? error.message : t("attr.recommendFailed")
       setState({ status: "failed", message })
     }
   }
@@ -111,7 +113,10 @@ export function RecommendationPanel({
         .slice(0, 3)
     : []
 
-  const preferenceLabel = selectedPreferences.map((preference) => preferenceOptions.find((option) => option.id === preference)?.label ?? preference).join("、")
+  const preferenceLabel = selectedPreferences.map((preference) => {
+    const option = preferenceOptions.find((item) => item.id === preference)
+    return option ? t(option.labelKey) : preference
+  }).join("、")
 
   const canSend = tokens.length > 0
 
@@ -119,17 +124,17 @@ export function RecommendationPanel({
     <section className="recommendation-panel" aria-labelledby="recommendation-heading">
       <div className="recommendation-heading">
         <div>
-          <span className="eyebrow">个性化推荐</span>
-          <h2 id="recommendation-heading">景点个性化推荐</h2>
+          <span className="eyebrow">{t("attr.recEyebrow")}</span>
+          <h2 id="recommendation-heading">{t("attr.personalRecommend")}</h2>
         </div>
       </div>
 
-      <div className="recommendation-tags" role="group" aria-label="旅游偏好标签">
+      <div className="recommendation-tags" role="group" aria-label={t("attr.recTagsLabel")}>
         {preferenceOptions.map((option) => {
-          const active = tokens.includes(option.label)
+          const active = tokens.includes(option.token)
           return (
-            <button key={option.id} type="button" className={active ? "is-active" : undefined} aria-pressed={active} onClick={() => addTag(option.label)}>
-              {option.label}
+            <button key={option.token} type="button" className={active ? "is-active" : undefined} aria-pressed={active} onClick={() => addTag(option.token)}>
+              {t(option.labelKey)}
             </button>
           )
         })}
@@ -139,25 +144,25 @@ export function RecommendationPanel({
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="添加标签帮你推荐景点"
-          aria-label="推荐偏好输入"
+          placeholder={t("attr.recommendPlaceholder")}
+          aria-label={t("attr.recInputLabel")}
         />
         <button type="button" className={canSend ? "is-ready" : undefined} disabled={!canSend || state.status === "loading"} onClick={() => void handleSubmit()}>
           {state.status === "loading" ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}
-          <span>发送</span>
+          <span>{t("attr.send")}</span>
         </button>
       </div>
 
       {state.status === "loading" && (
         <div className="recommendation-state" role="status">
           <LoaderCircle className="spin" aria-hidden="true" size={20} />
-          <p>正在分析你的偏好并匹配景点…</p>
+          <p>{t("attr.analyzing")}</p>
         </div>
       )}
 
       {state.status === "failed" && (
         <div className="recommendation-state recommendation-state-error" role="status">
-          <p>{state.message || "推荐暂时不可用。"}</p>
+          <p>{state.message || t("attr.recommendFailed")}</p>
         </div>
       )}
 
@@ -165,12 +170,12 @@ export function RecommendationPanel({
         <div className="recommendation-results" aria-live="polite">
           <div className="recommendation-answer" role="status">
             <Sparkles aria-hidden="true" size={16} />
-            <p>根据用户输入的“{tokens.join(" ")}”内容，分析得出用户偏好{preferenceLabel || "通用"}游玩偏好，推荐{recommendationNames.length ? recommendationNames.join("、") : "暂无"}景点。</p>
+            <p>{t("attr.recommendAnswer", { tags: tokens.join(" "), prefs: preferenceLabel || t("attr.recGeneric"), places: recommendationNames.length ? recommendationNames.join("、") : t("attr.recNone") })}</p>
           </div>
 
           {state.response.results.length === 0 ? (
             <div className="recommendation-state" role="status">
-              <p>没有景点符合当前偏好与筛选条件。</p>
+              <p>{t("attr.recNoMatch")}</p>
             </div>
           ) : (
             state.response.results.map((result) => {
@@ -184,9 +189,9 @@ export function RecommendationPanel({
                     <p>{result.reason}</p>
                   </div>
                   <div className="recommendation-result-actions">
-                    <button type="button" onClick={() => onDetails(place.id)}>详情</button>
+                    <button type="button" onClick={() => onDetails(place.id)}>{t("common.details")}</button>
                     <button type="button" disabled={planned || busyPlaceId === place.id} onClick={() => void handleAdd(place.id)}>
-                      {planned ? "已加入" : `加入第 ${selectedDay} 天`}
+                      {planned ? t("attr.planned") : t("attr.addToDay", { day: selectedDay })}
                     </button>
                   </div>
                 </article>

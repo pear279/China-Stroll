@@ -11,6 +11,7 @@ import type {
 import { haversineKilometres } from "../../lib/navigation"
 import { resolvePlaceImage } from "../../../../../packages/shared/src"
 import type { LocationStatus, NearbyRadius, PlacesState } from "../../app-shell/types"
+import { useLocale } from "../../lib/i18n"
 import { PlaceCard } from "./PlaceCard"
 import { PlaceFilters } from "./PlaceFilters"
 import { RecommendationPanel } from "./RecommendationPanel"
@@ -77,6 +78,7 @@ export function AttractionsView({
   onSelectDay,
 }: AttractionsViewProps) {
   const locationMessageId = "attractions-location-message"
+  const { t } = useLocale()
   const [displayMode, setDisplayMode] = useState<"grid" | "list">("grid")
   const [showRecommendation, setShowRecommendation] = useState(false)
 
@@ -93,10 +95,10 @@ export function AttractionsView({
     <section className="module-view attractions-view" aria-labelledby="attractions-heading">
       <div className="attractions-top-row">
         {nearest ? (
-          <button className="nearest-card" type="button" onClick={() => onOpenDetails(nearest.id)} aria-label={`${nearest.name} 详情`}>
+          <button className="nearest-card" type="button" onClick={() => onOpenDetails(nearest.id)} aria-label={`${t(userCoordinate ? "attr.nearest" : "attr.recommended")}: ${nearest.name}`}>
             <img src={resolvePlaceImage(nearest.id)} alt="" />
             <span>
-              <small>{userCoordinate ? "最近景点" : "推荐景点"}</small>
+              <small>{t(userCoordinate ? "attr.nearest" : "attr.recommended")}</small>
               <strong>{nearest.name}</strong>
               {nearestDistance !== null && <em>{nearestDistance.toFixed(1)} km</em>}
             </span>
@@ -104,17 +106,17 @@ export function AttractionsView({
         ) : (
           <div className="nearest-card nearest-card--empty">
             <span>
-              <small>推荐景点</small>
-              <strong>{placesState === "loading" ? "加载中…" : "暂无景点"}</strong>
+              <small>{t("attr.recommended")}</small>
+              <strong>{t(placesState === "loading" ? "attr.loadingShort" : "attr.empty")}</strong>
             </span>
           </div>
         )}
-        <button className="locate-button" type="button" onClick={onRequestLocation} disabled={locationStatus === "loading"} aria-label="更新定位">
+        <button className="locate-button" type="button" onClick={onRequestLocation} disabled={locationStatus === "loading"} aria-label={t("attr.locate")}>
           {locationStatus === "loading" ? <LoaderCircle className="spin" size={20} /> : <Crosshair size={20} />}
         </button>
       </div>
 
-      <h1 className="attractions-title" id="attractions-heading">景点</h1>
+      <h1 className="attractions-title" id="attractions-heading">{t("attr.title")}</h1>
 
       {placesState === "ready" && places.length > 0 && (
         <PlaceFilters
@@ -132,11 +134,11 @@ export function AttractionsView({
         />
       )}
 
-      {locationStatus === "failed" && <p className="location-unavailable" id={locationMessageId}><MapPinOff aria-hidden="true" size={15} />定位不可用，仍可浏览全部景点。</p>}
+      {locationStatus === "failed" && <p className="location-unavailable" id={locationMessageId}><MapPinOff aria-hidden="true" size={15} />{t("attr.locationUnavailable")}</p>}
 
       <button className="recommend-toggle" type="button" aria-expanded={showRecommendation} onClick={() => setShowRecommendation((current) => !current)}>
         <Sparkles aria-hidden="true" size={17} />
-        景点个性化推荐
+        {t("attr.personalRecommend")}
         {showRecommendation ? <ChevronUp aria-hidden="true" size={17} /> : <ChevronDown aria-hidden="true" size={17} />}
       </button>
 
@@ -157,52 +159,52 @@ export function AttractionsView({
       )}
 
       <label className="attraction-day-picker">
-        加入日程
+        {t("attr.joinItinerary")}
         <select value={selectedDay} onChange={(event) => onSelectDay(Number(event.target.value))}>
-          {tripDays.map((day) => <option key={day.id} value={day.dayNumber}>第 {day.dayNumber} 天{day.date ? ` · ${day.date}` : ""}</option>)}
+          {tripDays.map((day) => <option key={day.id} value={day.dayNumber}>{t("common.dayN", { n: day.dayNumber })}{day.date ? ` · ${day.date}` : ""}</option>)}
         </select>
       </label>
 
       {placesState === "loading" && (
         <div className="empty-plan" role="status">
           <LoaderCircle className="spin" aria-hidden="true" size={26} />
-          <p>加载景点中…</p>
+          <p>{t("attr.loading")}</p>
         </div>
       )}
 
       {placesState === "failed" && (
         <div className="empty-plan" role="status">
           <Compass aria-hidden="true" size={28} />
-          <h2>景点暂时不可用。</h2>
-          <p>已保存的行程仍然可用，稍后再试。</p>
+          <h2>{t("attr.unavailable")}</h2>
+          <p>{t("attr.savedItinerary")}</p>
         </div>
       )}
 
       {placesState === "ready" && places.length === 0 && (
         <div className="empty-plan" role="status">
           <Compass aria-hidden="true" size={28} />
-          <h2>暂无可用景点。</h2>
+          <h2>{t("attr.empty")}</h2>
         </div>
       )}
 
       {placesState === "ready" && places.length > 0 && visiblePlaces.length === 0 && (
         <div className="empty-plan" role="status">
           <Compass aria-hidden="true" size={28} />
-          <h2>没有景点符合筛选条件。</h2>
-          <p>放宽距离、分类或游览时间以查看更多。</p>
+          <h2>{t("attr.noMatch")}</h2>
+          <p>{t("attr.widenFilters")}</p>
           <button type="button" className="secondary-button inline-reset-button" onClick={onResetFilters}>
-            重置搜索与筛选
+            {t("attr.resetFilters")}
           </button>
         </div>
       )}
 
       {visiblePlaces.length > 0 && (
-        <div className="display-mode-toggle" role="group" aria-label="展示方式">
+        <div className="display-mode-toggle" role="group" aria-label={t("attr.displayMode")}>
           <button type="button" className={displayMode === "grid" ? "is-active" : undefined} aria-pressed={displayMode === "grid"} onClick={() => setDisplayMode("grid")}>
-            <LayoutGrid aria-hidden="true" size={16} />图标
+            <LayoutGrid aria-hidden="true" size={16} />{t("attr.grid")}
           </button>
           <button type="button" className={displayMode === "list" ? "is-active" : undefined} aria-pressed={displayMode === "list"} onClick={() => setDisplayMode("list")}>
-            <List aria-hidden="true" size={16} />列表
+            <List aria-hidden="true" size={16} />{t("attr.list")}
           </button>
         </div>
       )}

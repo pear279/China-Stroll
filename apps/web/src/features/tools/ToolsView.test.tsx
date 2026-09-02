@@ -31,8 +31,8 @@ describe("ToolsView", () => {
   it("opens the full-screen AI chat with a back button", async () => {
     render(<ToolsView mode="account" accessToken="token" />)
 
-    await userEvent.click(screen.getByRole("button", { name: /AI问答/ }))
-    expect(screen.getByRole("button", { name: "返回" })).toBeTruthy()
-    expect(screen.getByLabelText("输入问题")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /AI Chat/ }))
+    expect(screen.getByRole("button", { name: "Back" })).toBeTruthy()
+    expect(screen.getByLabelText("Enter a question")).toBeTruthy()
   })
 })

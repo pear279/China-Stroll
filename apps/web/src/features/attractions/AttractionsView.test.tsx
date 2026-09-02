@@ -124,7 +124,7 @@ describe("AttractionsView", () => {
     const props = createProps()
     render(<AttractionsView {...props} />)
 
-    expect(screen.getByText(/定位不可用/)).toBeTruthy()
+    expect(screen.getByText(/Location unavailable/)).toBeTruthy()
     expect(screen.getByRole("heading", { name: "The Palace Museum" })).toBeTruthy()
     await userEvent.click(screen.getByRole("button", { name: "Details for The Palace Museum" }))
     expect(props.onOpenDetails).toHaveBeenCalledWith("forbidden-city")
@@ -140,35 +140,35 @@ describe("AttractionsView", () => {
       />,
     )
 
-    expect(screen.getByText("加载景点中…")).toBeTruthy()
+    expect(screen.getByText("Loading places…")).toBeTruthy()
   })
 
   it("searches reviewed fields and resets an empty result", async () => {
     const user = userEvent.setup()
     render(<AttractionsHarness />)
 
-    const search = screen.getByRole("searchbox", { name: "搜索景点" })
+    const search = screen.getByRole("searchbox", { name: "Search places" })
     await user.type(search, "国博")
     expect(screen.getByRole("heading", { name: "National Museum of China" })).toBeTruthy()
 
     await user.clear(search)
     await user.type(search, "blue umbrella")
-    expect(screen.getByRole("heading", { name: "没有景点符合筛选条件。" })).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "No places match these filters." })).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "重置搜索与筛选" }))
+    await user.click(screen.getByRole("button", { name: "Reset filters" }))
     expect(screen.getAllByRole("article")).toHaveLength(2)
   })
 
   it("lets the traveler choose the target day before adding a place", async () => {
     const props = createProps()
     render(<AttractionsView {...props} />)
-    await userEvent.selectOptions(screen.getByLabelText("加入日程"), "2")
+    await userEvent.selectOptions(screen.getByLabelText("Add to itinerary"), "2")
     expect(props.onSelectDay).toHaveBeenCalledWith(2)
   })
 
   it("toggles between icon and list display modes", async () => {
     render(<AttractionsView {...createProps()} />)
-    await userEvent.click(screen.getByRole("button", { name: "列表" }))
-    expect(screen.getByRole("button", { name: "列表" }).getAttribute("aria-pressed")).toBe("true")
+    await userEvent.click(screen.getByRole("button", { name: "List" }))
+    expect(screen.getByRole("button", { name: "List" }).getAttribute("aria-pressed")).toBe("true")
   })
 })

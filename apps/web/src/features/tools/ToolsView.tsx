@@ -1,7 +1,8 @@
 import { ArrowLeft, ExternalLink, LoaderCircle, MessageCircle, Send } from "lucide-react"
 import { useState } from "react"
 import type { AppMode } from "../../app-shell/types"
-import { commonPhrases, hotlineCategories, navigationLinks, paymentGuidance, paymentLinks, rideLinks, serviceNote, type LinkIcon } from "../../data/toolsContent"
+import { useLocale, type TranslationKey } from "../../lib/i18n"
+import { commonPhrases, hotlineCategories, navigationLinks, paymentLinks, rideLinks, type LinkIcon } from "../../data/toolsContent"
 import { api } from "../../lib/api"
 
 type ToolsViewProps = {
@@ -10,20 +11,21 @@ type ToolsViewProps = {
 }
 
 export function ToolsView({ mode, accessToken }: ToolsViewProps) {
+  const { t } = useLocale()
   const [showChat, setShowChat] = useState(false)
 
   return (
     <section className="module-view tools-view" aria-labelledby="tools-heading">
       <header className="module-heading">
         <div>
-          <span className="eyebrow">工具</span>
-          <h1 id="tools-heading">工具</h1>
+          <span className="eyebrow">{t("tools.eyebrow")}</span>
+          <h1 id="tools-heading">{t("tools.title")}</h1>
         </div>
       </header>
 
       <div className="tool-stack">
-        <LinkSection title="导航" links={navigationLinks} />
-        <LinkSection title="打车" links={rideLinks} note="跳转第三方平台，China Stroll 不代下单。" />
+        <LinkSection title={t("tools.navigation")} links={navigationLinks} />
+        <LinkSection title={t("tools.ride")} links={rideLinks} note={t("tools.thirdPartyNote")} />
         <PaymentSection />
         <TranslationSection mode={mode} accessToken={accessToken} onOpenChat={() => setShowChat(true)} />
         <ServiceHelpSection />
@@ -53,9 +55,10 @@ function LinkSection({ title, links, note }: { title: string; links: LinkIcon[];
 }
 
 function PaymentSection() {
+  const { t } = useLocale()
   return (
     <section className="tool-section" aria-labelledby="tool-payment">
-      <h2 id="tool-payment">支付</h2>
+      <h2 id="tool-payment">{t("tools.payment")}</h2>
       <div className="tool-icon-links">
         {paymentLinks.map((link) => (
           <a key={link.label} href={link.url} target="_blank" rel="noreferrer">
@@ -65,19 +68,20 @@ function PaymentSection() {
           </a>
         ))}
       </div>
-      <p className="tool-section-copy">{paymentGuidance.summary}</p>
-      <small className="tool-section-note">{paymentGuidance.note}</small>
+      <p className="tool-section-copy">{t("tools.paymentSummary")}</p>
+      <small className="tool-section-note">{t("tools.paymentNote")}</small>
     </section>
   )
 }
 
 function TranslationSection({ mode, accessToken, onOpenChat }: { mode: AppMode; accessToken: string | null; onOpenChat: () => void }) {
+  const { t } = useLocale()
   const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null)
   const signedIn = mode === "account" && Boolean(accessToken)
 
   return (
     <section className="tool-section" aria-labelledby="tool-translation">
-      <h2 id="tool-translation">AI翻译 / 对话</h2>
+      <h2 id="tool-translation">{t("tools.translate")}</h2>
 
       <div className="phrase-list">
         {commonPhrases.map((phrase) => {
@@ -91,27 +95,35 @@ function TranslationSection({ mode, accessToken, onOpenChat }: { mode: AppMode; 
           )
         })}
       </div>
-      <small className="tool-section-note">点击常用语显示对应中文，便于展示给当地人看。</small>
+      <small className="tool-section-note">{t("tools.phraseNote")}</small>
 
       <button className="tool-chat-button" type="button" onClick={onOpenChat}>
         <MessageCircle aria-hidden="true" size={17} />
-        AI问答
-        {!signedIn && <small>需登录</small>}
+        {t("tools.chat")}
+        {!signedIn && <small>{t("tools.needLogin")}</small>}
       </button>
     </section>
   )
 }
 
+const hotlineCategoryKeys: Record<string, TranslationKey> = {
+  "常用": "tools.hotlineCommon",
+  "景点": "tools.hotlineAttractions",
+  "饭店": "tools.hotlineRestaurants",
+  "酒店": "tools.hotlineHotels",
+}
+
 function ServiceHelpSection() {
+  const { t } = useLocale()
   const [activeCategory, setActiveCategory] = useState(hotlineCategories[0].label)
   const category = hotlineCategories.find((item) => item.label === activeCategory) ?? hotlineCategories[0]
 
   return (
     <section className="tool-section" aria-labelledby="tool-service">
-      <h2 id="tool-service">服务热线</h2>
-      <div className="hotline-segment" role="tablist" aria-label="热线分类">
+      <h2 id="tool-service">{t("tools.hotlines")}</h2>
+      <div className="hotline-segment" role="tablist" aria-label={t("tools.hotlineTabs")}>
         {hotlineCategories.map((item) => (
-          <button key={item.label} type="button" role="tab" aria-selected={activeCategory === item.label} className={activeCategory === item.label ? "is-active" : undefined} onClick={() => setActiveCategory(item.label)}>{item.label}</button>
+          <button key={item.label} type="button" role="tab" aria-selected={activeCategory === item.label} className={activeCategory === item.label ? "is-active" : undefined} onClick={() => setActiveCategory(item.label)}>{t(hotlineCategoryKeys[item.label])}</button>
         ))}
       </div>
       <div className="hotline-items">
@@ -121,11 +133,11 @@ function ServiceHelpSection() {
               <span>{item.label}</span>
               <strong>{item.number}</strong>
             </div>
-            <a href={item.href} className="hotline-call" aria-label={`拨打 ${item.label}`}>拨打</a>
+            <a href={item.href} className="hotline-call" aria-label={t("tools.callLabel", { name: item.label })}>{t("tools.call")}</a>
           </div>
         ))}
       </div>
-      <small className="tool-section-note">{serviceNote}</small>
+      <small className="tool-section-note">{t("tools.serviceNote")}</small>
     </section>
   )
 }
@@ -133,6 +145,7 @@ function ServiceHelpSection() {
 type ChatMessage = { role: "user" | "assistant"; content: string }
 
 function ChatPanel({ accessToken, onClose }: { accessToken: string | null; onClose: () => void }) {
+  const { t } = useLocale()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
@@ -147,7 +160,7 @@ function ChatPanel({ accessToken, onClose }: { accessToken: string | null; onClo
       const result = await api.chat(accessToken, text)
       setMessages((current) => [...current, { role: "assistant", content: result.reply }])
     } catch {
-      setMessages((current) => [...current, { role: "assistant", content: "暂时无法回答，请稍后再试。" }])
+      setMessages((current) => [...current, { role: "assistant", content: t("tools.chatError") }])
     } finally {
       setBusy(false)
     }
@@ -156,19 +169,19 @@ function ChatPanel({ accessToken, onClose }: { accessToken: string | null; onClo
   return (
     <div className="chat-overlay">
       <header className="chat-header">
-        <button type="button" aria-label="返回" onClick={onClose}><ArrowLeft size={20} /></button>
-        <strong>AI问答</strong>
+        <button type="button" aria-label={t("common.back")} onClick={onClose}><ArrowLeft size={20} /></button>
+        <strong>{t("tools.chatHeader")}</strong>
       </header>
       <div className="chat-messages" role="log">
-        {messages.length === 0 && <p className="chat-empty">问一问出行、语言、文化等日常问题。</p>}
+        {messages.length === 0 && <p className="chat-empty">{t("tools.chatEmpty")}</p>}
         {messages.map((message, index) => (
           <div key={index} className={message.role === "user" ? "chat-bubble chat-bubble--user" : "chat-bubble"}>{message.content}</div>
         ))}
         {busy && <div className="chat-bubble"><LoaderCircle className="spin" size={15} /></div>}
       </div>
       <form className="chat-input" onSubmit={(event) => { event.preventDefault(); void send() }}>
-        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入问题…" aria-label="输入问题" />
-        <button type="submit" disabled={busy || !input.trim()} aria-label="发送"><Send size={17} /></button>
+        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={t("tools.chatInput")} aria-label={t("tools.chatInput")} />
+        <button type="submit" disabled={busy || !input.trim()} aria-label={t("tools.chatSend")}><Send size={17} /></button>
       </form>
     </div>
   )

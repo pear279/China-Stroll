@@ -91,8 +91,8 @@ describe("MapView", () => {
   it("shows the trip area with the selected day itinerary", async () => {
     const props = createProps()
     render(<MapView {...props} />)
-    expect(screen.getByRole("heading", { name: "行程" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*分钟/ }))
+    expect(screen.getByRole("heading", { name: "Itinerary" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*min/ }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
   })
 
@@ -100,22 +100,22 @@ describe("MapView", () => {
     const props = createProps()
     render(<MapView {...props} />)
 
-    await userEvent.click(screen.getByRole("button", { name: "The Palace Museum 详情" }))
+    await userEvent.click(screen.getByRole("button", { name: "Details for The Palace Museum" }))
     expect(props.onOpenDetails).toHaveBeenCalledWith("forbidden-city")
 
-    await userEvent.click(screen.getByRole("button", { name: "The Palace Museum 导航" }))
-    expect(screen.getByRole("dialog", { name: "选择导航平台" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "The Palace Museum Navigate" }))
+    expect(screen.getByRole("dialog", { name: "Choose navigation provider" })).toBeTruthy()
     expect(screen.getByRole("link", { name: "Apple Maps" })).toBeTruthy()
     expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy()
-    expect(screen.getByRole("link", { name: "高德地图" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: "取消" }))
-    expect(screen.queryByRole("dialog", { name: "选择导航平台" })).toBeNull()
+    expect(screen.getByRole("link", { name: "AMap" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(screen.queryByRole("dialog", { name: "Choose navigation provider" })).toBeNull()
   })
 
   it("switches the shared day from the map day tabs", async () => {
     const props = createProps()
     render(<MapView {...props} />)
-    await userEvent.click(screen.getByRole("button", { name: /第 1 天/ }))
+    await userEvent.click(screen.getByRole("button", { name: /Day 1/ }))
     expect(props.onSelectDay).toHaveBeenCalledWith(1)
   })
 
@@ -123,11 +123,11 @@ describe("MapView", () => {
     const props = createProps()
     render(<MapView {...props} />)
 
-    expect(screen.queryByText(/位置共享已关闭/)).toBeNull()
-    await userEvent.click(screen.getByRole("button", { name: /共享位置/ }))
-    expect(screen.getByRole("switch", { name: /开启共享|关闭共享/ })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /附近景点/ }))
-    expect(screen.getByLabelText("距离范围")).toBeTruthy()
+    expect(screen.queryByText(/Location sharing is off/)).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: /Share location/ }))
+    expect(screen.getByRole("switch", { name: /Turn on|Turn off/ })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /Nearby places/ }))
+    expect(screen.getByLabelText("Distance range")).toBeTruthy()
   })
 
   it("renders unexpired member locations on the map", async () => {

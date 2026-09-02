@@ -96,16 +96,16 @@ describe("RecommendationPanel", () => {
 
   it("keeps the send button disabled while there is no input", () => {
     renderPanel()
-    expect((screen.getByRole("button", { name: "发送" }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole("button", { name: "Send" }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it("adds a tag to the input and submits the mapped preference", async () => {
     const user = userEvent.setup()
     const { onRecommend } = renderPanel()
 
-    await user.click(screen.getByRole("button", { name: "历史文化" }))
-    expect(screen.getByRole("button", { name: "历史文化" }).getAttribute("aria-pressed")).toBe("true")
-    await user.click(screen.getByRole("button", { name: "发送" }))
+    await user.click(screen.getByRole("button", { name: "History & culture" }))
+    expect(screen.getByRole("button", { name: "History & culture" }).getAttribute("aria-pressed")).toBe("true")
+    await user.click(screen.getByRole("button", { name: "Send" }))
 
     expect(onRecommend).toHaveBeenCalledWith(expect.objectContaining({ preferences: ["history"] }))
   })
@@ -114,11 +114,11 @@ describe("RecommendationPanel", () => {
     const user = userEvent.setup()
     const { onDetails } = renderPanel()
 
-    await user.click(screen.getByRole("button", { name: "历史文化" }))
-    await user.click(screen.getByRole("button", { name: "发送" }))
+    await user.click(screen.getByRole("button", { name: "History & culture" }))
+    await user.click(screen.getByRole("button", { name: "Send" }))
 
-    expect(await screen.findByText(/根据用户输入的/)).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "详情" }))
+    expect(await screen.findByText(/Based on your selection/)).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Details" }))
     expect(onDetails).toHaveBeenCalledWith("forbidden-city")
   })
 
@@ -127,9 +127,9 @@ describe("RecommendationPanel", () => {
     const onAdd = vi.fn(async () => undefined)
     renderPanel({ selectedDay: 2, onAdd })
 
-    await user.click(screen.getByRole("button", { name: "历史文化" }))
-    await user.click(screen.getByRole("button", { name: "发送" }))
-    await user.click(await screen.findByRole("button", { name: "加入第 2 天" }))
+    await user.click(screen.getByRole("button", { name: "History & culture" }))
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await user.click(await screen.findByRole("button", { name: "Add to day 2" }))
 
     expect(onAdd).toHaveBeenCalledWith("forbidden-city", 2)
   })

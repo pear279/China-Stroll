@@ -1,7 +1,10 @@
-import { ArrowDown, ArrowLeft, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
+import { CalendarDays, Check, Languages, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { AgentSuggestion, PlaceSummary, PrivatePlaceInput, ReservationDraft, ReservationInput, TransportMode, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
-import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, PrivatePlacesControls, ProfileControls, StopEditFields } from "../../app-shell/types"
+import { useNavigate } from "react-router-dom"
+import { resolvePlaceImage, type AgentSuggestion, type PlaceSummary, type PrivatePlaceInput, type ReservationDraft, type ReservationInput, type TripReservation, type TripSnapshot } from "../../../../../packages/shared/src"
+import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, PrivatePlacesControls, ProfileControls } from "../../app-shell/types"
+import { BottomSheet } from "../../components/BottomSheet"
+import { useLocale } from "../../lib/i18n"
 import { ProfileCard } from "./ProfileCard"
 import { TripMembersCard } from "./TripMembersCard"
 
@@ -42,15 +45,11 @@ export function MineView({
   privatePlaces,
   profile,
   selectedDay,
-  selectedPlaceId,
   testIdentity,
   trip,
-  places,
   onAddDay,
-  onAddPlace,
   onConfirm,
   onRemoveStop,
-  onReorderStop,
   onCreateReservation,
   onUpdateReservation,
   onRemoveReservation,
@@ -58,17 +57,14 @@ export function MineView({
   onSelectPlace,
   onSuggest,
 }: MineViewProps) {
-  const [placeToAdd, setPlaceToAdd] = useState("")
-  const [draggedStopId, setDraggedStopId] = useState<string | null>(null)
-  const [editingStopId, setEditingStopId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"stops" | "reservations">("stops")
+  const { t, locale, setLocale } = useLocale()
+  const navigate = useNavigate()
   const pendingSuggestion = trip.suggestions.find((item) => item.status === "proposed")
   const dayStops = [...trip.stops]
     .filter((stop) => (stop.dayNumber ?? 1) === selectedDay)
     .sort((left, right) => left.sortOrder - right.sortOrder)
-  const plannedPlaceIds = new Set(trip.stops.map((stop) => stop.placeId).filter(Boolean))
-  const availablePlaces = places.filter((place) => !plannedPlaceIds.has(place.id))
-  const displayName = profile.profile?.displayName || "旅行者"
+  const displayName = profile.profile?.displayName || t("mine.traveler")
   const preferenceTags = profile.profile
     ? Object.values(profile.profile.travelPreferences).filter((value): value is string => typeof value === "string").slice(0, 5)
     : []
@@ -78,23 +74,23 @@ export function MineView({
     if (dayNumber) onSelectDay(dayNumber)
   }
 
-  async function handleAddPlace() {
-    if (!placeToAdd) return
-    await onAddPlace(placeToAdd, selectedDay)
-    setPlaceToAdd("")
-  }
-
   return (
     <section className="module-view mine-view" aria-labelledby="mine-heading">
       <header className="module-heading">
         <div>
-          <span className="eyebrow">{mode === "preview" ? "Private preview" : testIdentity ? `Test session · ${testIdentity}` : "Shared trip"}</span>
-          <h1 id="mine-heading">My trip</h1>
+          <span className="eyebrow">{mode === "preview" ? t("mine.eyebrowPreview") : testIdentity ? t("mine.eyebrowTest", { id: testIdentity }) : t("mine.eyebrowShared")}</span>
+          <h1 id="mine-heading">{t("mine.title")}</h1>
           <p>{trip.name} · Version {trip.version}</p>
         </div>
-        <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void handleAddDay()}>
-          <Plus aria-hidden="true" size={16} />Add day
-        </button>
+        <div className="mine-header-actions">
+          <button className="icon-button" type="button" aria-label="Switch language" onClick={() => setLocale(locale === "en" ? "zh" : "en")}>
+            <Languages aria-hidden="true" size={19} />
+            <span>{locale === "en" ? "中" : "EN"}</span>
+          </button>
+          <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void handleAddDay()}>
+            <Plus aria-hidden="true" size={16} />{t("mine.addDay")}
+          </button>
+        </div>
       </header>
 
       <div className="mine-profile-header">
@@ -102,12 +98,12 @@ export function MineView({
         <div className="mine-profile-copy">
           <strong>{displayName}</strong>
           <span className="mine-profile-tags">
-            {preferenceTags.length === 0 ? <em>尚未设置偏好</em> : preferenceTags.map((tag) => <em key={tag}>{tag}</em>)}
+            {preferenceTags.length === 0 ? <em>{t("mine.noPrefs")}</em> : preferenceTags.map((tag) => <em key={tag}>{tag}</em>)}
           </span>
         </div>
       </div>
 
-      <div className="day-tabs" aria-label="Trip days">
+      <div className="day-tabs" aria-label={t("mine.dayTabs")}>
         {trip.days.map((day) => (
           <button
             className={selectedDay === day.dayNumber ? "is-active" : undefined}
@@ -115,14 +111,14 @@ export function MineView({
             type="button"
             onClick={() => onSelectDay(day.dayNumber)}
           >
-            <CalendarDays aria-hidden="true" size={15} />Day {day.dayNumber}<small>{day.date ?? "Date open"}</small>
+            <CalendarDays aria-hidden="true" size={15} />{t("common.dayN", { n: day.dayNumber })}<small>{day.date ?? t("mine.dateOpen")}</small>
           </button>
         ))}
       </div>
 
       <div className="mine-tab-toggle" role="group" aria-label="日程列表类型">
-        <button type="button" className={activeTab === "stops" ? "is-active" : undefined} aria-pressed={activeTab === "stops"} onClick={() => setActiveTab("stops")}>景点列表</button>
-        <button type="button" className={activeTab === "reservations" ? "is-active" : undefined} aria-pressed={activeTab === "reservations"} onClick={() => setActiveTab("reservations")}>预约列表</button>
+        <button type="button" className={activeTab === "stops" ? "is-active" : undefined} aria-pressed={activeTab === "stops"} onClick={() => setActiveTab("stops")}>{t("mine.stopsTab")}</button>
+        <button type="button" className={activeTab === "reservations" ? "is-active" : undefined} aria-pressed={activeTab === "reservations"} onClick={() => setActiveTab("reservations")}>{t("mine.reservationsTab")}</button>
       </div>
 
       <DayEditor
@@ -135,67 +131,25 @@ export function MineView({
 
       <div className="mine-grid">
         {activeTab === "stops" && (
-        <section className="itinerary-panel" aria-labelledby="itinerary-heading">
-          <div className="section-heading">
-            <div><span className="eyebrow">Schedule</span><h2 id="itinerary-heading">Day {selectedDay} itinerary</h2></div>
-            <span className="count-chip">{dayStops.length} stops</span>
-          </div>
-          <div className="itinerary-editor">
-            <label>
-              Add reviewed attraction
-              <select value={placeToAdd} disabled={busy !== null || availablePlaces.length === 0} onChange={(event) => setPlaceToAdd(event.target.value)}>
-                <option value="">{availablePlaces.length === 0 ? "All reviewed attractions are scheduled" : "Choose a reviewed attraction"}</option>
-                {availablePlaces.map((place) => <option key={place.id} value={place.id}>{place.name}{place.aliases?.[0] ? ` · ${place.aliases[0]}` : ""}</option>)}
-              </select>
-            </label>
-            <button className="primary-button" type="button" disabled={!placeToAdd || busy !== null} onClick={() => void handleAddPlace()}>
-              <Plus aria-hidden="true" size={17} />Add to Day {selectedDay}
-            </button>
-          </div>
+        <section className="itinerary-panel" aria-label={t("mine.stopsTab")}>
           {dayStops.length === 0 ? (
-            <div className="empty-plan"><Compass aria-hidden="true" size={28} /><p>This day is open. Add a reviewed attraction when you are ready.</p></div>
+            <button className="mine-add-entry" type="button" onClick={() => navigate("/attractions")}>
+              <Plus aria-hidden="true" size={18} />
+              <span>{t("mine.addPlaceEntry")}</span>
+              <small>{t("mine.noStops")}</small>
+            </button>
           ) : (
-            <ol className="timeline">
-              {dayStops.map((stop, index) => (
-                <li
-                  className={draggedStopId === stop.id ? "is-dragging" : undefined}
-                  draggable={busy === null}
-                  key={stop.id}
-                  onDragEnd={() => setDraggedStopId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDragStart={() => setDraggedStopId(stop.id)}
-                  onDrop={() => {
-                    if (draggedStopId) void onReorderStop(draggedStopId, index)
-                    setDraggedStopId(null)
-                  }}
-                >
-                  <button
-                    className={selectedPlaceId === stop.placeId ? "timeline-card is-selected" : "timeline-card"}
-                    type="button"
-                    onClick={() => stop.placeId && onSelectPlace(stop.placeId)}
-                  >
-                    <span className="timeline-number">{index + 1}</span>
-                    <span className="timeline-copy">
-                      <strong>{stop.name}{stop.privatePlaceId && <span className="private-badge">Private</span>}</strong>
-                      <span><Clock3 aria-hidden="true" size={15} />{stop.startTime ? stop.startTime.slice(0, 5) : "Time open"} · {stop.durationMinutes ?? 90} min</span>
+            <ol className="mine-stop-list">
+              {dayStops.map((stop) => (
+                <li key={stop.id}>
+                  <button className="mine-stop-card" type="button" onClick={() => stop.placeId && onSelectPlace(stop.placeId)}>
+                    {stop.placeId && <img src={resolvePlaceImage(stop.placeId)} alt="" />}
+                    <span className="mine-stop-copy">
+                      <strong>{stop.name}{stop.privatePlaceId && <span className="private-badge">{t("map.private")}</span>}</strong>
+                      <small>{stop.startTime ? stop.startTime.slice(0, 5) : t("map.timeOpen")} · {stop.durationMinutes ?? 90} {t("map.minutes")}</small>
                     </span>
                   </button>
-                  <div className="stop-actions" aria-label={`${stop.name} itinerary controls`}>
-                    <span className="drag-handle" aria-label={`Drag ${stop.name} to reorder`} title="Drag to reorder"><GripVertical aria-hidden="true" size={17} /></span>
-                    <button type="button" disabled={busy !== null} aria-label={`Edit ${stop.name}`} onClick={() => setEditingStopId(editingStopId === stop.id ? null : stop.id)}><Pencil aria-hidden="true" size={16} /></button>
-                    <button type="button" disabled={busy !== null || index === 0} aria-label={`Move ${stop.name} up`} onClick={() => void onReorderStop(stop.id, index - 1)}><ArrowUp aria-hidden="true" size={16} /></button>
-                    <button type="button" disabled={busy !== null || index === dayStops.length - 1} aria-label={`Move ${stop.name} down`} onClick={() => void onReorderStop(stop.id, index + 1)}><ArrowDown aria-hidden="true" size={16} /></button>
-                    <button className="remove-stop" type="button" disabled={busy !== null} aria-label={`Remove ${stop.name}`} onClick={() => void onRemoveStop(stop.id)}><Trash2 aria-hidden="true" size={16} /></button>
-                  </div>
-                  {editingStopId === stop.id && (
-                    <StopEditor
-                      stop={stop}
-                      days={trip.days}
-                      busy={busy}
-                      onMove={(dayNumber) => itineraryEditing.onMoveStopToDay(stop.id, dayNumber)}
-                      onSave={(fields) => itineraryEditing.onEditStop(stop.id, fields)}
-                    />
-                  )}
+                  <button className="remove-stop" type="button" aria-label={`${t("common.remove")} ${stop.name}`} onClick={() => void onRemoveStop(stop.id)}><Trash2 aria-hidden="true" size={16} /></button>
                 </li>
               ))}
             </ol>
@@ -205,7 +159,7 @@ export function MineView({
 
         <section className="assistant-card" aria-labelledby="assistant-heading">
           <div className="assistant-icon"><Sparkles aria-hidden="true" size={22} /></div>
-          <div><span className="eyebrow">Plan check</span><h2 id="assistant-heading">{pendingSuggestion ? "A clearer order is ready" : "Want a clearer visit order?"}</h2></div>
+          <div><span className="eyebrow">{t("mine.assistantEyebrow")}</span><h2 id="assistant-heading">{pendingSuggestion ? t("mine.assistantReady") : t("mine.assistantPrompt")}</h2></div>
           {pendingSuggestion ? (
             <SuggestionPanel
               suggestion={pendingSuggestion}
@@ -214,10 +168,10 @@ export function MineView({
             />
           ) : (
             <>
-              <p>China Stroll can arrange places already in your day and show every change before saving.</p>
+              <p>{t("mine.assistantBody")}</p>
               <button className="assistant-button" disabled={trip.stops.length === 0 || busy === "suggest"} type="button" onClick={() => void onSuggest()}>
                 {busy === "suggest" ? <LoaderCircle className="spin" aria-hidden="true" size={18} /> : <Sparkles aria-hidden="true" size={18} />}
-                Review my day
+                {t("mine.reviewDay")}
               </button>
             </>
           )}
@@ -225,7 +179,7 @@ export function MineView({
 
         {activeTab === "reservations" && (
         <section className="reservation-panel" aria-labelledby="reservations-heading">
-          <div className="section-heading"><div><span className="eyebrow">Booking log</span><h2 id="reservations-heading">Reservations</h2></div><span className="count-chip">{(trip.reservations ?? []).length} saved</span></div>
+          <div className="section-heading"><div><span className="eyebrow">{t("mine.bookingLog")}</span><h2 id="reservations-heading">{t("mine.reservations")}</h2></div><span className="count-chip">{t("mine.savedCount", { n: (trip.reservations ?? []).length })}</span></div>
           <ReservationManager
             busy={busy}
             days={trip.days}
@@ -260,6 +214,7 @@ export function MineView({
 }
 
 function LocationSharingCard({ mode, sharing }: { mode: AppMode; sharing: LocationSharingControls }) {
+  const { t } = useLocale()
   const checked = sharing.snapshot?.enabled ?? false
   const waiting = sharing.status === "loading" || sharing.status === "enabling" || sharing.status === "revoke-pending"
   const unavailable = mode === "preview"
@@ -267,32 +222,32 @@ function LocationSharingCard({ mode, sharing }: { mode: AppMode; sharing: Locati
     || sharing.status === "revoke-failed"
   const recipients = Math.max(0, (sharing.snapshot?.activeMemberCount ?? 1) - 1)
 
-  let statusText = "Location sharing is off"
+  let statusText = t("mine.shareOff")
   let statusIsError = false
-  if (mode === "preview") statusText = "Location sharing is unavailable in preview."
-  else if (sharing.status === "loading") statusText = "Checking location sharing…"
-  else if (sharing.status === "enabling") statusText = "Starting foreground location sharing…"
+  if (mode === "preview") statusText = t("mine.sharePreview")
+  else if (sharing.status === "loading") statusText = t("mine.shareChecking")
+  else if (sharing.status === "enabling") statusText = t("mine.shareStarting")
   else if (sharing.status === "sharing") {
     statusText = recipients === 0
-      ? "No other active trip members can view your location right now."
-      : `Sharing with ${recipients} other active trip ${recipients === 1 ? "member" : "members"}.`
-  } else if (sharing.status === "expired") statusText = "Your last shared location expired. Sharing is off."
+      ? t("mine.shareNoPeers")
+      : t("mine.shareWith", { n: recipients })
+  } else if (sharing.status === "expired") statusText = t("mine.shareExpired")
   else if (sharing.status === "permission-denied") {
     statusText = checked
-      ? "Location permission was denied. No new updates are being sent; your last accepted point may remain visible until it expires or you turn sharing off."
-      : "Location permission was denied. Location sharing is off."
+      ? t("mine.shareDeniedActive")
+      : t("mine.shareDeniedOff")
     statusIsError = true
   } else if (sharing.status === "upload-failed") {
-    statusText = "Your initial location could not be shared. Location sharing is off."
+    statusText = t("mine.shareUploadFailed")
     statusIsError = true
-  } else if (sharing.status === "revoke-pending") statusText = "Browser updates stopped. Revoking server visibility…"
+  } else if (sharing.status === "revoke-pending") statusText = t("mine.shareRevoking")
   else if (sharing.status === "revoke-failed") {
-    statusText = "Browser updates stopped, but server revocation failed. Retry to remove visibility."
+    statusText = t("mine.shareRevokeFailed")
     statusIsError = true
   } else if (sharing.status === "dependency-unavailable") {
     statusText = checked
-      ? "The latest location update failed. Your last accepted point may remain visible until it expires or you turn sharing off."
-      : "Location sharing is temporarily unavailable. Your map and itinerary still work."
+      ? t("mine.shareDepActive")
+      : t("mine.shareDepInactive")
     statusIsError = true
   }
 
@@ -301,11 +256,11 @@ function LocationSharingCard({ mode, sharing }: { mode: AppMode; sharing: Locati
       <div className="location-sharing-heading">
         <div className="location-sharing-title">
           <LocateFixed aria-hidden="true" size={22} />
-          <div><span className="eyebrow">Privacy control</span><h2 id="location-sharing-heading">Current location</h2></div>
+          <div><span className="eyebrow">{t("mine.locationEyebrow")}</span><h2 id="location-sharing-heading">{t("mine.currentLocation")}</h2></div>
         </div>
         <button
           aria-checked={checked}
-          aria-label="Share my current location"
+          aria-label={t("mine.shareCurrent")}
           className="location-sharing-switch"
           disabled={waiting || unavailable}
           role="switch"
@@ -315,21 +270,21 @@ function LocationSharingCard({ mode, sharing }: { mode: AppMode; sharing: Locati
           <span aria-hidden="true" />
         </button>
       </div>
-      <strong className="location-sharing-label">Share my current location</strong>
+      <strong className="location-sharing-label">{t("mine.shareCurrent")}</strong>
       <ul className="location-sharing-limits">
-        <li>Only while this app is open</li>
-        <li>Visible to active trip members only</li>
-        <li>One current point with no location history</li>
+        <li>{t("mine.onlyWhileOpen")}</li>
+        <li>{t("mine.visibleToMembers")}</li>
+        <li>{t("mine.onePoint")}</li>
       </ul>
-      <p className="location-safety-note">This is a coordination aid, not a safety guarantee.</p>
+      <p className="location-safety-note">{t("mine.safetyNote")}</p>
       <div className={statusIsError ? "location-sharing-status is-error" : "location-sharing-status"} role={statusIsError ? "alert" : "status"}>
         {waiting && <LoaderCircle className="spin" aria-hidden="true" size={17} />}
         <span>{statusText}</span>
       </div>
-      {sharing.snapshot && <small className="location-member-count">{sharing.snapshot.activeMemberCount} active trip {sharing.snapshot.activeMemberCount === 1 ? "member" : "members"}</small>}
+      {sharing.snapshot && <small className="location-member-count">{t("mine.activeMembers", { n: sharing.snapshot.activeMemberCount })}</small>}
       {sharing.status === "revoke-failed" && (
         <button className="secondary-button location-retry-button" type="button" onClick={() => void sharing.onRetryDisable()}>
-          Retry revocation
+          {t("mine.retryRevoke")}
         </button>
       )}
     </section>
@@ -342,12 +297,12 @@ function asLocalDateTime(value: string | null) {
   return value ? value.slice(0, 16) : ""
 }
 
-function ReservationManager({ busy, days, reservations, onCreate, onDraft, onUpdate, onRemove }: {
-  busy: string | null; days: TripSnapshot["days"]; reservations: TripReservation[]
+function ReservationManager({ busy, days, reservations, onCreate, onDraft, onUpdate, onRemove }: {  busy: string | null; days: TripSnapshot["days"]; reservations: TripReservation[]
   onCreate: (input: ReservationInput) => Promise<void>
   onDraft: (sourceText: string) => Promise<ReservationDraft | null>
   onUpdate: (id: string, input: ReservationInput) => Promise<void>; onRemove: (id: string) => Promise<void>
 }) {
+  const { t } = useLocale()
   const [draft, setDraft] = useState<ReservationInput>(emptyReservation)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -370,22 +325,22 @@ function ReservationManager({ busy, days, reservations, onCreate, onDraft, onUpd
   }
   function closeForm() { setFormOpen(false); setEditingId(null); setDraft(emptyReservation); setFormError(null); setDraftNote(null) }
   async function submit() {
-    if (!draft.title.trim()) return setFormError("请填写预约名称。")
-    if (draft.startsAt && draft.endsAt && draft.endsAt < draft.startsAt) return setFormError("结束时间需晚于开始时间。")
+    if (!draft.title.trim()) return setFormError(t("mine.requireName"))
+    if (draft.startsAt && draft.endsAt && draft.endsAt < draft.startsAt) return setFormError(t("mine.timeOrder"))
     setFormError(null)
     if (editingId) await onUpdate(editingId, draft)
     else await onCreate(draft)
     closeForm()
   }
   async function draftFromText() {
-    if (!draftText.trim()) return setDraftNote("请先粘贴预约信息。")
+    if (!draftText.trim()) return setDraftNote(t("mine.draftNeedText"))
     setDrafting(true)
     setDraftNote(null)
     try {
       const parsed = await onDraft(draftText)
-      if (!parsed) { setDraftNote("无法解析，请手动填写。"); return }
+      if (!parsed) { setDraftNote(t("mine.draftFailed")); return }
       setDraft((current) => ({ ...current, ...parsed }))
-      setDraftNote("已生成草稿，请核对后保存。")
+      setDraftNote(t("mine.draftNote"))
     } finally {
       setDrafting(false)
     }
@@ -393,57 +348,41 @@ function ReservationManager({ busy, days, reservations, onCreate, onDraft, onUpd
 
   return (
     <div className="reservation-manager">
-      <button className="primary-button reservation-add-button" type="button" onClick={startCreate}><Plus aria-hidden="true" size={16} />添加预约</button>
+      <button className="primary-button reservation-add-button" type="button" onClick={startCreate}><Plus aria-hidden="true" size={16} />{t("mine.addReservation")}</button>
       {reservations.length === 0 ? (
-        <p className="reservation-empty">暂无预约，点击「添加预约」记录饭店、酒店或景点门票。</p>
+        <p className="reservation-empty">{t("mine.noReservations")}</p>
       ) : (
-        <ol className="reservation-list">{reservations.map((reservation) => <li key={reservation.id}><div><strong>{reservation.title}</strong><span>{categoryLabel(reservation.category)} · {reservation.status}{reservation.startsAt ? ` · ${new Date(reservation.startsAt).toLocaleString()}` : ""}</span>{reservation.provider && <small>{reservation.provider}{reservation.confirmationCode ? ` · ${reservation.confirmationCode}` : ""}</small>}</div><div className="reservation-actions"><button type="button" aria-label={`编辑 ${reservation.title}`} onClick={() => startEdit(reservation)}><Pencil aria-hidden="true" size={15} /></button><button className="remove-stop" type="button" aria-label={`移除 ${reservation.title}`} disabled={busy === "remove-reservation"} onClick={() => void onRemove(reservation.id)}><Trash2 aria-hidden="true" size={15} /></button></div></li>)}</ol>
+        <ol className="reservation-list mine-reservation-window">{reservations.map((reservation) => <li key={reservation.id}><div className="reservation-card-copy"><strong>{reservation.title}</strong><span>{reservation.category === "restaurant" ? t("mine.restaurant") : reservation.category === "accommodation" ? t("mine.hotel") : t("mine.ticket")}{reservation.startsAt ? ` · ${new Date(reservation.startsAt).toLocaleString()}` : ""}</span>{reservation.provider && <small>{reservation.provider}{reservation.confirmationCode ? ` · ${reservation.confirmationCode}` : ""}</small>}</div><div className="reservation-actions"><button type="button" aria-label={`${t("common.details")} ${reservation.title}`} onClick={() => startEdit(reservation)}><Pencil aria-hidden="true" size={15} /></button><button className="remove-stop" type="button" aria-label={`${t("common.remove")} ${reservation.title}`} disabled={busy === "remove-reservation"} onClick={() => void onRemove(reservation.id)}><Trash2 aria-hidden="true" size={15} /></button></div></li>)}</ol>
       )}
 
-      {formOpen && (
-        <div className="reservation-overlay">
-          <header className="reservation-overlay-header">
-            <button type="button" aria-label="返回" onClick={closeForm}><ArrowLeft size={20} /></button>
-            <strong>{editingId ? "编辑预约" : "添加预约"}</strong>
-          </header>
-          <div className="reservation-overlay-body">
-            <button className="secondary-button" type="button" onClick={() => setShowDraft((current) => !current)}>AI 代填草稿</button>
-            {showDraft && (
-              <div className="reservation-draft-form">
-                <label>粘贴预约信息<textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder="例如：9月3日15:00入住酒店，预约号12345" /></label>
-                <button className="secondary-button" type="button" disabled={drafting} onClick={() => void draftFromText()}>{drafting ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}生成草稿</button>
-              </div>
-            )}
-            {draftNote && <p className="account-status" role="status">{draftNote}</p>}
-            <div className="reservation-form" aria-label={editingId ? "编辑预约" : "添加预约"}>
-              <label>预约类型<select value={draft.category} onChange={(event) => setField("category", event.target.value as ReservationInput["category"])}><option value="restaurant">饭店</option><option value="accommodation">酒店</option><option value="attraction">景点门票</option></select></label>
-              <label>名称<input value={draft.title} maxLength={200} onChange={(event) => setField("title", event.target.value)} placeholder="例如：故宫门票" /></label>
-              <label>所属日程<select value={draft.dayNumber ?? ""} onChange={(event) => setField("dayNumber", event.target.value ? Number(event.target.value) : null)}><option value="">未关联日程</option>{days.map((day) => <option key={day.id} value={day.dayNumber}>第 {day.dayNumber} 天</option>)}</select></label>
-              <label>预约编号<input value={draft.confirmationCode ?? ""} maxLength={200} onChange={(event) => setField("confirmationCode", event.target.value || null)} placeholder="可选" /></label>
-              <label>提供方<input value={draft.provider ?? ""} maxLength={200} onChange={(event) => setField("provider", event.target.value || null)} placeholder="酒店 / 餐厅 / 景区" /></label>
-              <label>开始时间<input type="datetime-local" value={asLocalDateTime(draft.startsAt)} onChange={(event) => setField("startsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
-              <label>结束时间<input type="datetime-local" value={asLocalDateTime(draft.endsAt)} onChange={(event) => setField("endsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
-              <label>备注<textarea value={draft.notes} maxLength={4000} onChange={(event) => setField("notes", event.target.value)} placeholder="备注信息" /></label>
-              {formError && <p className="form-error" role="alert">{formError}</p>}
-            </div>
+      <BottomSheet open={formOpen} title={editingId ? t("mine.editReservation") : t("mine.addReservation")} onClose={closeForm}>
+        <button className="secondary-button" type="button" onClick={() => setShowDraft((current) => !current)}>{t("mine.aiDraft")}</button>
+        {showDraft && (
+          <div className="reservation-draft-form">
+            <label>{t("mine.aiDraft")}<textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder={t("mine.aiDraftPlaceholder")} /></label>
+            <button className="secondary-button" type="button" disabled={drafting} onClick={() => void draftFromText()}>{drafting ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{t("mine.generateDraft")}</button>
           </div>
-          <div className="reservation-overlay-footer">
-            <button className="primary-button" type="button" disabled={saving} onClick={() => void submit()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}保存预约</button>
-          </div>
+        )}
+        {draftNote && <p className="account-status" role="status">{draftNote}</p>}
+        <div className="reservation-form" aria-label={editingId ? t("mine.editReservation") : t("mine.addReservation")}>
+          <label>{t("mine.resType")}<select value={draft.category} onChange={(event) => setField("category", event.target.value as ReservationInput["category"])}><option value="restaurant">{t("mine.restaurant")}</option><option value="accommodation">{t("mine.hotel")}</option><option value="attraction">{t("mine.ticket")}</option></select></label>
+          <label>{t("mine.resName")}<input value={draft.title} maxLength={200} onChange={(event) => setField("title", event.target.value)} /></label>
+          <label>{t("mine.resDay")}<select value={draft.dayNumber ?? ""} onChange={(event) => setField("dayNumber", event.target.value ? Number(event.target.value) : null)}><option value="">{t("mine.noDay")}</option>{days.map((day) => <option key={day.id} value={day.dayNumber}>{t("common.dayN", { n: day.dayNumber })}</option>)}</select></label>
+          <label>{t("mine.resCode")}<input value={draft.confirmationCode ?? ""} maxLength={200} onChange={(event) => setField("confirmationCode", event.target.value || null)} /></label>
+          <label>{t("mine.resProvider")}<input value={draft.provider ?? ""} maxLength={200} onChange={(event) => setField("provider", event.target.value || null)} /></label>
+          <label>{t("mine.resStart")}<input type="datetime-local" value={asLocalDateTime(draft.startsAt)} onChange={(event) => setField("startsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
+          <label>{t("mine.resEnd")}<input type="datetime-local" value={asLocalDateTime(draft.endsAt)} onChange={(event) => setField("endsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
+          <label>{t("mine.resNotes")}<textarea value={draft.notes} maxLength={4000} onChange={(event) => setField("notes", event.target.value)} /></label>
+          {formError && <p className="form-error" role="alert">{formError}</p>}
         </div>
-      )}
+        <button className="bottom-sheet-primary" type="button" disabled={saving} onClick={() => void submit()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}{t("mine.saveReservation")}</button>
+      </BottomSheet>
     </div>
   )
 }
 
-function categoryLabel(category: string) {
-  if (category === "restaurant") return "饭店"
-  if (category === "accommodation") return "酒店"
-  if (category === "attraction") return "景点门票"
-  return category.replace("_", " ")
-}
-
 function SuggestionPanel({ suggestion, busy, onConfirm }: { suggestion: AgentSuggestion; busy: boolean; onConfirm: () => void }) {
+  const { t } = useLocale()
   return (
     <div className="suggestion-panel">
       <p>{suggestion.reason}</p>
@@ -451,20 +390,21 @@ function SuggestionPanel({ suggestion, busy, onConfirm }: { suggestion: AgentSug
         {suggestion.changes.map((change, index) => (
           <li key={`${change.op}-${index}`}>
             <Check aria-hidden="true" size={15} />
-            {change.op === "update_stop" ? `Stop ${index + 1} starts at ${change.startTime}` : "Update visit order"}
+            {change.op === "update_stop" ? t("mine.stopStartsAt", { n: index + 1, time: change.startTime }) : t("mine.updateOrder")}
           </li>
         ))}
       </ul>
-      {suggestion.risks[0] && <div className="risk-note"><strong>Before you confirm</strong><span>{suggestion.risks[0]}</span></div>}
+      {suggestion.risks[0] && <div className="risk-note"><strong>{t("mine.beforeConfirm")}</strong><span>{suggestion.risks[0]}</span></div>}
       <button className="primary-button" type="button" disabled={busy} onClick={onConfirm}>
         {busy ? <LoaderCircle className="spin" aria-hidden="true" size={18} /> : <Check aria-hidden="true" size={18} />}
-        Confirm these changes
+        {t("mine.confirmChanges")}
       </button>
     </div>
   )
 }
 
 function DayEditor({ day, busy, onSave }: { day: TripSnapshot["days"][number] | null; busy: string | null; onSave: (fields: DayEditFields) => Promise<void> }) {
+  const { t } = useLocale()
   const [date, setDate] = useState(day?.date ?? "")
   const [title, setTitle] = useState(day?.title ?? "")
   const [notes, setNotes] = useState(day?.notes ?? "")
@@ -486,73 +426,22 @@ function DayEditor({ day, busy, onSave }: { day: TripSnapshot["days"][number] | 
   }
 
   return (
-    <section className="day-editor" aria-label={`Day ${day?.dayNumber ?? ""} details`}>
-      <div className="form-heading"><strong>Day {day?.dayNumber ?? ""} details</strong></div>
+    <section className="day-editor" aria-label={t("mine.dayDetails", { n: day?.dayNumber ?? "" })}>
+      <div className="form-heading"><strong>{t("mine.dayDetails", { n: day?.dayNumber ?? "" })}</strong></div>
       <div className="day-editor-fields">
-        <label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-        <label>Title<input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} placeholder={`Day ${day?.dayNumber ?? ""}`} /></label>
+        <label>{t("mine.date")}<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <label>{t("mine.titleField")}<input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} placeholder={t("common.dayN", { n: day?.dayNumber ?? "" })} /></label>
       </div>
-      <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Anything to remember for this day" /></label>
+      <label>{t("mine.notesField")}<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder={t("mine.notesPlaceholder")} /></label>
       <button className="secondary-button" type="button" disabled={saving || busy !== null} onClick={() => void save()}>
-        {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}Save day details
+        {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}{t("mine.saveDayDetails")}
       </button>
     </section>
   )
 }
 
-function StopEditor({ stop, days, busy, onMove, onSave }: {
-  stop: TripSnapshot["stops"][number]
-  days: TripSnapshot["days"]
-  busy: string | null
-  onMove: (dayNumber: number) => Promise<void>
-  onSave: (fields: StopEditFields) => Promise<void>
-}) {
-  const [startTime, setStartTime] = useState(stop.startTime ? stop.startTime.slice(0, 5) : "")
-  const [duration, setDuration] = useState(String(stop.durationMinutes ?? 90))
-  const [transport, setTransport] = useState(stop.transportMode ?? "")
-  const [notes, setNotes] = useState(stop.notes ?? "")
-  const [saving, setSaving] = useState(false)
-
-  async function save() {
-    setSaving(true)
-    try {
-      await onSave({
-        startTime: startTime ? `${startTime}:00` : null,
-        durationMinutes: Number(duration) || null,
-        transportMode: (transport || null) as TransportMode | null,
-        notes,
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="stop-editor">
-      <div className="stop-editor-fields">
-        <label>Start time<input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
-        <label>Duration (min)<input type="number" min={1} max={1440} value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
-        <label>Transport
-          <select value={transport} onChange={(event) => setTransport(event.target.value)}>
-            <option value="">Not set</option><option value="walk">Walk</option><option value="transit">Transit</option>
-            <option value="taxi">Taxi</option><option value="bike">Bike</option><option value="other">Other</option>
-          </select>
-        </label>
-        <label>Move to day
-          <select value={stop.dayNumber ?? 1} onChange={(event) => void onMove(Number(event.target.value))}>
-            {days.map((day) => <option key={day.id} value={day.dayNumber}>Day {day.dayNumber}</option>)}
-          </select>
-        </label>
-      </div>
-      <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Private note for this stop" /></label>
-      <button className="secondary-button" type="button" disabled={saving || busy !== null} onClick={() => void save()}>
-        {saving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}Save stop
-      </button>
-    </div>
-  )
-}
-
 function PrivatePlacesCard({ mode, controls, selectedDay }: { mode: AppMode; controls: PrivatePlacesControls; selectedDay: number }) {
+  const { t } = useLocale()
   const [name, setName] = useState("")
   const [type, setType] = useState<PrivatePlaceInput["type"]>("other")
   const [address, setAddress] = useState("")
@@ -563,9 +452,9 @@ function PrivatePlacesCard({ mode, controls, selectedDay }: { mode: AppMode; con
     return (
       <section className="account-card private-places-card" aria-labelledby="private-places-heading">
         <div className="section-heading">
-          <div><span className="eyebrow">Private places</span><h2 id="private-places-heading">Hotels and stops</h2></div>
+          <div><span className="eyebrow">{t("mine.privateEyebrow")}</span><h2 id="private-places-heading">{t("mine.hotelsStops")}</h2></div>
         </div>
-        <p className="account-signin-note">Private places (hotels, restaurants, meeting points) need a signed-in account.</p>
+        <p className="account-signin-note">{t("mine.privateSigninNote")}</p>
       </section>
     )
   }
@@ -584,22 +473,22 @@ function PrivatePlacesCard({ mode, controls, selectedDay }: { mode: AppMode; con
   return (
     <section className="account-card private-places-card" aria-labelledby="private-places-heading">
       <div className="section-heading">
-        <div><span className="eyebrow">Private places</span><h2 id="private-places-heading">Hotels and stops</h2></div>
+        <div><span className="eyebrow">{t("mine.privateEyebrow")}</span><h2 id="private-places-heading">{t("mine.hotelsStops")}</h2></div>
       </div>
       <div className="private-place-form">
-        <label>Name<input value={name} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder="e.g. Courtyard Hotel" /></label>
+        <label>{t("mine.privateName")}<input value={name} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder={t("mine.privateNamePlaceholder")} /></label>
         <div className="profile-row">
-          <label>Place type
+          <label>{t("mine.placeType")}
             <select value={type} onChange={(event) => setType(event.target.value as PrivatePlaceInput["type"])}>
-              <option value="other">Other</option><option value="hotel">Hotel</option>
-              <option value="restaurant">Restaurant</option><option value="meeting_point">Meeting point</option>
+              <option value="other">{t("mine.typeOther")}</option><option value="hotel">{t("mine.typeHotel")}</option>
+              <option value="restaurant">{t("mine.typeRestaurant")}</option><option value="meeting_point">{t("mine.typeMeeting")}</option>
             </select>
           </label>
-          <label>Address<input value={address} maxLength={400} onChange={(event) => setAddress(event.target.value)} placeholder="Optional" /></label>
+          <label>{t("mine.address")}<input value={address} maxLength={400} onChange={(event) => setAddress(event.target.value)} placeholder={t("mine.addressOptional")} /></label>
         </div>
-        <label>Notes<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" /></label>
+        <label>{t("mine.notesField")}<input value={notes} maxLength={4000} onChange={(event) => setNotes(event.target.value)} placeholder={t("mine.addressOptional")} /></label>
         <button className="secondary-button" type="button" disabled={saving || !name.trim()} onClick={() => void create()}>
-          {saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Add private place
+          {saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{t("mine.addPrivatePlace")}
         </button>
       </div>
       {controls.places.length > 0 && (
@@ -608,14 +497,14 @@ function PrivatePlacesCard({ mode, controls, selectedDay }: { mode: AppMode; con
             <li key={place.id}>
               <div className="member-copy">
                 <strong>{place.name}</strong>
-                <span>{place.type.replace("_", " ")}{place.address ? ` · ${place.address}` : ""}{place.coordinate ? "" : " · no coordinate"}</span>
+                <span>{place.type.replace("_", " ")}{place.address ? ` · ${place.address}` : ""}{place.coordinate ? "" : ` · ${t("mine.noCoordinate")}`}</span>
               </div>
-              <button className="add-private-stop" type="button" onClick={() => void controls.onAddToDay(place.id, selectedDay)}>Add to day {selectedDay}</button>
+              <button className="add-private-stop" type="button" onClick={() => void controls.onAddToDay(place.id, selectedDay)}>{t("mine.addToDayN", { n: selectedDay })}</button>
             </li>
           ))}
         </ul>
       )}
-      <small className="private-places-note">Private places are your own trip stops, not reviewed attractions.</small>
+      <small className="private-places-note">{t("mine.privateNote")}</small>
     </section>
   )
 }

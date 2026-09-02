@@ -1,5 +1,6 @@
 import { X } from "lucide-react"
 import { useEffect, type ReactNode } from "react"
+import { useLocale } from "../lib/i18n"
 
 type BottomSheetProps = {
   open: boolean
@@ -9,6 +10,7 @@ type BottomSheetProps = {
 }
 
 export function BottomSheet({ open, title, onClose, children }: BottomSheetProps) {
+  const { t } = useLocale()
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
@@ -30,7 +32,7 @@ export function BottomSheet({ open, title, onClose, children }: BottomSheetProps
         <div className="bottom-sheet-handle" aria-hidden="true" />
         <div className="bottom-sheet-heading">
           <h2>{title}</h2>
-          <button type="button" aria-label="关闭" onClick={onClose}><X size={18} /></button>
+          <button type="button" aria-label={t("common.close")} onClick={onClose}><X size={18} /></button>
         </div>
         <div className="bottom-sheet-body">{children}</div>
       </section>

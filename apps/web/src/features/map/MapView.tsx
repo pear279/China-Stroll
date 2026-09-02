@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react"
 import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot } from "../../../../../packages/shared/src"
 import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl } from "../../lib/navigation"
 import type { LocationSharingControls, LocationStatus, NearbyRadius } from "../../app-shell/types"
+import { useLocale } from "../../lib/i18n"
 
 const TravelMap = lazy(() =>
   import("../../components/TravelMap").then((module) => ({ default: module.TravelMap })),
@@ -45,6 +46,7 @@ export function MapView({
   onSelect,
   onSelectDay,
 }: MapViewProps) {
+  const { t } = useLocale()
   const [activeFeature, setActiveFeature] = useState<ActiveFeature>(null)
   const [navPlaceId, setNavPlaceId] = useState<string | null>(null)
   const selectedPlace = places.find((place) => place.id === selectedPlaceId) ?? null
@@ -63,13 +65,13 @@ export function MapView({
     <section className="module-view map-view" aria-labelledby="map-heading">
       <header className="module-heading">
         <div>
-          <span className="eyebrow">地图</span>
-          <h1 id="map-heading">地图</h1>
+          <span className="eyebrow">{t("map.title")}</span>
+          <h1 id="map-heading">{t("map.title")}</h1>
         </div>
       </header>
 
       <div className="map-stage">
-        <Suspense fallback={<div className="map-shell" role="status"><LoaderCircle className="spin" aria-hidden="true" size={22} />加载地图…</div>}>
+        <Suspense fallback={<div className="map-shell" role="status"><LoaderCircle className="spin" aria-hidden="true" size={22} />{t("map.loadingMap")}</div>}>
           <TravelMap
             memberLocations={memberLocations}
             stops={trip.stops}
@@ -92,12 +94,12 @@ export function MapView({
         )}
       </div>
 
-      <div className="map-function-buttons" role="group" aria-label="地图功能">
+      <div className="map-function-buttons" role="group" aria-label={t("map.functions")}>
         <button type="button" className={activeFeature === "sharing" ? "is-active" : undefined} aria-pressed={activeFeature === "sharing"} onClick={() => setActiveFeature((current) => current === "sharing" ? null : "sharing")}>
-          <ShieldCheck aria-hidden="true" size={17} />共享位置
+          <ShieldCheck aria-hidden="true" size={17} />{t("map.shareLocation")}
         </button>
         <button type="button" className={activeFeature === "nearby" ? "is-active" : undefined} aria-pressed={activeFeature === "nearby"} onClick={() => setActiveFeature((current) => current === "nearby" ? null : "nearby")}>
-          <Navigation aria-hidden="true" size={17} />附近景点
+          <Navigation aria-hidden="true" size={17} />{t("map.nearby")}
         </button>
       </div>
 
@@ -112,30 +114,30 @@ export function MapView({
       )}
 
       {activeFeature === "nearby" && (
-        <div className="map-nearby-panel" aria-label="附近景点">
+        <div className="map-nearby-panel" aria-label={t("map.nearby")}>
           <button type="button" onClick={onRequestLocation} disabled={locationStatus === "loading"}>
             {locationStatus === "failed" ? <MapPinOff aria-hidden="true" size={16} /> : <Crosshair aria-hidden="true" size={16} />}
-            {locationStatus === "loading" ? "定位中…" : userCoordinate ? "定位已就绪" : "使用我的位置"}
+            {locationStatus === "loading" ? t("map.locating") : userCoordinate ? t("map.ready") : t("map.useLocation")}
           </button>
-          <div className="radius-controls" aria-label="距离范围">
+          <div className="radius-controls" aria-label={t("attr.distanceSheet")}>
             {([1, 3, 5, 10, 20] as const).map((value) => (
               <button key={value} type="button" className={nearbyRadius === value ? "is-active" : undefined} disabled={!userCoordinate} onClick={() => onRadius(value)}>{value} km</button>
             ))}
           </div>
-          {locationStatus === "failed" && <span>定位不可用，地图浏览仍可用。</span>}
+          {locationStatus === "failed" && <span>{t("map.locationUnavailableBrowse")}</span>}
         </div>
       )}
 
       <section className="map-trip-area" aria-labelledby="map-trip-heading">
         <div className="map-trip-heading">
-          <h2 id="map-trip-heading">行程</h2>
-          <div className="day-tabs" aria-label="选择日程">
-            {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}>第 {day.dayNumber} 天</button>)}
+          <h2 id="map-trip-heading">{t("map.itinerary")}</h2>
+          <div className="day-tabs" aria-label={t("map.selectDay")}>
+            {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}>{t("common.dayN", { n: day.dayNumber })}</button>)}
           </div>
         </div>
 
         {dayStops.length === 0 ? (
-          <p className="map-trip-empty">该日程暂无景点。</p>
+          <p className="map-trip-empty">{t("map.noStops")}</p>
         ) : (
           <ol className="map-itinerary-list">
             {dayStops.map((stop, index) => (
@@ -143,13 +145,13 @@ export function MapView({
                 <button type="button" className={selectedPlaceId === stop.placeId ? "is-selected" : undefined} onClick={() => stop.placeId && onSelect(stop.placeId)}>
                   <span className="map-itinerary-number">{index + 1}</span>
                   <span className="map-itinerary-copy">
-                    <strong>{stop.name}{stop.privatePlaceId ? " · 私人" : ""}</strong>
-                    <small><Clock3 aria-hidden="true" size={13} />{stop.startTime ? stop.startTime.slice(0, 5) : "时间待定"} · {stop.durationMinutes ?? 90} 分钟</small>
+                    <strong>{stop.name}{stop.privatePlaceId ? ` · ${t("map.private")}` : ""}</strong>
+                    <small><Clock3 aria-hidden="true" size={13} />{stop.startTime ? stop.startTime.slice(0, 5) : t("map.timeOpen")} · {stop.durationMinutes ?? 90} {t("map.minutes")}</small>
                   </span>
                 </button>
                 <div className="map-itinerary-actions">
-                  <button type="button" aria-label={`${stop.name} 详情`} onClick={() => stop.placeId && onOpenDetails(stop.placeId)}>详情</button>
-                  <button type="button" aria-label={`${stop.name} 导航`} disabled={!stop.coordinate} onClick={() => setNavPlaceId(stop.placeId)}>导航</button>
+                  <button type="button" aria-label={t("attr.detailsFor", { name: stop.name })} onClick={() => stop.placeId && onOpenDetails(stop.placeId)}>{t("common.details")}</button>
+                  <button type="button" aria-label={`${stop.name} ${t("common.navigate")}`} disabled={!stop.coordinate} onClick={() => setNavPlaceId(stop.placeId)}>{t("common.navigate")}</button>
                 </div>
               </li>
             ))}
@@ -172,25 +174,26 @@ function MapActionSheet({ place, planned, selectedDay, onDetails, onAdd, onCance
   onAdd: () => Promise<void>
   onCancel: () => void
 }) {
+  const { t } = useLocale()
   const [navigationExpanded, setNavigationExpanded] = useState(false)
 
   return (
-    <section className="map-action-sheet" role="dialog" aria-modal="false" aria-label={`${place.name} 地图操作`}>
+    <section className="map-action-sheet" role="dialog" aria-modal="false" aria-label={t("map.actionSheet", { name: place.name })}>
       <div className="map-action-heading">
-        <div><span className="eyebrow">已审核景点</span><h2>{place.name}</h2></div>
-        <button type="button" aria-label="取消" onClick={onCancel}><X aria-hidden="true" size={19} /></button>
+        <div><span className="eyebrow">{t("map.reviewed")}</span><h2>{place.name}</h2></div>
+        <button type="button" aria-label={t("common.cancel")} onClick={onCancel}><X aria-hidden="true" size={19} /></button>
       </div>
       <div className="map-action-buttons">
-        <button type="button" onClick={onDetails}>详情</button>
-        <button type="button" disabled={planned} onClick={() => void onAdd()}>{planned ? "已加入" : `加入第 ${selectedDay} 天`}</button>
-        <button type="button" onClick={() => setNavigationExpanded((current) => !current)}><Navigation aria-hidden="true" size={16} />导航</button>
+        <button type="button" onClick={onDetails}>{t("common.details")}</button>
+        <button type="button" disabled={planned} onClick={() => void onAdd()}>{planned ? t("attr.planned") : t("attr.addToDay", { day: selectedDay })}</button>
+        <button type="button" onClick={() => setNavigationExpanded((current) => !current)}><Navigation aria-hidden="true" size={16} />{t("common.navigate")}</button>
       </div>
       {navigationExpanded && (
-        <nav className="navigation-links" aria-label="选择导航平台">
+        <nav className="navigation-links" aria-label={t("map.chooseProvider")}>
           <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink aria-hidden="true" size={14} /></a>
           <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图 <ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图 <ExternalLink aria-hidden="true" size={14} /></a>
+          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">{t("map.amap")} <ExternalLink aria-hidden="true" size={14} /></a>
+          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">{t("map.baidu")} <ExternalLink aria-hidden="true" size={14} /></a>
         </nav>
       )}
     </section>
@@ -198,20 +201,21 @@ function MapActionSheet({ place, planned, selectedDay, onDetails, onAdd, onCance
 }
 
 function NavigationSheet({ place, onCancel }: { place: PlaceSummary; onCancel: () => void }) {
+  const { t } = useLocale()
   return (
     <div className="navigation-sheet-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
-      <section className="navigation-sheet" role="dialog" aria-modal="true" aria-label="选择导航平台">
+      <section className="navigation-sheet" role="dialog" aria-modal="true" aria-label={t("map.chooseProvider")}>
         <div className="navigation-sheet-heading">
           <strong>{place.name}</strong>
-          <button type="button" aria-label="关闭" onClick={onCancel}><X size={18} /></button>
+          <button type="button" aria-label={t("common.close")} onClick={onCancel}><X size={18} /></button>
         </div>
-        <nav className="navigation-links" aria-label="第三方地图平台">
+        <nav className="navigation-links" aria-label={t("map.thirdParty")}>
           <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps</a>
           <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps</a>
-          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图</a>
-          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图</a>
+          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">{t("map.amap")}</a>
+          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">{t("map.baidu")}</a>
         </nav>
-        <button className="navigation-sheet-cancel" type="button" onClick={onCancel}>取消</button>
+        <button className="navigation-sheet-cancel" type="button" onClick={onCancel}>{t("common.cancel")}</button>
       </section>
     </div>
   )
@@ -224,27 +228,28 @@ function LocationSharingPanel({ mode, status, snapshot, onEnable, onDisable }: {
   onEnable: () => Promise<void>
   onDisable: () => Promise<void>
 }) {
+  const { t } = useLocale()
   const checked = snapshot?.enabled ?? false
   const waiting = status === "loading" || status === "enabling" || status === "revoke-pending"
 
-  let statusText = "位置共享已关闭"
-  if (mode === "account" && status === "loading") statusText = "检查位置共享…"
-  else if (status === "sharing") statusText = `正在与 ${Math.max(0, (snapshot?.activeMemberCount ?? 1) - 1)} 位同行成员共享当前位置。`
-  else if (status === "permission-denied") statusText = "定位权限被拒绝，位置共享已关闭。"
-  else if (status === "dependency-unavailable") statusText = "位置共享暂时不可用。"
-  else if (status === "revoke-pending") statusText = "正在撤销…"
+  let statusText = t("map.shareOff")
+  if (mode === "account" && status === "loading") statusText = t("map.shareChecking")
+  else if (status === "sharing") statusText = t("map.sharingWith", { n: Math.max(0, (snapshot?.activeMemberCount ?? 1) - 1) })
+  else if (status === "permission-denied") statusText = t("map.shareDenied")
+  else if (status === "dependency-unavailable") statusText = t("map.shareUnavailable")
+  else if (status === "revoke-pending") statusText = t("map.shareRevoking")
 
   return (
     <div className="map-sharing-panel">
       <div className="map-sharing-copy">
         <ShieldCheck aria-hidden="true" size={18} />
         <div>
-          <strong>共享位置</strong>
+          <strong>{t("map.shareLocation")}</strong>
           <p>{statusText}</p>
         </div>
       </div>
       <button className={checked ? "is-active" : undefined} role="switch" aria-checked={checked} disabled={waiting} onClick={() => void (checked ? onDisable() : onEnable())}>
-        {checked ? "关闭共享" : "开启共享"}
+        {checked ? t("map.shareDisable") : t("map.shareEnable")}
       </button>
       {snapshot?.visibleLocations && snapshot.visibleLocations.length > 0 && (
         <ul className="map-sharing-members">

@@ -12,6 +12,7 @@ import {
 } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
 import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl } from "../lib/navigation"
+import { useLocale } from "../lib/i18n"
 import { PlaceSources, type PlaceDisplaySource } from "./PlaceSources"
 
 type Props = {
@@ -50,6 +51,7 @@ export function PlaceDetailPanel({
   const questionRequestId = useRef(0)
   const dialogRef = useRef<HTMLElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const { t } = useLocale()
 
   function toGuideDisplaySources(sources: GuideSource[]): PlaceDisplaySource[] {
     return sources
@@ -67,21 +69,21 @@ export function PlaceDetailPanel({
   }
 
   function formatDateTime(value: string | null) {
-    return value ? `${value.slice(0, 10)} ${value.slice(11, 16)}` : "time unavailable"
+    return value ? `${value.slice(0, 10)} ${value.slice(11, 16)}` : t("detail.timeUnavailable")
   }
 
   function questionModeLabel(response: PlaceQuestionResponse) {
     if (response.answerMode === "reviewed-local" || response.answerMode === "model-grounded-local") {
-      return "From reviewed information"
+      return t("detail.fromReviewed")
     }
     if (response.answerMode === "web-grounded") {
-      return "Web information"
+      return t("detail.webInformation")
     }
     if (response.dependencyStatus === "search-unavailable") {
-      return "Online search requires the API service for questions not covered by the reviewed guide."
+      return t("detail.searchUnavailable")
     }
     if (response.dependencyStatus === "no-reliable-sources") {
-      return "No reliable sources were found, so this answer cannot be confirmed."
+      return t("detail.noReliableSources")
     }
     return response.answer
   }
@@ -141,7 +143,7 @@ export function PlaceDetailPanel({
       } catch {
         if (questionRequestId.current !== requestId) return
         setQuestionResponse(null)
-        setQuestionError("Questions are temporarily unavailable. Reviewed details and external links still work.")
+        setQuestionError(t("detail.questionFailed"))
       }
     })
   }
@@ -177,10 +179,10 @@ export function PlaceDetailPanel({
 
   const guideSources = guide ? toGuideDisplaySources(guide.sources) : []
   const detailSections = detail ? [
-    { title: "History", content: detail.history },
-    { title: "Visit advice", content: detail.visitorTips },
-    { title: "Practical notes", content: detail.practicalNotes },
-    { title: "Photo notes", content: detail.photoSpotNotes },
+    { title: t("detail.history"), content: detail.history },
+    { title: t("detail.visitAdvice"), content: detail.visitorTips },
+    { title: t("detail.practicalNotes"), content: detail.practicalNotes },
+    { title: t("detail.photoNotes"), content: detail.photoSpotNotes },
   ] : []
   const visitInformation = detail?.visitInformation ?? null
 
@@ -194,31 +196,31 @@ export function PlaceDetailPanel({
         aria-labelledby="place-detail-title"
         onKeyDown={trapFocus}
       >
-        <button ref={closeButtonRef} className="detail-back" type="button" onClick={onClose} aria-label="返回"><ArrowLeft size={20} /></button>
+        <button ref={closeButtonRef} className="detail-back" type="button" onClick={onClose} aria-label={t("common.back")}><ArrowLeft size={20} /></button>
         <img className="detail-hero" src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
         <div className="detail-content">
-          <span className="eyebrow">Reviewed place guide</span>
+          <span className="eyebrow">{t("detail.eyebrow")}</span>
           <h2 id="place-detail-title">{detail?.name ?? place.name}</h2>
           <p className="detail-intro">{detail?.shortIntro ?? place.shortIntro}</p>
           <div className="detail-actions">
             <button type="button" className={saved ? "is-active" : ""} disabled={busy === "save"} onClick={() => void run("save", () => onToggleSaved(place.id))}>
-              {saved ? <Check size={17} /> : <Bookmark size={17} />}{saved ? "已收藏" : "收藏景点"}
+              {saved ? <Check size={17} /> : <Bookmark size={17} />}{saved ? t("detail.favorited") : t("detail.favorite")}
             </button>
             <button type="button" disabled={planned || busy === "add"} onClick={() => setShowDaySheet(true)}>
-              {planned ? <Check size={17} /> : <Plus size={17} />}{planned ? "已加入" : "加入日程"}
+              {planned ? <Check size={17} /> : <Plus size={17} />}{planned ? t("attr.planned") : t("attr.joinItinerary")}
             </button>
           </div>
 
-          <BottomSheet open={showDaySheet} title="加入日程" onClose={() => setShowDaySheet(false)}>
+          <BottomSheet open={showDaySheet} title={t("attr.joinItinerary")} onClose={() => setShowDaySheet(false)}>
             {days.map((day) => (
               <button key={day.id} type="button" className="bottom-sheet-option" onClick={() => void run("add", async () => { await onAdd(place.id, day.dayNumber); setShowDaySheet(false) })}>
-                第 {day.dayNumber} 天{day.date ? ` · ${day.date}` : ""}
+                {t("common.dayN", { n: day.dayNumber })}{day.date ? ` · ${day.date}` : ""}
               </button>
             ))}
             <button type="button" className="bottom-sheet-primary" onClick={() => void run("add", async () => { const nextDay = await onAddDay(); if (nextDay) await onAdd(place.id, nextDay); setShowDaySheet(false) })}>
-              <Plus size={16} />创建新日程并加入
+              <Plus size={16} />{t("detail.createDay")}
             </button>
-            <button type="button" className="bottom-sheet-secondary" onClick={() => setShowDaySheet(false)}>取消</button>
+            <button type="button" className="bottom-sheet-secondary" onClick={() => setShowDaySheet(false)}>{t("common.cancel")}</button>
           </BottomSheet>
 
           {detail && (
@@ -229,35 +231,35 @@ export function PlaceDetailPanel({
                   <p>{section.content}</p>
                 </div>
               ))}
-              {detail.highlights.length > 0 && <div><h3>Highlights</h3><ul>{detail.highlights.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+              {detail.highlights.length > 0 && <div><h3>{t("detail.highlights")}</h3><ul>{detail.highlights.map((item) => <li key={item}>{item}</li>)}</ul></div>}
               {visitInformation && (
                 <>
                   <div>
-                    <h3>Address</h3>
+                    <h3>{t("detail.address")}</h3>
                     <p>{visitInformation.address}</p>
                   </div>
                   <div>
-                    <h3>Hours</h3>
+                    <h3>{t("detail.hours")}</h3>
                     <p>{visitInformation.openingHoursText}</p>
                     {visitInformation.needsRecheck && (
-                      <p className="detail-warning">Opening information needs rechecking</p>
+                      <p className="detail-warning">{t("detail.openingRecheck")}</p>
                     )}
                   </div>
                   <div>
-                    <h3>Tickets</h3>
+                    <h3>{t("detail.tickets")}</h3>
                     <p>{visitInformation.ticketNotes}</p>
                     {visitInformation.bookingUrl && (
                       <a className="detail-inline-link" href={visitInformation.bookingUrl} target="_blank" rel="noreferrer">
-                        Official booking page <ExternalLink aria-hidden="true" size={14} />
+                        {t("detail.bookingPage")} <ExternalLink aria-hidden="true" size={14} />
                       </a>
                     )}
                   </div>
                   <div>
-                    <h3>Reservation</h3>
+                    <h3>{t("detail.reservation")}</h3>
                     <p>{visitInformation.reservationNotes}</p>
                   </div>
                   <div>
-                    <h3>Entrance</h3>
+                    <h3>{t("detail.entrance")}</h3>
                     <p>{visitInformation.entranceNotes}</p>
                   </div>
                 </>
@@ -266,37 +268,37 @@ export function PlaceDetailPanel({
           )}
 
           <div className="guide-heading">
-            <h3>景点导览</h3>
-            <div className="guide-mode-toggle" role="group" aria-label="导览模式">
-              <button type="button" className={audience === "general" ? "is-active" : undefined} aria-pressed={audience === "general"} onClick={() => setAudience("general")}>普通模式</button>
-              <button type="button" className={audience === "child" ? "is-active" : undefined} aria-pressed={audience === "child"} onClick={() => setAudience("child")}>儿童模式</button>
+            <h3>{t("detail.guide")}</h3>
+            <div className="guide-mode-toggle" role="group" aria-label={t("detail.guideMode")}>
+              <button type="button" className={audience === "general" ? "is-active" : undefined} aria-pressed={audience === "general"} onClick={() => setAudience("general")}>{t("detail.standard")}</button>
+              <button type="button" className={audience === "child" ? "is-active" : undefined} aria-pressed={audience === "child"} onClick={() => setAudience("child")}>{t("detail.kids")}</button>
             </div>
           </div>
-          {status === "loading" && <p className="detail-state"><LoaderCircle className="spin" size={18} />Loading reviewed guide…</p>}
-          {status === "failed" && <p className="detail-state">The detailed guide is unavailable. The place summary and navigation still work.</p>}
+          {status === "loading" && <p className="detail-state"><LoaderCircle className="spin" size={18} />{t("detail.loadingGuide")}</p>}
+          {status === "failed" && <p className="detail-state">{t("detail.guideUnavailable")}</p>}
           {guide?.segments.map((segment) => <article className="guide-segment" key={segment.id}><h4>{segment.title ?? segment.type}</h4><p>{segment.content}</p></article>)}
           {guideSources.length > 0 && (
             <div className="guide-sources-block">
-              <p className="guide-source">Reviewed sources</p>
+              <p className="guide-source">{t("detail.reviewedSources")}</p>
               <PlaceSources sources={guideSources} />
             </div>
           )}
 
           <form className="place-question" onSubmit={submitQuestion}>
-            <label htmlFor="place-question">Ask about this place</label>
+            <label htmlFor="place-question">{t("detail.askAbout")}</label>
             <div>
-              <input id="place-question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="What should I notice first?" />
-              <button type="submit" aria-label="Ask" disabled={!question.trim() || busy === "question"}>
+              <input id="place-question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={t("detail.askPlaceholderQ")} />
+              <button type="submit" aria-label={t("detail.askAria")} disabled={!question.trim() || busy === "question"}>
                 {busy === "question" ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}
               </button>
             </div>
-            <small>Preview answers use reviewed local material first and cite any live web retrieval.</small>
+            <small>{t("detail.askNote")}</small>
             {questionError && <p className="place-answer place-answer-error" role="status">{questionError}</p>}
             {questionResponse && (
               <div className="place-answer" role="status" aria-live="polite">
                 <strong className="place-answer-label">{questionModeLabel(questionResponse)}</strong>
                 {questionResponse.answerMode === "web-grounded" && (
-                  <p className="place-answer-meta">Retrieved {formatDateTime(questionResponse.searchedAt)}</p>
+                  <p className="place-answer-meta">{t("detail.retrieved", { time: formatDateTime(questionResponse.searchedAt) })}</p>
                 )}
                 {questionResponse.warning && <p className="place-answer-meta">{questionResponse.warning}</p>}
                 {(questionResponse.answerMode === "reviewed-local"
@@ -309,7 +311,7 @@ export function PlaceDetailPanel({
             )}
           </form>
 
-          {place.coordinate && <nav className="navigation-links" aria-label="Open external navigation"><a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink size={14} /></a><a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink size={14} /></a><a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图 <ExternalLink size={14} /></a><a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图 <ExternalLink size={14} /></a></nav>}
+          {place.coordinate && <nav className="navigation-links" aria-label={t("detail.openNavigation")}><a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink size={14} /></a><a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink size={14} /></a><a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">{t("map.amap")} <ExternalLink size={14} /></a><a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">{t("map.baidu")} <ExternalLink size={14} /></a></nav>}
         </div>
       </section>
     </div>
