@@ -86,7 +86,7 @@ declare
 begin
   if has_function_privilege(
     'authenticated',
-    'public.create_mvp_trip(uuid,uuid,text,date,text)',
+    'public.create_mvp_trip(uuid,uuid,text,date,text,date,integer)',
     'execute'
   ) then
     raise exception 'authenticated must not execute create_mvp_trip';
@@ -614,6 +614,75 @@ begin
   end if;
 
   reset role;
+end;
+$$;
+
+do $$
+declare
+  v_trip_id uuid;
+  v_traveler_count integer;
+  v_end_date date;
+  v_rejected boolean := false;
+begin
+  v_trip_id := (
+    public.create_mvp_trip(
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555591',
+      'Traveler count test trip',
+      current_date,
+      'en',
+      current_date + 2,
+      5
+    ) ->> 'tripId'
+  )::uuid;
+
+  select traveler_count, end_date into v_traveler_count, v_end_date
+  from public.trips where id = v_trip_id;
+
+  if v_traveler_count <> 5 then
+    raise exception 'traveler count must be persisted';
+  end if;
+
+  if v_end_date <> current_date + 2 then
+    raise exception 'end date must be persisted';
+  end if;
+
+  begin
+    perform public.create_mvp_trip(
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555592',
+      'Invalid traveler count trip',
+      current_date,
+      'en',
+      current_date,
+      0
+    );
+  exception when others then
+    v_rejected := sqlerrm like '%VALIDATION_FAILED%';
+  end;
+
+  if not v_rejected then
+    raise exception 'traveler count of 0 must be rejected';
+  end if;
+
+  v_rejected := false;
+  begin
+    perform public.create_mvp_trip(
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555593',
+      'Invalid dates trip',
+      current_date,
+      'en',
+      current_date - 1,
+      1
+    );
+  exception when others then
+    v_rejected := sqlerrm like '%VALIDATION_FAILED%';
+  end;
+
+  if not v_rejected then
+    raise exception 'end date before start date must be rejected';
+  end if;
 end;
 $$;
 

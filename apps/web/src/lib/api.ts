@@ -143,7 +143,7 @@ export const api = {
   removeSavedPlace(accessToken: string, placeId: string) {
     return request<void>(`/v1/place-library/${encodeURIComponent(placeId)}`, accessToken, { method: "DELETE" })
   },
-  createTrip(accessToken: string, input: { name: string; startDate: string | null }) {
+  createTrip(accessToken: string, input: { name: string; startDate: string | null; endDate: string | null; travelerCount: number }) {
     return request<{ tripId: string; version: number }>("/v1/trips", accessToken, {
       method: "POST",
       body: JSON.stringify({ ...input, locale: "en", commandId: crypto.randomUUID() }),

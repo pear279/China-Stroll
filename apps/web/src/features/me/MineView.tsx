@@ -80,7 +80,7 @@ export function MineView({
         <div>
           <span className="eyebrow">{mode === "preview" ? t("mine.eyebrowPreview") : testIdentity ? t("mine.eyebrowTest", { id: testIdentity }) : t("mine.eyebrowShared")}</span>
           <h1 id="mine-heading">{t("mine.title")}</h1>
-          <p>{trip.name} · Version {trip.version}</p>
+          <p>{trip.name} · {t("mine.travelers", { n: trip.travelerCount })} · Version {trip.version}</p>
         </div>
         <div className="mine-header-actions">
           <button className="icon-button" type="button" aria-label="Switch language" onClick={() => setLocale(locale === "en" ? "zh" : "en")}>

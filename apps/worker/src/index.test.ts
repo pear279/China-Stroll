@@ -82,6 +82,30 @@ describe("worker routes", () => {
     })
   })
 
+  it("creates a trip with the onboarding end date and traveler count", async () => {
+    supabaseMocks.rpc.mockResolvedValue({ data: { tripId, version: 1 }, error: null })
+    const response = await app.request(
+      "/v1/trips",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer valid-test-token", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Alex's Beijing trip",
+          startDate: "2026-10-02",
+          endDate: "2026-10-05",
+          travelerCount: 4,
+          commandId: crypto.randomUUID(),
+        }),
+      },
+      env,
+    )
+    expect(response.status).toBe(201)
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith("create_mvp_trip", expect.objectContaining({
+      p_end_date: "2026-10-05",
+      p_traveler_count: 4,
+    }))
+  })
+
   it("requires authentication before location sharing state is read", async () => {
     const response = await app.request("/v1/trips/trip-1/location-sharing", {}, env)
     expect(response.status).toBe(401)

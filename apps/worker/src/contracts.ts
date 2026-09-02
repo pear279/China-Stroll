@@ -74,6 +74,8 @@ export const tripCommandResultSchema = z.object({
 export const createTripSchema = z.object({
   name: z.string().trim().min(1).max(120),
   startDate: z.iso.date().nullable().optional(),
+  endDate: z.iso.date().nullable().optional(),
+  travelerCount: z.int().min(1).max(50).default(1),
   locale: localeSchema.default("en"),
   commandId: z.uuid(),
 })

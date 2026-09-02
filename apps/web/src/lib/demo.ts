@@ -9,12 +9,13 @@ import {
   type TripSnapshot,
 } from "../../../../packages/shared/src"
 
-export function createDemoTrip(name: string, startDate: string | null): TripSnapshot {
+export function createDemoTrip(name: string, startDate: string | null, endDate: string | null = null, travelerCount = 1): TripSnapshot {
   return {
     id: crypto.randomUUID(),
     name,
     startDate,
-    endDate: startDate,
+    endDate: endDate ?? startDate,
+    travelerCount,
     locale: "en",
     version: 1,
     days: [{ id: 1, dayNumber: 1, date: startDate, title: "Day 1", notes: "" }],

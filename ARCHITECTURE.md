@@ -39,6 +39,10 @@ The application uses React Router with `BrowserRouter`; browser back/forward and
 
 Cloudflare Pages uses its default SPA fallback because the project has no top-level `404.html`. A catch-all `_redirects` rule is intentionally absent: Wrangler 4.127 identifies `/* /index.html 200` as an infinite loop. `apps/web/public/_routes.json` keeps `/health` and `/v1/*` in the Pages Functions routing scope, so module paths return `index.html` while API paths continue to return JSON.
 
+### Sign-in and onboarding
+
+First use opens a login screen with no phone/email verification: "Start" calls `supabase.auth.signInAnonymously()` so the user keeps a real authenticated session (profile, trip, reservations, location sharing, and invite links all work) without supplying contact details. A local preview remains the fallback when Supabase is not configured. A returning session restores its trip from `china-stroll-trip-id`. New signed-in users without a trip complete a three-step onboarding — nickname (profile `display_name`), party size (`trips.traveler_count`), and trip start/end dates — before the four modules render. The email magic-link welcome was removed.
+
 ## Data Model
 
 Existing core tables:

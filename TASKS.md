@@ -119,6 +119,11 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: `docs/superpowers/plans/2026-09-01-unified-acceptance.md`.
   - Verified: `npm run typecheck`, `npm run lint` (0 warnings), `npm test` (29 files / 222 tests), `npm run build`, `npm run db:verify`, and `git diff --check` all passed on 2026-09-01. Two-account, 390px/desktop screenshot, real-device navigation, and Beijing-network checks are deferred to release acceptance against a deployed environment; Package 5 (private records + offline) is postponed by product decision.
 
+- [x] Package 7 — Frictionless login and onboarding (2026-09-02)
+  - Goal: new users enter through a no-verification login and a three-step onboarding (nickname, party size, trip dates) before reaching the four modules.
+  - Files: `supabase/migrations/20260902000000_add_trip_traveler_count.sql`, `scripts/verify-local-database.sh`, Worker `createTripSchema`/`create_mvp_trip`/trip snapshot, `supabase/database.types.ts`, client `api.createTrip`, `lib/demo.createDemoTrip`, `App.tsx` `LoginScreen`/`OnboardingScreen`, `lib/i18n.tsx` keys, `MineView` traveler count, and worker/contracts/SQL tests.
+  - Verified: `trips.traveler_count` plus bounded `create_mvp_trip(p_end_date, p_traveler_count)`; the Worker snapshot returns `travelerCount`; App replaces the email magic-link welcome with `signInAnonymously()` and a three-step wizard that writes the profile display name and a trip with start/end dates and party size; Mine shows the traveler count; the obsolete `lib/auth` email module was removed. `npm run typecheck`, `npm run lint` (0 warnings), `npm test` (28 files / 213 tests), `npm run build`, and `npm run db:verify` all passed on 2026-09-02.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.

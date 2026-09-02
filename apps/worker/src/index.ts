@@ -662,6 +662,8 @@ app.post("/v1/trips", async (context) => {
     p_locale: parsed.data.locale,
     p_name: parsed.data.name,
     p_start_date: parsed.data.startDate ?? undefined,
+    p_end_date: parsed.data.endDate ?? undefined,
+    p_traveler_count: parsed.data.travelerCount,
   })
 
   if (error) return mapDatabaseError(context, error)
@@ -689,7 +691,7 @@ app.get("/v1/trips/:tripId", async (context) => {
   const tripId = context.req.param("tripId")
   const client = context.get("userClient")
   const [tripResult, dayResult, stopResult, reservationResult, suggestionResult] = await Promise.all([
-    client.from("trips").select("id,name,start_date,end_date,locale,version").eq("id", tripId).maybeSingle(),
+    client.from("trips").select("id,name,start_date,end_date,traveler_count,locale,version").eq("id", tripId).maybeSingle(),
     client.from("trip_days").select("id,day_number,day_date,title,notes").eq("trip_id", tripId).order("day_number"),
     client.from("trip_stops").select("id,trip_id,trip_day_id,place_id,private_place_id,snapshot_name,snapshot_latitude,snapshot_longitude,start_time,duration_minutes,transport_mode,notes,sort_order").eq("trip_id", tripId).order("sort_order"),
     client.from("reservations").select("id,trip_id,trip_day_id,place_id,category,title,starts_at,ends_at,status,provider,confirmation_code,notes").eq("trip_id", tripId).order("starts_at", { ascending: true }),
@@ -704,6 +706,7 @@ app.get("/v1/trips/:tripId", async (context) => {
     name: tripResult.data.name,
     startDate: tripResult.data.start_date,
     endDate: tripResult.data.end_date,
+    travelerCount: Number(tripResult.data.traveler_count ?? 1),
     locale: localeSchema.parse(tripResult.data.locale),
     version: Number(tripResult.data.version),
     days: (dayResult.data ?? []).map((day) => ({

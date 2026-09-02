@@ -1,6 +1,6 @@
 import type { Session } from "@supabase/supabase-js"
-import { ArrowRight, CalendarDays, LoaderCircle, Sparkles, Users } from "lucide-react"
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { ArrowLeft, ArrowRight, CalendarDays, LoaderCircle, Minus, Plus, Sparkles, Users } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type PrivatePlace, type PrivatePlaceInput, type ReservationDraft, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
@@ -9,8 +9,8 @@ import { createPlaceRepository } from "./data/placeRepository"
 import { useLocationSharing } from "./features/location/useLocationSharing"
 import { JoinTripView } from "./features/members/JoinTripView"
 import { api, ApiRequestError } from "./lib/api"
-import { isTestLoginEnabled, maskEmail, startEmailLogin, TEST_EMAIL_LABEL_KEY } from "./lib/auth"
 import { addDemoDay, addDemoStop, applyDemoSuggestion, createDemoReservation, createDemoSuggestion, createDemoTrip, editDemoDay, editDemoStop, moveDemoStopToDay, refreshSampleCoordinates, removeDemoReservation, removeDemoStop, reorderDemoStops, updateDemoReservation } from "./lib/demo"
+import { useLocale } from "./lib/i18n"
 import { hasSupabaseConfig, supabase } from "./lib/supabase"
 
 type Mode = "loading" | "signed-out" | "preview" | "account"
@@ -54,7 +54,8 @@ export function App() {
     const savedPreview = localStorage.getItem("china-stroll-preview-trip")
     if (savedPreview) {
       try {
-        setTrip(refreshSampleCoordinates(JSON.parse(savedPreview) as TripSnapshot))
+        const parsed = JSON.parse(savedPreview) as TripSnapshot
+        setTrip(refreshSampleCoordinates({ ...parsed, travelerCount: parsed.travelerCount ?? 1 }))
         setMode("preview")
         return
       } catch {
@@ -194,17 +195,55 @@ export function App() {
     }
   }
 
-  async function createTrip(name: string, startDate: string | null) {
+  async function createTrip(input: { name: string; startDate: string | null; endDate: string | null; travelerCount: number }) {
     if (mode === "preview") {
-      setTrip(createDemoTrip(name, startDate))
+      setTrip(createDemoTrip(input.name, input.startDate, input.endDate, input.travelerCount))
       return
     }
     if (!session) return
     await run("create-trip", async () => {
-      const created = await api.createTrip(session.access_token, { name, startDate })
+      const created = await api.createTrip(session.access_token, input)
       localStorage.setItem("china-stroll-trip-id", created.tripId)
       await loadTrip(session.access_token, created.tripId)
     })
+  }
+
+  async function signInAnonymously() {
+    if (!supabase) return
+    setBusy("sign-in")
+    setMessage(null)
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously()
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+      if (data.session) {
+        setSession(data.session)
+        setMode("account")
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not sign in.")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function completeOnboarding(input: { nickname: string; travelerCount: number; startDate: string | null; endDate: string | null }) {
+    const tripName = input.nickname.trim() ? `${input.nickname.trim()}'s Beijing trip` : "Beijing trip"
+    if (mode === "account" && session) {
+      await run("save-profile", async () => {
+        await api.updateProfile(session.access_token, {
+          displayName: input.nickname.trim(),
+          interfaceLocale: "en",
+          contentLocale: "en",
+          countryCode: null,
+          travelPreferences: {},
+        })
+        setProfile((current) => current ? { ...current, displayName: input.nickname.trim() } : current)
+      })
+    }
+    await createTrip({ name: tripName, startDate: input.startDate, endDate: input.endDate, travelerCount: input.travelerCount })
   }
 
   async function addPlace(placeId: string, dayNumber = 1) {
@@ -522,20 +561,18 @@ export function App() {
 
   if (mode === "signed-out") {
     return (
-      <WelcomeScreen
+      <LoginScreen
         configured={hasSupabaseConfig}
-        onAuthenticated={(nextSession) => {
-          setSession(nextSession)
-          setMode("account")
-        }}
+        busy={busy === "sign-in"}
+        error={message}
+        onSignIn={() => void signInAnonymously()}
         onPreview={() => setMode("preview")}
       />
     )
   }
-  const testIdentity = session?.user.is_anonymous
-    ? sessionStorage.getItem(TEST_EMAIL_LABEL_KEY) ?? "Test visitor"
-    : null
-  if (!trip) return <CreateTripScreen busy={busy === "create-trip"} mode={mode} onCreate={createTrip} testIdentity={testIdentity} />
+  if (!trip) {
+    return <OnboardingScreen busy={busy === "create-trip" || busy === "save-profile"} onComplete={completeOnboarding} />
+  }
 
   return (
     <AppShell
@@ -580,7 +617,7 @@ export function App() {
       places={places}
       placesState={placesState}
       savedPlaceIds={savedPlaceIds}
-      testIdentity={testIdentity}
+      testIdentity={null}
       trip={trip}
       onAddPlace={addPlace}
       onAddDay={addDay}
@@ -596,7 +633,6 @@ export function App() {
         setTrip(null)
         localStorage.removeItem("china-stroll-trip-id")
         localStorage.removeItem("china-stroll-preview-trip")
-        sessionStorage.removeItem(TEST_EMAIL_LABEL_KEY)
         if (mode === "account") await supabase?.auth.signOut()
         setMode("signed-out")
       }}
@@ -604,46 +640,20 @@ export function App() {
   )
 }
 
-function WelcomeScreen({
+function LoginScreen({
   configured,
-  onAuthenticated,
+  busy,
+  error,
+  onSignIn,
   onPreview,
 }: {
   configured: boolean
-  onAuthenticated: (session: Session) => void
+  busy: boolean
+  error: string | null
+  onSignIn: () => void
   onPreview: () => void
 }) {
-  const [email, setEmail] = useState("")
-  const [status, setStatus] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  async function signIn(event: FormEvent) {
-    event.preventDefault()
-    if (!supabase || !email) return
-    setSubmitting(true)
-    if (isTestLoginEnabled) {
-      sessionStorage.setItem(TEST_EMAIL_LABEL_KEY, maskEmail(email))
-    }
-    const { data, error } = await startEmailLogin(
-      supabase.auth,
-      email,
-      window.location.origin,
-      isTestLoginEnabled,
-    )
-    if (error && isTestLoginEnabled) {
-      sessionStorage.removeItem(TEST_EMAIL_LABEL_KEY)
-    }
-    setSubmitting(false)
-    if (data.session) onAuthenticated(data.session)
-    setStatus(
-      error
-        ? error.message
-        : isTestLoginEnabled
-          ? "Test session opened. Your email was not verified or sent."
-          : "Check your email for a secure sign-in link.",
-    )
-  }
-
+  const { t } = useLocale()
   return (
     <main className="welcome-layout">
       <section className="welcome-copy">
@@ -651,15 +661,13 @@ function WelcomeScreen({
           <span className="brand-seal">游</span>
           <span>China Stroll</span>
         </a>
-        <div className="eyebrow">A calmer way through Beijing</div>
-        <h1>Keep the family plan clear, even when the day changes.</h1>
-        <p className="welcome-lede">
-          Build one shared day, understand each place, and review every suggested change before it reaches your itinerary.
-        </p>
+        <div className="eyebrow">{t("login.eyebrow")}</div>
+        <h1>{t("login.title")}</h1>
+        <p className="welcome-lede">{t("login.lede")}</p>
         <div className="proof-row">
-          <span><CalendarDays size={18} /> One shared day</span>
-          <span><Users size={18} /> Family ready</span>
-          <span><Sparkles size={18} /> You confirm AI changes</span>
+          <span><CalendarDays size={18} /> {t("login.proofOne")}</span>
+          <span><Users size={18} /> {t("login.proofTwo")}</span>
+          <span><Sparkles size={18} /> {t("login.proofThree")}</span>
         </div>
       </section>
       <section className="welcome-card" aria-labelledby="start-title">
@@ -667,62 +675,101 @@ function WelcomeScreen({
           <img src="/places/forbidden-city.webp" alt="" />
           <span>BEIJING · 北京</span>
         </div>
-        <h2 id="start-title">Start your first stroll</h2>
-        {isTestLoginEnabled && (
-          <p className="test-mode-note">Test mode is on. This temporary account cannot be recovered after sign-out.</p>
-        )}
-        {configured ? (
-          <form onSubmit={signIn} className="auth-form">
-            <label htmlFor="email">Email address</label>
-            <input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-            <button className="primary-button" disabled={submitting} type="submit">
-              {submitting ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}
-              {isTestLoginEnabled ? "Continue in test mode" : "Email me a sign-in link"}
-            </button>
-          </form>
-        ) : (
-          <p className="config-note">Account sign-in becomes available after local environment values are added.</p>
-        )}
-        {status && <p className="status-message" role="status">{status}</p>}
+        <h2 id="start-title">{t("login.startTitle")}</h2>
+        <button className="primary-button" type="button" disabled={busy || !configured} onClick={onSignIn}>
+          {busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}
+          {t("login.start")}
+        </button>
+        {!configured && <p className="config-note">{t("login.configNote")}</p>}
+        {error && <p className="status-message" role="alert">{error}</p>}
+        <p className="privacy-note">{t("login.startNote")}</p>
         <div className="or-divider"><span>or</span></div>
-        <button className="secondary-button" type="button" onClick={onPreview}>Explore the three-place preview</button>
-        <p className="privacy-note">
-          {isTestLoginEnabled
-            ? "Your email stays in this browser as a masked label and is not verified."
-            : "Preview plans stay in this browser and are not shared."}
-        </p>
+        <button className="secondary-button" type="button" onClick={onPreview}>{t("login.preview")}</button>
+        <p className="privacy-note">{t("login.previewNote")}</p>
       </section>
     </main>
   )
 }
 
-function CreateTripScreen({ busy, mode, onCreate, testIdentity }: { busy: boolean; mode: Mode; onCreate: (name: string, date: string | null) => Promise<void>; testIdentity: string | null }) {
-  const [name, setName] = useState("Our first Beijing day")
-  const [date, setDate] = useState("")
+type OnboardingInput = { nickname: string; travelerCount: number; startDate: string | null; endDate: string | null }
+
+function OnboardingScreen({ busy, onComplete }: { busy: boolean; onComplete: (input: OnboardingInput) => Promise<void> }) {
+  const { t } = useLocale()
+  const [step, setStep] = useState(0)
+  const [nickname, setNickname] = useState("")
+  const [travelerCount, setTravelerCount] = useState(2)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [formError, setFormError] = useState<string | null>(null)
+
+  function next() {
+    if (step === 0 && !nickname.trim()) {
+      setFormError(t("onboarding.nicknameRequired"))
+      return
+    }
+    setFormError(null)
+    setStep((current) => current + 1)
+  }
+
+  async function finish() {
+    if (startDate && endDate && endDate < startDate) {
+      setFormError(t("onboarding.datesInvalid"))
+      return
+    }
+    setFormError(null)
+    await onComplete({ nickname: nickname.trim(), travelerCount, startDate: startDate || null, endDate: endDate || null })
+  }
+
   return (
     <main className="create-layout">
-      <div className="step-count">01 / 03</div>
-      <section className="create-card">
-        <div className="eyebrow">Create a shared trip</div>
-        <h1>Give everyone one plan to follow.</h1>
-        <p>You can add places first and decide exact times after seeing the day together.</p>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            void onCreate(name, date || null)
-          }}
-        >
-          <label htmlFor="trip-name">Trip name</label>
-          <input id="trip-name" required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
-          <label htmlFor="trip-date">First day <span>optional</span></label>
-          <input id="trip-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-          <button className="primary-button" disabled={busy} type="submit">
-            {busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}
-            Create trip
-          </button>
-        </form>
-        {mode === "preview" && <p className="privacy-note">Preview mode keeps this plan on your device.</p>}
-        {testIdentity && <p className="test-mode-note">Test session · {testIdentity} · This account cannot be recovered after sign-out.</p>}
+      <div className="step-count">{t("onboarding.stepCount", { n: step + 1 })}</div>
+      <section className="create-card onboarding-card">
+        {step === 0 && (
+          <>
+            <h1>{t("onboarding.nicknameTitle")}</h1>
+            <p>{t("onboarding.nicknameHint")}</p>
+            <label htmlFor="onboarding-nickname">{t("onboarding.nicknameLabel")}</label>
+            <input id="onboarding-nickname" autoFocus maxLength={80} value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder={t("onboarding.nicknamePlaceholder")} />
+          </>
+        )}
+        {step === 1 && (
+          <>
+            <h1>{t("onboarding.partyTitle")}</h1>
+            <p>{t("onboarding.partyHint")}</p>
+            <div className="traveler-stepper">
+              <button type="button" aria-label={t("common.remove")} onClick={() => setTravelerCount((current) => Math.max(1, current - 1))} disabled={travelerCount <= 1}><Minus size={18} /></button>
+              <strong aria-live="polite">{travelerCount}</strong>
+              <button type="button" aria-label={t("common.add")} onClick={() => setTravelerCount((current) => Math.min(50, current + 1))} disabled={travelerCount >= 50}><Plus size={18} /></button>
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <h1>{t("onboarding.datesTitle")}</h1>
+            <p>{t("onboarding.datesHint")}</p>
+            <label htmlFor="onboarding-start">{t("onboarding.startDate")}</label>
+            <input id="onboarding-start" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+            <label htmlFor="onboarding-end">{t("onboarding.endDate")}</label>
+            <input id="onboarding-end" type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
+          </>
+        )}
+        {formError && <p className="form-error" role="alert">{formError}</p>}
+        <div className="onboarding-actions">
+          {step > 0 && (
+            <button className="secondary-button" type="button" onClick={() => { setFormError(null); setStep((current) => current - 1) }}>
+              <ArrowLeft size={16} />{t("common.back")}
+            </button>
+          )}
+          {step < 2 ? (
+            <button className="primary-button" type="button" onClick={next}>
+              {t("onboarding.next")}<ArrowRight size={16} />
+            </button>
+          ) : (
+            <button className="primary-button" type="button" disabled={busy} onClick={() => void finish()}>
+              {busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}{t("onboarding.finish")}
+            </button>
+          )}
+        </div>
       </section>
     </main>
   )

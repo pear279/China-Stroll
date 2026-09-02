@@ -1013,6 +1013,7 @@ export type Database = {
           preferences: Json
           start_date: string | null
           status: string
+          traveler_count: number
           updated_at: string
           version: number
         }
@@ -1027,6 +1028,7 @@ export type Database = {
           preferences?: Json
           start_date?: string | null
           status?: string
+          traveler_count?: number
           updated_at?: string
           version?: number
         }
@@ -1041,6 +1043,7 @@ export type Database = {
           preferences?: Json
           start_date?: string | null
           status?: string
+          traveler_count?: number
           updated_at?: string
           version?: number
         }
@@ -1132,9 +1135,11 @@ export type Database = {
         Args: {
           p_actor_id: string
           p_command_id: string
+          p_end_date?: string
           p_locale?: string
           p_name: string
           p_start_date?: string
+          p_traveler_count?: number
         }
         Returns: Json
       }

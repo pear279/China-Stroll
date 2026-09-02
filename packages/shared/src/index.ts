@@ -217,6 +217,7 @@ export type TripSnapshot = {
   name: string
   startDate: string | null
   endDate: string | null
+  travelerCount: number
   locale: "en" | "zh-CN"
   version: number
   days: TripDay[]

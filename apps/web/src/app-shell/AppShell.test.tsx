@@ -48,6 +48,7 @@ const trip: TripSnapshot = {
   name: "Beijing family trip",
   startDate: "2026-09-01",
   endDate: null,
+  travelerCount: 1,
   locale: "en",
   version: 2,
   days: [{ id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" }],

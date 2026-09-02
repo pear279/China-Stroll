@@ -69,7 +69,7 @@ begin
   if to_regclass('public.trips') is null
     or to_regclass('public.trip_days') is null
     or to_regclass('public.trip_stops') is null
-    or to_regprocedure('public.create_mvp_trip(uuid,uuid,text,date,text)') is null
+    or to_regprocedure('public.create_mvp_trip(uuid,uuid,text,date,text,date,integer)') is null
     or to_regprocedure('public.apply_mvp_trip_changes(uuid,uuid,bigint,uuid,jsonb,text)') is null
     or to_regprocedure('public.confirm_mvp_agent_suggestion(uuid,uuid,uuid,bigint,uuid)') is null
     or to_regprocedure('public.add_mvp_trip_day(uuid,uuid,bigint,uuid,date,text)') is null

@@ -81,10 +81,20 @@ describe("worker contracts", () => {
     const result = createTripSchema.parse({
       name: "  Beijing family days  ",
       startDate: "2026-10-02",
+      endDate: "2026-10-05",
+      travelerCount: 3,
       commandId: crypto.randomUUID(),
     })
     expect(result.name).toBe("Beijing family days")
     expect(result.locale).toBe("en")
+    expect(result.endDate).toBe("2026-10-05")
+    expect(result.travelerCount).toBe(3)
+  })
+
+  it("defaults traveler count and rejects out-of-range values", () => {
+    expect(createTripSchema.parse({ name: "Trip", commandId: crypto.randomUUID() }).travelerCount).toBe(1)
+    expect(createTripSchema.safeParse({ name: "Trip", travelerCount: 0, commandId: crypto.randomUUID() }).success).toBe(false)
+    expect(createTripSchema.safeParse({ name: "Trip", travelerCount: 51, commandId: crypto.randomUUID() }).success).toBe(false)
   })
 
   it("rejects malformed database change data", () => {
