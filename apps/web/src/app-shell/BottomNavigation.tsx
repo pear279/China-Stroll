@@ -22,7 +22,7 @@ export function BottomNavigation() {
         >
           {({ isActive }) => (
             <>
-              <Icon aria-hidden="true" size={20} />
+              <Icon aria-hidden="true" size={22} />
               <span>{t(key)}</span>
               {isActive && <span className="sr-only">Current page</span>}
             </>

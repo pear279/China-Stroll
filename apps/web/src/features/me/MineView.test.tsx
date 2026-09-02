@@ -107,6 +107,7 @@ function createProps(): MineViewProps {
     onSelectDay: vi.fn(),
     onSelectPlace: vi.fn(),
     onSuggest: vi.fn(async () => undefined),
+    onExit: vi.fn(async () => undefined),
   }
 }
 

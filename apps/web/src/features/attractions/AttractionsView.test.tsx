@@ -159,13 +159,6 @@ describe("AttractionsView", () => {
     expect(screen.getAllByRole("article")).toHaveLength(2)
   })
 
-  it("lets the traveler choose the target day before adding a place", async () => {
-    const props = createProps()
-    render(<AttractionsView {...props} />)
-    await userEvent.selectOptions(screen.getByLabelText("Add to itinerary"), "2")
-    expect(props.onSelectDay).toHaveBeenCalledWith(2)
-  })
-
   it("toggles between icon and list display modes", async () => {
     render(<AttractionsView {...createProps()} />)
     await userEvent.click(screen.getByRole("button", { name: "List" }))

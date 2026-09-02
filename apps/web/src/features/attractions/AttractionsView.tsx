@@ -61,7 +61,6 @@ export function AttractionsView({
   query,
   savedPlaceIds,
   selectedDay,
-  tripDays,
   userCoordinate,
   visiblePlaces,
   onAddPlace,
@@ -75,7 +74,6 @@ export function AttractionsView({
   onResetFilters,
   onShowOnMap,
   onToggleSaved,
-  onSelectDay,
 }: AttractionsViewProps) {
   const locationMessageId = "attractions-location-message"
   const { t } = useLocale()
@@ -94,29 +92,43 @@ export function AttractionsView({
   return (
     <section className="module-view attractions-view" aria-labelledby="attractions-heading">
       <div className="attractions-top-row">
-        {nearest ? (
-          <button className="nearest-card" type="button" onClick={() => onOpenDetails(nearest.id)} aria-label={`${t(userCoordinate ? "attr.nearest" : "attr.recommended")}: ${nearest.name}`}>
-            <img src={resolvePlaceImage(nearest.id)} alt="" />
-            <span>
-              <small>{t(userCoordinate ? "attr.nearest" : "attr.recommended")}</small>
-              <strong>{nearest.name}</strong>
-              {nearestDistance !== null && <em>{nearestDistance.toFixed(1)} km</em>}
-            </span>
+        <div className="nearest-card">
+          {nearest ? (
+            <button className="nearest-card-main" type="button" onClick={() => onOpenDetails(nearest.id)} aria-label={`${t(userCoordinate ? "attr.nearest" : "attr.recommended")}: ${nearest.name}`}>
+              <img src={resolvePlaceImage(nearest.id)} alt="" />
+              <span>
+                <small>{t(userCoordinate ? "attr.nearest" : "attr.recommended")}</small>
+                <strong>{nearest.name}</strong>
+                {nearestDistance !== null && <em>{nearestDistance.toFixed(1)} km</em>}
+              </span>
+            </button>
+          ) : (
+            <div className="nearest-card-main">
+              <span>
+                <small>{t("attr.recommended")}</small>
+                <strong>{t(placesState === "loading" ? "attr.loadingShort" : "attr.empty")}</strong>
+              </span>
+            </div>
+          )}
+          <button className="locate-button" type="button" onClick={onRequestLocation} disabled={locationStatus === "loading"} aria-label={t("attr.locate")}>
+            {locationStatus === "loading" ? <LoaderCircle className="spin" size={18} /> : <Crosshair size={18} />}
           </button>
-        ) : (
-          <div className="nearest-card nearest-card--empty">
-            <span>
-              <small>{t("attr.recommended")}</small>
-              <strong>{t(placesState === "loading" ? "attr.loadingShort" : "attr.empty")}</strong>
-            </span>
-          </div>
-        )}
-        <button className="locate-button" type="button" onClick={onRequestLocation} disabled={locationStatus === "loading"} aria-label={t("attr.locate")}>
-          {locationStatus === "loading" ? <LoaderCircle className="spin" size={20} /> : <Crosshair size={20} />}
-        </button>
+        </div>
       </div>
 
-      <h1 className="attractions-title" id="attractions-heading">{t("attr.title")}</h1>
+      <div className="attractions-heading-row">
+        <h1 className="attractions-title" id="attractions-heading">{t("attr.title")}</h1>
+        {visiblePlaces.length > 0 && (
+          <div className="display-mode-toggle" role="group" aria-label={t("attr.displayMode")}>
+            <button type="button" className={displayMode === "grid" ? "is-active" : undefined} aria-pressed={displayMode === "grid"} onClick={() => setDisplayMode("grid")}>
+              <LayoutGrid aria-hidden="true" size={17} />{t("attr.grid")}
+            </button>
+            <button type="button" className={displayMode === "list" ? "is-active" : undefined} aria-pressed={displayMode === "list"} onClick={() => setDisplayMode("list")}>
+              <List aria-hidden="true" size={17} />{t("attr.list")}
+            </button>
+          </div>
+        )}
+      </div>
 
       {placesState === "ready" && places.length > 0 && (
         <PlaceFilters
@@ -137,9 +149,9 @@ export function AttractionsView({
       {locationStatus === "failed" && <p className="location-unavailable" id={locationMessageId}><MapPinOff aria-hidden="true" size={15} />{t("attr.locationUnavailable")}</p>}
 
       <button className="recommend-toggle" type="button" aria-expanded={showRecommendation} onClick={() => setShowRecommendation((current) => !current)}>
-        <Sparkles aria-hidden="true" size={17} />
-        {t("attr.personalRecommend")}
-        {showRecommendation ? <ChevronUp aria-hidden="true" size={17} /> : <ChevronDown aria-hidden="true" size={17} />}
+        <Sparkles aria-hidden="true" size={18} />
+        <span>{t("attr.personalRecommend")}</span>
+        {showRecommendation ? <ChevronUp aria-hidden="true" size={18} /> : <ChevronDown aria-hidden="true" size={18} />}
       </button>
 
       {showRecommendation && placesState === "ready" && places.length > 0 && (
@@ -157,13 +169,6 @@ export function AttractionsView({
           onAdd={onAddPlace}
         />
       )}
-
-      <label className="attraction-day-picker">
-        {t("attr.joinItinerary")}
-        <select value={selectedDay} onChange={(event) => onSelectDay(Number(event.target.value))}>
-          {tripDays.map((day) => <option key={day.id} value={day.dayNumber}>{t("common.dayN", { n: day.dayNumber })}{day.date ? ` · ${day.date}` : ""}</option>)}
-        </select>
-      </label>
 
       {placesState === "loading" && (
         <div className="empty-plan" role="status">
@@ -194,17 +199,6 @@ export function AttractionsView({
           <p>{t("attr.widenFilters")}</p>
           <button type="button" className="secondary-button inline-reset-button" onClick={onResetFilters}>
             {t("attr.resetFilters")}
-          </button>
-        </div>
-      )}
-
-      {visiblePlaces.length > 0 && (
-        <div className="display-mode-toggle" role="group" aria-label={t("attr.displayMode")}>
-          <button type="button" className={displayMode === "grid" ? "is-active" : undefined} aria-pressed={displayMode === "grid"} onClick={() => setDisplayMode("grid")}>
-            <LayoutGrid aria-hidden="true" size={16} />{t("attr.grid")}
-          </button>
-          <button type="button" className={displayMode === "list" ? "is-active" : undefined} aria-pressed={displayMode === "list"} onClick={() => setDisplayMode("list")}>
-            <List aria-hidden="true" size={16} />{t("attr.list")}
           </button>
         </div>
       )}

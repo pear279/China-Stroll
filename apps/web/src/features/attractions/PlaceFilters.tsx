@@ -54,7 +54,7 @@ export function PlaceFilters({
       <div className="attraction-filter-icons" role="group" aria-label={t("common.filter")}>
         <button type="button" className={category !== "all" ? "is-active" : undefined} aria-label={t("attr.filterCategory")} onClick={() => setOpenFilter("category")}>
           <ListFilter size={17} />
-          <span>{t("attr.category")}{category !== "all" ? ` · ${formatCategoryLabel(category)}` : ""}</span>
+          <span>{t("attr.category")}</span>
         </button>
         <button type="button" className={maxDuration !== undefined ? "is-active" : undefined} aria-label={t("attr.filterDuration")} onClick={() => setOpenFilter("duration")}>
           <Clock3 size={17} />

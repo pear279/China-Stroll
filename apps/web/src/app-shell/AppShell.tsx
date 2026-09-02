@@ -1,4 +1,3 @@
-import { LogOut } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom"
 import { collectPlaceCategories, filterPlaceSummaries } from "../../../../packages/shared/src"
@@ -99,13 +98,9 @@ export function AppShell({
         <Link className="brand" to="/attractions" aria-label="China Stroll attractions">
           <span className="brand-seal">游</span><span>China Stroll</span>
         </Link>
-        <div className="trip-meta">
-          <strong>{trip.name}</strong>
-          <span>{mode === "preview" ? "Private preview" : testIdentity ? `Test session · ${testIdentity}` : "Shared trip"} · Version {trip.version}</span>
-        </div>
-        <button className="icon-button" type="button" onClick={() => void onExit()} aria-label="Leave trip">
-          <LogOut aria-hidden="true" size={19} />
-        </button>
+        <Link className="header-avatar" to="/me" aria-label="Open your profile">
+          {profile.profile?.displayName?.trim()?.[0]?.toUpperCase() ?? "游"}
+        </Link>
       </header>
 
       <main className="module-main">
@@ -201,6 +196,7 @@ export function AppShell({
                 onSelectDay={setSelectedDay}
                 onSelectPlace={setSelectedPlaceId}
                 onSuggest={onSuggest}
+                onExit={onExit}
               />
             )}
           />

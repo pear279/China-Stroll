@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Languages, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
+import { CalendarDays, Check, Languages, LoaderCircle, LocateFixed, LogOut, Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { resolvePlaceImage, type AgentSuggestion, type PlaceSummary, type PrivatePlaceInput, type ReservationDraft, type ReservationInput, type TripReservation, type TripSnapshot } from "../../../../../packages/shared/src"
@@ -33,6 +33,7 @@ export type MineViewProps = {
   onSelectDay: (dayNumber: number) => void
   onSelectPlace: (placeId: string) => void
   onSuggest: () => Promise<void>
+  onExit: () => Promise<void>
 }
 
 export function MineView({
@@ -56,6 +57,7 @@ export function MineView({
   onSelectDay,
   onSelectPlace,
   onSuggest,
+  onExit,
 }: MineViewProps) {
   const [activeTab, setActiveTab] = useState<"stops" | "reservations">("stops")
   const { t, locale, setLocale } = useLocale()
@@ -89,6 +91,9 @@ export function MineView({
           </button>
           <button className="date-chip" type="button" disabled={busy === "add-day"} onClick={() => void handleAddDay()}>
             <Plus aria-hidden="true" size={16} />{t("mine.addDay")}
+          </button>
+          <button className="icon-button icon-button--round" type="button" aria-label={t("common.signOut")} onClick={() => void onExit()}>
+            <LogOut aria-hidden="true" size={17} />
           </button>
         </div>
       </header>
