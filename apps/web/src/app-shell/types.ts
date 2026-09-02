@@ -5,7 +5,7 @@ export type AppMode = "preview" | "account"
 export type PlacesState = "idle" | "loading" | "ready" | "failed"
 export type LocationStatus = "idle" | "loading" | "ready" | "failed"
 export type AccountStateStatus = "idle" | "loading" | "ready" | "failed"
-export type NearbyRadius = 1 | 3 | 5
+export type NearbyRadius = 1 | 3 | 5 | 10 | 20
 export type ModulePath = "/attractions" | "/map" | "/tools" | "/me"
 
 export type LocationSharingControls = {

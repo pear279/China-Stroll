@@ -200,7 +200,7 @@ describe("AppShell", () => {
 
     await userEvent.type(screen.getByRole("searchbox", { name: "搜索景点" }), "国博")
     await userEvent.click(screen.getByRole("button", { name: "景点个性化推荐" }))
-    await userEvent.click(screen.getByRole("button", { name: "历史" }))
+    await userEvent.click(screen.getByRole("button", { name: "历史文化" }))
     await userEvent.click(screen.getByRole("button", { name: "发送" }))
 
     expect(repository.recommendPlaces).toHaveBeenCalledWith(expect.objectContaining({

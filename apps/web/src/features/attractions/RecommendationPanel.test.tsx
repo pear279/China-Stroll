@@ -103,8 +103,8 @@ describe("RecommendationPanel", () => {
     const user = userEvent.setup()
     const { onRecommend } = renderPanel()
 
-    await user.click(screen.getByRole("button", { name: "历史" }))
-    expect(screen.getByRole("button", { name: "历史" }).getAttribute("aria-pressed")).toBe("true")
+    await user.click(screen.getByRole("button", { name: "历史文化" }))
+    expect(screen.getByRole("button", { name: "历史文化" }).getAttribute("aria-pressed")).toBe("true")
     await user.click(screen.getByRole("button", { name: "发送" }))
 
     expect(onRecommend).toHaveBeenCalledWith(expect.objectContaining({ preferences: ["history"] }))
@@ -114,7 +114,7 @@ describe("RecommendationPanel", () => {
     const user = userEvent.setup()
     const { onDetails } = renderPanel()
 
-    await user.click(screen.getByRole("button", { name: "历史" }))
+    await user.click(screen.getByRole("button", { name: "历史文化" }))
     await user.click(screen.getByRole("button", { name: "发送" }))
 
     expect(await screen.findByText(/根据用户输入的/)).toBeTruthy()
@@ -127,7 +127,7 @@ describe("RecommendationPanel", () => {
     const onAdd = vi.fn(async () => undefined)
     renderPanel({ selectedDay: 2, onAdd })
 
-    await user.click(screen.getByRole("button", { name: "历史" }))
+    await user.click(screen.getByRole("button", { name: "历史文化" }))
     await user.click(screen.getByRole("button", { name: "发送" }))
     await user.click(await screen.findByRole("button", { name: "加入第 2 天" }))
 

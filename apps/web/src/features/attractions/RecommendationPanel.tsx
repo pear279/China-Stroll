@@ -13,7 +13,7 @@ type RecommendationPanelProps = {
   candidatePlaces: PlaceSummary[]
   locale: Locale
   coordinate: Coordinate | null
-  radiusKm: 1 | 3 | 5 | null
+  radiusKm: 1 | 3 | 5 | 10 | 20 | null
   availableMinutes: number | null
   plannedPlaceIds: string[]
   selectedDay: number
@@ -23,15 +23,19 @@ type RecommendationPanelProps = {
 }
 
 const preferenceOptions = [
+  { id: "history", label: "历史文化" },
   { id: "family", label: "亲子" },
-  { id: "history", label: "历史" },
-  { id: "relaxed", label: "休闲" },
   { id: "photography", label: "摄影" },
-  { id: "half-day", label: "半日" },
-] as const satisfies Array<{ id: PlaceRecommendationInput["preferences"][number]; label: string }>
+  { id: null, label: "美食" },
+  { id: null, label: "建筑" },
+  { id: null, label: "博物馆" },
+  { id: null, label: "自然风景" },
+  { id: null, label: "小众" },
+  { id: null, label: "夜游" },
+] as const satisfies Array<{ id: PlaceRecommendationInput["preferences"][number] | null; label: string }>
 
 const labelToId = new Map<string, PlaceRecommendationInput["preferences"][number]>(
-  preferenceOptions.map((option) => [option.label, option.id] as const),
+  preferenceOptions.filter((option) => option.id !== null).map((option) => [option.label, option.id!] as const),
 )
 
 type RecommendationState =
@@ -67,7 +71,7 @@ export function RecommendationPanel({
   function addTag(label: string) {
     const current = input.split(/\s+/).filter(Boolean)
     if (current.includes(label)) return
-    if (current.filter((token) => labelToId.has(token)).length >= 5) return
+    if (current.filter((token) => preferenceOptions.some((option) => option.label === token)).length >= 5) return
     setInput((value) => value.trim() ? `${value.trim()} ${label}` : label)
   }
 

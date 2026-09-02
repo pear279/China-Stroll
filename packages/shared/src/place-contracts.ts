@@ -327,7 +327,7 @@ export const placeRecommendationInputSchema = z.object({
   context: z.string(),
   locale: localeSchema,
   coordinate: coordinateSchema.nullable(),
-  radiusKm: z.union([z.literal(1), z.literal(3), z.literal(5), z.null()]),
+  radiusKm: z.union([z.literal(1), z.literal(3), z.literal(5), z.literal(10), z.literal(20), z.null()]),
   availableMinutes: z.number().int().positive().nullable(),
   candidatePlaceIds: z.array(z.string().min(1)),
   plannedPlaceIds: z.array(z.string().min(1)),

@@ -84,7 +84,7 @@ function AttractionsHarness() {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState("all")
   const [maxDuration, setMaxDuration] = useState<number | undefined>()
-  const [radius, setRadius] = useState<1 | 3 | 5>(3)
+  const [radius, setRadius] = useState<1 | 3 | 5 | 10 | 20>(3)
   const places = [palace, museum]
   const visiblePlaces = filterPlaceSummaries(places, {
     query,
