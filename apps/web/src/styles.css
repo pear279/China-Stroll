@@ -539,6 +539,14 @@ input:focus { border-color: #b33a2e; }
 .hotline-items a { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 2.7rem; padding: .45rem .7rem; border: 1px solid #ded6c9; border-radius: .45rem; color: #3d352e; background: #fffdf8; text-decoration: none; }
 .hotline-items a span { color: #5f574f; font-size: .8rem; }
 .hotline-items a strong { color: #9f342a; font-size: 1rem; }
+.hotline-segment { display: flex; gap: .3rem; margin-bottom: .7rem; padding: .25rem; border: 1px solid #d4cabd; border-radius: 10px; background: #f4efe7; overflow-x: auto; }
+.hotline-segment button { flex: 1; min-height: 36px; white-space: nowrap; border: 0; border-radius: 8px; color: #5f574f; background: transparent; font-size: .8rem; font-weight: 750; }
+.hotline-segment button.is-active { color: #fffaf1; background: #9f342a; }
+.hotline-item { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 44px; padding: .5rem .7rem; border: 1px solid #ded6c9; border-radius: 12px; background: #fffdf8; }
+.hotline-item-copy { display: grid; gap: .1rem; min-width: 0; }
+.hotline-item-copy span { color: #5f574f; font-size: .82rem; }
+.hotline-item-copy strong { color: #9f342a; font-size: 1rem; }
+.hotline-call { min-height: 36px; display: inline-flex; align-items: center; padding: 0 .9rem; border: 1px solid #9f342a; border-radius: 999px; color: #9f342a; background: #fffdf8; font-size: .8rem; font-weight: 800; text-decoration: none; }
 .chat-overlay { position: fixed; z-index: 70; inset: 0; display: flex; flex-direction: column; background: #f7f4ed; }
 .chat-header { display: flex; align-items: center; gap: .6rem; min-height: 3.4rem; padding: 0 1rem; border-bottom: 1px solid #e6e0d5; background: #fffdf8; }
 .chat-header button { width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border: 1px solid #d7cfc2; border-radius: 50%; color: #625a52; background: #fffdf8; }

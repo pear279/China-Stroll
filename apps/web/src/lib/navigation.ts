@@ -19,6 +19,13 @@ export function amapSearchUrl(name: string) {
   return `https://uri.amap.com/search?${query.toString()}`
 }
 
+// Baidu Maps uses its own BD09 coordinate system, so like Amap we search by
+// name instead of passing a WGS84 coordinate directly.
+export function baiduMapsUrl(name: string) {
+  const query = new URLSearchParams({ query: name, src: "China Stroll" })
+  return `https://map.baidu.com/search?${query.toString()}`
+}
+
 // Opens the ride-hailing provider's site or app. China Stroll does not create a
 // booking, so this is a plain external link with no ride-request claim.
 export function didiWebUrl() {

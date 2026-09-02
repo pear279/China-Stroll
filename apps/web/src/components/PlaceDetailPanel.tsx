@@ -10,7 +10,7 @@ import {
   type TripDay,
 } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
-import { amapSearchUrl, appleMapsUrl, googleMapsUrl } from "../lib/navigation"
+import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl } from "../lib/navigation"
 import { PlaceSources, type PlaceDisplaySource } from "./PlaceSources"
 
 type Props = {
@@ -297,7 +297,7 @@ export function PlaceDetailPanel({
             )}
           </form>
 
-          {place.coordinate && <nav className="navigation-links" aria-label="Open external navigation"><a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink size={14} /></a><a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink size={14} /></a><a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">Amap search <ExternalLink size={14} /></a></nav>}
+          {place.coordinate && <nav className="navigation-links" aria-label="Open external navigation"><a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink size={14} /></a><a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink size={14} /></a><a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图 <ExternalLink size={14} /></a><a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图 <ExternalLink size={14} /></a></nav>}
         </div>
       </section>
     </div>

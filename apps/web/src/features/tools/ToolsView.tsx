@@ -103,22 +103,28 @@ function TranslationSection({ mode, accessToken, onOpenChat }: { mode: AppMode; 
 }
 
 function ServiceHelpSection() {
+  const [activeCategory, setActiveCategory] = useState(hotlineCategories[0].label)
+  const category = hotlineCategories.find((item) => item.label === activeCategory) ?? hotlineCategories[0]
+
   return (
     <section className="tool-section" aria-labelledby="tool-service">
       <h2 id="tool-service">服务热线</h2>
-      {hotlineCategories.map((category) => (
-        <div key={category.label} className="hotline-category">
-          <h3>{category.label}</h3>
-          <div className="hotline-items">
-            {category.items.map((item) => (
-              <a key={`${category.label}-${item.number}`} href={item.href}>
-                <span>{item.label}</span>
-                <strong>{item.number}</strong>
-              </a>
-            ))}
+      <div className="hotline-segment" role="tablist" aria-label="热线分类">
+        {hotlineCategories.map((item) => (
+          <button key={item.label} type="button" role="tab" aria-selected={activeCategory === item.label} className={activeCategory === item.label ? "is-active" : undefined} onClick={() => setActiveCategory(item.label)}>{item.label}</button>
+        ))}
+      </div>
+      <div className="hotline-items">
+        {category.items.map((item) => (
+          <div key={`${category.label}-${item.number}`} className="hotline-item">
+            <div className="hotline-item-copy">
+              <span>{item.label}</span>
+              <strong>{item.number}</strong>
+            </div>
+            <a href={item.href} className="hotline-call" aria-label={`拨打 ${item.label}`}>拨打</a>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       <small className="tool-section-note">{serviceNote}</small>
     </section>
   )

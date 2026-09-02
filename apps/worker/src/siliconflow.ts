@@ -145,7 +145,7 @@ export async function generatePlaceAnswer(
           {
             role: "system",
             content:
-              "Answer only from the supplied reviewed passages. Return one JSON object with answer and sourceIds. If the passages do not support the answer, say that the available guide cannot confirm it. Never invent opening hours, prices, booking rules, safety facts, or history. Keep the answer under 180 words.",
+              "围绕当前景点回答用户问题。优先使用已有的景点知识库信息；知识库不足时可以调用联网搜索补充。回答语言自然、柔和、简短，优先直接回答用户问题，避免过度展开，通常控制在 2–5 句话。只返回一个 JSON 对象，包含 answer 和 sourceIds。绝不编造开放时间、价格、预约规则、安全事实或历史。",
           },
           { role: "user", content: JSON.stringify(input) },
         ],

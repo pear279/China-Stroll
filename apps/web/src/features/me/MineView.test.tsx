@@ -139,7 +139,7 @@ describe("MineView", () => {
 
     await user.click(screen.getByRole("button", { name: "预约列表" }))
     await user.type(screen.getByLabelText("Reservation title"), "Museum entry")
-    await user.selectOptions(screen.getByLabelText("Type"), "attraction")
+    await user.selectOptions(screen.getByLabelText("预约类型"), "attraction")
     await user.click(screen.getByRole("button", { name: "Save reservation" }))
 
     expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))

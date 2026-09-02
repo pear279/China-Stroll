@@ -1,7 +1,7 @@
 import { Clock3, Crosshair, ExternalLink, LoaderCircle, MapPinOff, Navigation, ShieldCheck, X } from "lucide-react"
 import { lazy, Suspense, useEffect, useState } from "react"
 import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot } from "../../../../../packages/shared/src"
-import { amapSearchUrl, appleMapsUrl, googleMapsUrl } from "../../lib/navigation"
+import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl } from "../../lib/navigation"
 import type { LocationSharingControls, LocationStatus, NearbyRadius } from "../../app-shell/types"
 
 const TravelMap = lazy(() =>
@@ -118,7 +118,7 @@ export function MapView({
             {locationStatus === "loading" ? "定位中…" : userCoordinate ? "定位已就绪" : "使用我的位置"}
           </button>
           <div className="radius-controls" aria-label="距离范围">
-            {([1, 3, 5] as const).map((value) => (
+            {([1, 3, 5, 10, 20] as const).map((value) => (
               <button key={value} type="button" className={nearbyRadius === value ? "is-active" : undefined} disabled={!userCoordinate} onClick={() => onRadius(value)}>{value} km</button>
             ))}
           </div>
@@ -190,6 +190,7 @@ function MapActionSheet({ place, planned, selectedDay, onDetails, onAdd, onCance
           <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink aria-hidden="true" size={14} /></a>
           <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink aria-hidden="true" size={14} /></a>
           <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图 <ExternalLink aria-hidden="true" size={14} /></a>
+          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图 <ExternalLink aria-hidden="true" size={14} /></a>
         </nav>
       )}
     </section>
@@ -208,6 +209,7 @@ function NavigationSheet({ place, onCancel }: { place: PlaceSummary; onCancel: (
           <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps</a>
           <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps</a>
           <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">高德地图</a>
+          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">百度地图</a>
         </nav>
         <button className="navigation-sheet-cancel" type="button" onClick={onCancel}>取消</button>
       </section>

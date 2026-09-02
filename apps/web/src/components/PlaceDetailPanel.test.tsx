@@ -299,7 +299,7 @@ describe("PlaceDetailPanel", () => {
     expect(document.activeElement).toBe(closeButton)
 
     await user.tab({ shift: true })
-    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Amap search" }))
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "百度地图" }))
 
     await user.tab()
     expect(document.activeElement).toBe(closeButton)
