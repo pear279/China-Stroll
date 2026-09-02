@@ -571,7 +571,7 @@ export function App() {
     )
   }
   if (!trip) {
-    return <OnboardingScreen busy={busy === "create-trip" || busy === "save-profile"} onComplete={completeOnboarding} />
+    return <OnboardingScreen busy={busy === "create-trip" || busy === "save-profile"} error={message} onComplete={completeOnboarding} />
   }
 
   return (
@@ -693,7 +693,7 @@ function LoginScreen({
 
 type OnboardingInput = { nickname: string; travelerCount: number; startDate: string | null; endDate: string | null }
 
-function OnboardingScreen({ busy, onComplete }: { busy: boolean; onComplete: (input: OnboardingInput) => Promise<void> }) {
+function OnboardingScreen({ busy, error, onComplete }: { busy: boolean; error: string | null; onComplete: (input: OnboardingInput) => Promise<void> }) {
   const { t } = useLocale()
   const [step, setStep] = useState(0)
   const [nickname, setNickname] = useState("")
@@ -719,6 +719,8 @@ function OnboardingScreen({ busy, onComplete }: { busy: boolean; onComplete: (in
     setFormError(null)
     await onComplete({ nickname: nickname.trim(), travelerCount, startDate: startDate || null, endDate: endDate || null })
   }
+
+  const submitError = error || formError
 
   return (
     <main className="create-layout">
@@ -753,7 +755,7 @@ function OnboardingScreen({ busy, onComplete }: { busy: boolean; onComplete: (in
             <input id="onboarding-end" type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
           </>
         )}
-        {formError && <p className="form-error" role="alert">{formError}</p>}
+        {submitError && <p className="form-error" role="alert">{submitError}</p>}
         <div className="onboarding-actions">
           {step > 0 && (
             <button className="secondary-button" type="button" onClick={() => { setFormError(null); setStep((current) => current - 1) }}>

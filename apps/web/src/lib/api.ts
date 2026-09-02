@@ -50,8 +50,11 @@ async function readResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
+    const fallback = response.status === 429
+      ? "Too many requests. Please wait a moment and try again."
+      : "The request could not be completed."
     throw new ApiRequestError(
-      payload.error?.message ?? "The request could not be completed.",
+      payload.error?.message ?? fallback,
       payload.error?.code ?? "UNKNOWN",
       response.status,
     )
