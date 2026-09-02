@@ -138,9 +138,10 @@ describe("MineView", () => {
     const user = userEvent.setup()
 
     await user.click(screen.getByRole("button", { name: "预约列表" }))
-    await user.type(screen.getByLabelText("Reservation title"), "Museum entry")
+    await user.click(screen.getByRole("button", { name: "添加预约" }))
+    await user.type(screen.getByLabelText("名称"), "Museum entry")
     await user.selectOptions(screen.getByLabelText("预约类型"), "attraction")
-    await user.click(screen.getByRole("button", { name: "Save reservation" }))
+    await user.click(screen.getByRole("button", { name: "保存预约" }))
 
     expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))
   })
@@ -280,12 +281,13 @@ describe("MineView", () => {
     const user = userEvent.setup()
 
     await user.click(screen.getByRole("button", { name: "预约列表" }))
-    await user.click(screen.getByRole("button", { name: "Draft from pasted text" }))
-    await user.type(screen.getByLabelText("Paste booking details"), "Hotel check-in, confirmation 12345")
-    await user.click(screen.getByRole("button", { name: "Draft fields" }))
+    await user.click(screen.getByRole("button", { name: "添加预约" }))
+    await user.click(screen.getByRole("button", { name: "AI 代填草稿" }))
+    await user.type(screen.getByLabelText("粘贴预约信息"), "Hotel check-in, confirmation 12345")
+    await user.click(screen.getByRole("button", { name: "生成草稿" }))
 
     expect(props.itineraryEditing.onDraftReservation).toHaveBeenCalledWith("Hotel check-in, confirmation 12345")
-    expect(await screen.findByText(/Draft is unsaved/i)).toBeTruthy()
+    expect(await screen.findByText(/已生成草稿/i)).toBeTruthy()
     expect(props.onCreateReservation).not.toHaveBeenCalled()
   })
 })

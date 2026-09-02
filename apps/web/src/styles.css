@@ -580,6 +580,18 @@ input:focus { border-color: #b33a2e; }
 .bottom-sheet-primary { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: .4rem; border: 0; border-radius: 12px; color: #fffaf1; background: #9f342a; font-weight: 800; }
 .bottom-sheet-secondary { min-height: 48px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; color: #776e64; background: transparent; font-weight: 800; }
 @keyframes sheet-up { from { transform: translateY(24px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+.reservation-add-button { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: .4rem; margin-bottom: .6rem; }
+.reservation-overlay { position: fixed; z-index: 75; inset: 0; display: flex; flex-direction: column; background: #f7f4ed; }
+.reservation-overlay-header { display: flex; align-items: center; gap: .6rem; min-height: 3.4rem; padding: var(--safe-top) 1rem 0; border-bottom: 1px solid #e6e0d5; background: #fffdf8; }
+.reservation-overlay-header button { width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 1px solid #d7cfc2; border-radius: 50%; color: #625a52; background: #fffdf8; }
+.reservation-overlay-header strong { font-size: 1rem; }
+.reservation-overlay-body { flex: 1; overflow-y: auto; display: grid; gap: .7rem; padding: 1rem var(--page-gutter); }
+.reservation-overlay-body .reservation-form { display: grid; gap: .7rem; padding: 0; border: 0; background: transparent; }
+.reservation-overlay-body .reservation-form label { display: grid; gap: .32rem; color: #4a433c; font-size: .78rem; font-weight: 750; }
+.reservation-overlay-body .reservation-form input, .reservation-overlay-body .reservation-form select, .reservation-overlay-body .reservation-form textarea { min-width: 0; min-height: 44px; padding: .45rem .6rem; border: 1px solid #cfc6b7; border-radius: 12px; color: #2a2521; background: #fffdf8; font: inherit; font-size: .88rem; }
+.reservation-overlay-body .reservation-form textarea { min-height: 4.5rem; resize: vertical; }
+.reservation-overlay-footer { flex: 0 0 auto; padding: .7rem var(--page-gutter) calc(.7rem + var(--safe-bottom)); border-top: 1px solid #e6e0d5; background: #fffdf8; }
+.reservation-overlay-footer .primary-button { width: 100%; min-height: 48px; justify-content: center; }
 
 @media (max-width: 900px) {
   .welcome-layout { grid-template-columns: 1fr; padding-top: 2rem; background: #f5f1e8; }

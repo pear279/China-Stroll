@@ -139,6 +139,7 @@ function renderPanel(repository: PlaceRepository) {
       saved={false}
       onClose={vi.fn()}
       onAdd={vi.fn(async () => undefined)}
+      onAddDay={vi.fn(async () => null)}
       onToggleSaved={vi.fn(async () => undefined)}
     />,
   )

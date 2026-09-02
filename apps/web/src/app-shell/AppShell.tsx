@@ -217,6 +217,7 @@ export function AppShell({
           saved={savedPlaceIds.has(detailPlace.id)}
           onClose={closeDetails}
           onAdd={onAddPlace}
+          onAddDay={onAddDay}
           onToggleSaved={onToggleSaved}
         />
       )}

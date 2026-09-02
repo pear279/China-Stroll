@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
+import { ArrowDown, ArrowLeft, ArrowUp, CalendarDays, Check, Clock3, Compass, GripVertical, LoaderCircle, LocateFixed, Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { AgentSuggestion, PlaceSummary, PrivatePlaceInput, ReservationDraft, ReservationInput, TransportMode, TripReservation, TripSnapshot } from "../../../../../packages/shared/src"
 import type { AppMode, DayEditFields, ItineraryEditControls, LocationSharingControls, MembershipControls, PrivatePlacesControls, ProfileControls, StopEditFields } from "../../app-shell/types"
@@ -229,7 +229,6 @@ export function MineView({
           <ReservationManager
             busy={busy}
             days={trip.days}
-            places={places}
             reservations={(trip.reservations ?? []).filter((reservation) => reservation.dayNumber === selectedDay)}
             onCreate={onCreateReservation}
             onDraft={itineraryEditing.onDraftReservation}
@@ -343,14 +342,15 @@ function asLocalDateTime(value: string | null) {
   return value ? value.slice(0, 16) : ""
 }
 
-function ReservationManager({ busy, days, places, reservations, onCreate, onDraft, onUpdate, onRemove }: {
-  busy: string | null; days: TripSnapshot["days"]; places: PlaceSummary[]; reservations: TripReservation[]
+function ReservationManager({ busy, days, reservations, onCreate, onDraft, onUpdate, onRemove }: {
+  busy: string | null; days: TripSnapshot["days"]; reservations: TripReservation[]
   onCreate: (input: ReservationInput) => Promise<void>
   onDraft: (sourceText: string) => Promise<ReservationDraft | null>
   onUpdate: (id: string, input: ReservationInput) => Promise<void>; onRemove: (id: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState<ReservationInput>(emptyReservation)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [draftText, setDraftText] = useState("")
   const [showDraft, setShowDraft] = useState(false)
@@ -358,65 +358,89 @@ function ReservationManager({ busy, days, places, reservations, onCreate, onDraf
   const [draftNote, setDraftNote] = useState<string | null>(null)
   const saving = busy === "create-reservation" || busy === "update-reservation"
   function setField<Key extends keyof ReservationInput>(key: Key, value: ReservationInput[Key]) { setDraft((current) => ({ ...current, [key]: value })) }
+  function startCreate() {
+    setEditingId(null); setDraft(emptyReservation); setFormError(null); setDraftNote(null); setShowDraft(false)
+    setFormOpen(true)
+  }
   function startEdit(reservation: TripReservation) {
     setEditingId(reservation.id)
     setDraft({ ...reservation, startsAt: reservation.startsAt, endsAt: reservation.endsAt })
-    setFormError(null)
+    setFormError(null); setDraftNote(null); setShowDraft(false)
+    setFormOpen(true)
   }
+  function closeForm() { setFormOpen(false); setEditingId(null); setDraft(emptyReservation); setFormError(null); setDraftNote(null) }
   async function submit() {
-    if (!draft.title.trim()) return setFormError("Give this reservation a title before saving.")
-    if (draft.startsAt && draft.endsAt && draft.endsAt < draft.startsAt) return setFormError("End time must be after start time.")
+    if (!draft.title.trim()) return setFormError("请填写预约名称。")
+    if (draft.startsAt && draft.endsAt && draft.endsAt < draft.startsAt) return setFormError("结束时间需晚于开始时间。")
     setFormError(null)
     if (editingId) await onUpdate(editingId, draft)
     else await onCreate(draft)
-    setDraft(emptyReservation); setEditingId(null); setDraftNote(null)
+    closeForm()
   }
   async function draftFromText() {
-    if (!draftText.trim()) return setDraftNote("Paste the booking details first.")
+    if (!draftText.trim()) return setDraftNote("请先粘贴预约信息。")
     setDrafting(true)
     setDraftNote(null)
     try {
       const parsed = await onDraft(draftText)
-      if (!parsed) {
-        setDraftNote("Could not draft this reservation. Fill the form manually.")
-        return
-      }
+      if (!parsed) { setDraftNote("无法解析，请手动填写。"); return }
       setDraft((current) => ({ ...current, ...parsed }))
-      setDraftNote("Draft is unsaved. Review the fields, then press Save reservation.")
+      setDraftNote("已生成草稿，请核对后保存。")
     } finally {
       setDrafting(false)
     }
   }
-  return <div className="reservation-manager">
-    <div className="reservation-draft">
-      <button className="secondary-button" type="button" onClick={() => setShowDraft((current) => !current)}>Draft from pasted text</button>
-      {showDraft && (
-        <div className="reservation-draft-form">
-          <label>Paste booking details<textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder="e.g. Hotel check-in on Sep 3 at 15:00, confirmation 12345" /></label>
-          <button className="secondary-button" type="button" disabled={drafting} onClick={() => void draftFromText()}>{drafting ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}Draft fields</button>
+
+  return (
+    <div className="reservation-manager">
+      <button className="primary-button reservation-add-button" type="button" onClick={startCreate}><Plus aria-hidden="true" size={16} />添加预约</button>
+      {reservations.length === 0 ? (
+        <p className="reservation-empty">暂无预约，点击「添加预约」记录饭店、酒店或景点门票。</p>
+      ) : (
+        <ol className="reservation-list">{reservations.map((reservation) => <li key={reservation.id}><div><strong>{reservation.title}</strong><span>{categoryLabel(reservation.category)} · {reservation.status}{reservation.startsAt ? ` · ${new Date(reservation.startsAt).toLocaleString()}` : ""}</span>{reservation.provider && <small>{reservation.provider}{reservation.confirmationCode ? ` · ${reservation.confirmationCode}` : ""}</small>}</div><div className="reservation-actions"><button type="button" aria-label={`编辑 ${reservation.title}`} onClick={() => startEdit(reservation)}><Pencil aria-hidden="true" size={15} /></button><button className="remove-stop" type="button" aria-label={`移除 ${reservation.title}`} disabled={busy === "remove-reservation"} onClick={() => void onRemove(reservation.id)}><Trash2 aria-hidden="true" size={15} /></button></div></li>)}</ol>
+      )}
+
+      {formOpen && (
+        <div className="reservation-overlay">
+          <header className="reservation-overlay-header">
+            <button type="button" aria-label="返回" onClick={closeForm}><ArrowLeft size={20} /></button>
+            <strong>{editingId ? "编辑预约" : "添加预约"}</strong>
+          </header>
+          <div className="reservation-overlay-body">
+            <button className="secondary-button" type="button" onClick={() => setShowDraft((current) => !current)}>AI 代填草稿</button>
+            {showDraft && (
+              <div className="reservation-draft-form">
+                <label>粘贴预约信息<textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder="例如：9月3日15:00入住酒店，预约号12345" /></label>
+                <button className="secondary-button" type="button" disabled={drafting} onClick={() => void draftFromText()}>{drafting ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}生成草稿</button>
+              </div>
+            )}
+            {draftNote && <p className="account-status" role="status">{draftNote}</p>}
+            <div className="reservation-form" aria-label={editingId ? "编辑预约" : "添加预约"}>
+              <label>预约类型<select value={draft.category} onChange={(event) => setField("category", event.target.value as ReservationInput["category"])}><option value="restaurant">饭店</option><option value="accommodation">酒店</option><option value="attraction">景点门票</option></select></label>
+              <label>名称<input value={draft.title} maxLength={200} onChange={(event) => setField("title", event.target.value)} placeholder="例如：故宫门票" /></label>
+              <label>所属日程<select value={draft.dayNumber ?? ""} onChange={(event) => setField("dayNumber", event.target.value ? Number(event.target.value) : null)}><option value="">未关联日程</option>{days.map((day) => <option key={day.id} value={day.dayNumber}>第 {day.dayNumber} 天</option>)}</select></label>
+              <label>预约编号<input value={draft.confirmationCode ?? ""} maxLength={200} onChange={(event) => setField("confirmationCode", event.target.value || null)} placeholder="可选" /></label>
+              <label>提供方<input value={draft.provider ?? ""} maxLength={200} onChange={(event) => setField("provider", event.target.value || null)} placeholder="酒店 / 餐厅 / 景区" /></label>
+              <label>开始时间<input type="datetime-local" value={asLocalDateTime(draft.startsAt)} onChange={(event) => setField("startsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
+              <label>结束时间<input type="datetime-local" value={asLocalDateTime(draft.endsAt)} onChange={(event) => setField("endsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
+              <label>备注<textarea value={draft.notes} maxLength={4000} onChange={(event) => setField("notes", event.target.value)} placeholder="备注信息" /></label>
+              {formError && <p className="form-error" role="alert">{formError}</p>}
+            </div>
+          </div>
+          <div className="reservation-overlay-footer">
+            <button className="primary-button" type="button" disabled={saving} onClick={() => void submit()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}保存预约</button>
+          </div>
         </div>
       )}
-      {draftNote && <p className="account-status" role="status">{draftNote}</p>}
     </div>
-    <div className="reservation-form" aria-label={editingId ? "Edit reservation" : "New reservation"}>
-      <div className="form-heading"><strong>{editingId ? "Edit reservation" : "Add reservation"}</strong>{editingId && <button type="button" aria-label="Cancel reservation edit" onClick={() => { setEditingId(null); setDraft(emptyReservation); setFormError(null) }}><X aria-hidden="true" size={15} />Cancel</button>}</div>
-      <label>Reservation title<input value={draft.title} maxLength={200} onChange={(event) => setField("title", event.target.value)} placeholder="e.g. Palace Museum entry" /></label>
-      <div className="reservation-fields">
-        <label>预约类型<select value={draft.category} onChange={(event) => setField("category", event.target.value as ReservationInput["category"])}><option value="restaurant">饭店</option><option value="accommodation">酒店</option><option value="attraction">景点门票</option></select></label>
-        <label>Status<select value={draft.status} onChange={(event) => setField("status", event.target.value as ReservationInput["status"])}><option value="planned">Planned</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select></label>
-        <label>Trip day<select value={draft.dayNumber ?? ""} onChange={(event) => setField("dayNumber", event.target.value ? Number(event.target.value) : null)}><option value="">Not linked to a day</option>{days.map((day) => <option key={day.id} value={day.dayNumber}>Day {day.dayNumber}</option>)}</select></label>
-        <label>Related attraction<select value={draft.placeId ?? ""} onChange={(event) => setField("placeId", event.target.value || null)}><option value="">Not linked to an attraction</option>{places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</select></label>
-        <label>Start time<input type="datetime-local" value={asLocalDateTime(draft.startsAt)} onChange={(event) => setField("startsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
-        <label>End time<input type="datetime-local" value={asLocalDateTime(draft.endsAt)} onChange={(event) => setField("endsAt", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label>
-        <label>Provider<input value={draft.provider ?? ""} maxLength={200} onChange={(event) => setField("provider", event.target.value || null)} placeholder="Hotel, airline, venue…" /></label>
-        <label>Confirmation code<input value={draft.confirmationCode ?? ""} maxLength={200} onChange={(event) => setField("confirmationCode", event.target.value || null)} /></label>
-      </div>
-      <label>Notes<textarea value={draft.notes} maxLength={4000} onChange={(event) => setField("notes", event.target.value)} placeholder="Anything you need to remember" /></label>
-      {formError && <p className="form-error" role="alert">{formError}</p>}
-      <button className="primary-button" type="button" disabled={saving} onClick={() => void submit()}>{saving ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : <Check aria-hidden="true" size={17} />}{editingId ? "Update reservation" : "Save reservation"}</button>
-    </div>
-    {reservations.length === 0 ? <p className="reservation-empty">No reservation records yet. Add tickets, dining, hotel, or transport details here.</p> : <ol className="reservation-list">{reservations.map((reservation) => <li key={reservation.id}><div><strong>{reservation.title}</strong><span>{reservation.category.replace("_", " ")} · {reservation.status}{reservation.startsAt ? ` · ${new Date(reservation.startsAt).toLocaleString()}` : ""}</span>{reservation.provider && <small>{reservation.provider}{reservation.confirmationCode ? ` · ${reservation.confirmationCode}` : ""}</small>}</div><div className="reservation-actions"><button type="button" aria-label={`Edit ${reservation.title}`} onClick={() => startEdit(reservation)}><Pencil aria-hidden="true" size={15} /></button><button className="remove-stop" type="button" aria-label={`Remove ${reservation.title}`} disabled={busy === "remove-reservation"} onClick={() => void onRemove(reservation.id)}><Trash2 aria-hidden="true" size={15} /></button></div></li>)}</ol>}
-  </div>
+  )
+}
+
+function categoryLabel(category: string) {
+  if (category === "restaurant") return "饭店"
+  if (category === "accommodation") return "酒店"
+  if (category === "attraction") return "景点门票"
+  return category.replace("_", " ")
 }
 
 function SuggestionPanel({ suggestion, busy, onConfirm }: { suggestion: AgentSuggestion; busy: boolean; onConfirm: () => void }) {

@@ -1,5 +1,6 @@
 import { ArrowLeft, Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send } from "lucide-react"
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react"
+import { BottomSheet } from "./BottomSheet"
 import {
   type GuideSource,
   resolvePlaceImage,
@@ -21,6 +22,7 @@ type Props = {
   saved: boolean
   onClose: () => void
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
+  onAddDay: () => Promise<number | null>
   onToggleSaved: (placeId: string) => Promise<void>
 }
 
@@ -32,12 +34,13 @@ export function PlaceDetailPanel({
   saved,
   onClose,
   onAdd,
+  onAddDay,
   onToggleSaved,
 }: Props) {
   const [detail, setDetail] = useState<PlaceDetail | null>(null)
   const [guide, setGuide] = useState<PlaceGuideResponse | null>(null)
   const [audience, setAudience] = useState<"general" | "child">("general")
-  const [dayNumber, setDayNumber] = useState(days[0]?.dayNumber ?? 1)
+  const [showDaySheet, setShowDaySheet] = useState(false)
   const [question, setQuestion] = useState("")
   const [questionResponse, setQuestionResponse] = useState<PlaceQuestionResponse | null>(null)
   const [questionError, setQuestionError] = useState<string | null>(null)
@@ -201,13 +204,22 @@ export function PlaceDetailPanel({
             <button type="button" className={saved ? "is-active" : ""} disabled={busy === "save"} onClick={() => void run("save", () => onToggleSaved(place.id))}>
               {saved ? <Check size={17} /> : <Bookmark size={17} />}{saved ? "已收藏" : "收藏景点"}
             </button>
-            <select aria-label="日程" value={dayNumber} onChange={(event) => setDayNumber(Number(event.target.value))}>
-              {(days.length ? days : [{ id: 0, dayNumber: 1, date: null, title: null, notes: "" }]).map((day) => <option key={day.dayNumber} value={day.dayNumber}>第 {day.dayNumber} 天</option>)}
-            </select>
-            <button type="button" disabled={planned || busy === "add"} onClick={() => void run("add", () => onAdd(place.id, dayNumber))}>
+            <button type="button" disabled={planned || busy === "add"} onClick={() => setShowDaySheet(true)}>
               {planned ? <Check size={17} /> : <Plus size={17} />}{planned ? "已加入" : "加入日程"}
             </button>
           </div>
+
+          <BottomSheet open={showDaySheet} title="加入日程" onClose={() => setShowDaySheet(false)}>
+            {days.map((day) => (
+              <button key={day.id} type="button" className="bottom-sheet-option" onClick={() => void run("add", async () => { await onAdd(place.id, day.dayNumber); setShowDaySheet(false) })}>
+                第 {day.dayNumber} 天{day.date ? ` · ${day.date}` : ""}
+              </button>
+            ))}
+            <button type="button" className="bottom-sheet-primary" onClick={() => void run("add", async () => { const nextDay = await onAddDay(); if (nextDay) await onAdd(place.id, nextDay); setShowDaySheet(false) })}>
+              <Plus size={16} />创建新日程并加入
+            </button>
+            <button type="button" className="bottom-sheet-secondary" onClick={() => setShowDaySheet(false)}>取消</button>
+          </BottomSheet>
 
           {detail && (
             <div className="detail-facts">
