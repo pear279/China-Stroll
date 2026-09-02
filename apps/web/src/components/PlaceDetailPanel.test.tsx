@@ -151,17 +151,22 @@ afterEach(() => {
 })
 
 describe("PlaceDetailPanel", () => {
-  it("renders reviewed detail sections, recheck warning, and clickable citations from the repository", async () => {
+  it("renders the info grid, hours recheck warning, and linked sources", async () => {
     const repository = createRepository()
 
     renderPanel(repository)
 
-    expect(await screen.findByRole("heading", { name: "Practical notes" })).toBeTruthy()
+    expect(await screen.findByRole("button", { name: "Practical notes" })).toBeTruthy()
+
+    await userEvent.click(screen.getByRole("button", { name: "Hours" }))
     expect(screen.getByText("Opening information needs rechecking")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    await userEvent.click(screen.getByRole("button", { name: /Sources & last updated/i }))
     expect(screen.getByRole("link", { name: /Palace Museum official source/i }).getAttribute("href")).toBe("https://www.dpm.org.cn/")
   })
 
-  it("shows an explicit unknown check-date label for guide sources with no checkedAt", async () => {
+  it("shows a light updated date in the sources entry without review-due details", async () => {
     const repository = createRepository()
     repository.getGuide = vi.fn(async () => ({
       ...guide,
@@ -177,9 +182,10 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    expect(await screen.findByRole("heading", { name: "Practical notes" })).toBeTruthy()
-    expect(screen.getByText("Check date unavailable")).toBeTruthy()
-    expect(screen.queryByText("Checked 2026-09-01")).toBeNull()
+    expect(await screen.findByRole("button", { name: "Practical notes" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: /Sources & last updated/i }))
+    expect(screen.getByText("Updated Aug 30, 2026")).toBeTruthy()
+    expect(screen.queryByText(/Review due/i)).toBeNull()
   })
 
   it("allows signed-out preview questions and labels reviewed answers", async () => {
@@ -188,7 +194,7 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    await screen.findByRole("heading", { name: "Practical notes" })
+    await screen.findByRole("button", { name: "Practical notes" })
     await user.type(screen.getByLabelText("Ask about this place"), "What should I notice first?")
     await user.click(screen.getByRole("button", { name: "Ask" }))
 
@@ -230,7 +236,7 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    await screen.findByRole("heading", { name: "Practical notes" })
+    await screen.findByRole("button", { name: "Practical notes" })
     await user.type(screen.getByLabelText("Ask about this place"), "What changed today?")
     await user.click(screen.getByRole("button", { name: "Ask" }))
 
@@ -264,7 +270,7 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    await screen.findByRole("heading", { name: "Practical notes" })
+    await screen.findByRole("button", { name: "Practical notes" })
     await user.type(screen.getByLabelText("Ask about this place"), "Is there a live update?")
     await user.click(screen.getByRole("button", { name: "Ask" }))
 
@@ -280,7 +286,7 @@ describe("PlaceDetailPanel", () => {
 
     renderPanel(repository)
 
-    await screen.findByRole("heading", { name: "Practical notes" })
+    await screen.findByRole("button", { name: "Practical notes" })
     const input = screen.getByLabelText("Ask about this place")
     await user.type(input, "What should I notice first?")
     await user.click(screen.getByRole("button", { name: "Ask" }))
@@ -336,6 +342,8 @@ describe("PlaceDetailPanel", () => {
     await user.click(screen.getByRole("button", { name: "Kids mode" }))
 
     childGuideDeferred.resolve(childGuide)
+    const familyHeader = await screen.findByRole("button", { name: "Family route" })
+    await user.click(familyHeader)
     expect(await screen.findByText("Look for the guardian lions before the long courtyard walk.")).toBeTruthy()
 
     generalGuideDeferred.resolve(guide)

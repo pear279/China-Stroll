@@ -1,5 +1,26 @@
-import { ArrowLeft, Bookmark, Check, ExternalLink, LoaderCircle, Plus, Send } from "lucide-react"
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react"
+import {
+  ArrowLeft,
+  Bookmark,
+  CalendarCheck,
+  Camera,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
+  Compass,
+  DoorOpen,
+  ExternalLink,
+  Info,
+  Landmark,
+  LoaderCircle,
+  MapPin,
+  Plus,
+  Send,
+  Sparkles,
+  Ticket,
+  type LucideIcon,
+} from "lucide-react"
+import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react"
 import { BottomSheet } from "./BottomSheet"
 import {
   type GuideSource,
@@ -27,6 +48,13 @@ type Props = {
   onToggleSaved: (placeId: string) => Promise<void>
 }
 
+type InfoItem = {
+  id: string
+  icon: LucideIcon
+  title: string
+  content: ReactNode
+}
+
 export function PlaceDetailPanel({
   place,
   days,
@@ -42,6 +70,9 @@ export function PlaceDetailPanel({
   const [guide, setGuide] = useState<PlaceGuideResponse | null>(null)
   const [audience, setAudience] = useState<"general" | "child">("general")
   const [showDaySheet, setShowDaySheet] = useState(false)
+  const [activeInfoId, setActiveInfoId] = useState<string | null>(null)
+  const [openGuideId, setOpenGuideId] = useState<number | null>(null)
+  const [showSources, setShowSources] = useState(false)
   const [question, setQuestion] = useState("")
   const [questionResponse, setQuestionResponse] = useState<PlaceQuestionResponse | null>(null)
   const [questionError, setQuestionError] = useState<string | null>(null)
@@ -70,6 +101,13 @@ export function PlaceDetailPanel({
 
   function formatDateTime(value: string | null) {
     return value ? `${value.slice(0, 10)} ${value.slice(11, 16)}` : t("detail.timeUnavailable")
+  }
+
+  function formatUpdated(value: string | null | undefined) {
+    if (!value) return ""
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value.slice(0, 10)
+    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
   function questionModeLabel(response: PlaceQuestionResponse) {
@@ -178,26 +216,75 @@ export function PlaceDetailPanel({
   }
 
   const guideSources = guide ? toGuideDisplaySources(guide.sources) : []
-  const detailSections = detail ? [
-    { title: t("detail.history"), content: detail.history },
-    { title: t("detail.visitAdvice"), content: detail.visitorTips },
-    { title: t("detail.practicalNotes"), content: detail.practicalNotes },
-    { title: t("detail.photoNotes"), content: detail.photoSpotNotes },
-  ] : []
   const visitInformation = detail?.visitInformation ?? null
+
+  const infoItems: InfoItem[] = []
+  if (detail) {
+    if (detail.history) infoItems.push({ id: "history", icon: Landmark, title: t("detail.history"), content: <p>{detail.history}</p> })
+    if (detail.visitorTips) infoItems.push({ id: "visit-advice", icon: Compass, title: t("detail.visitAdvice"), content: <p>{detail.visitorTips}</p> })
+    if (detail.practicalNotes) infoItems.push({ id: "practical-notes", icon: Info, title: t("detail.practicalNotes"), content: <p>{detail.practicalNotes}</p> })
+    if (detail.photoSpotNotes) infoItems.push({ id: "photo-notes", icon: Camera, title: t("detail.photoNotes"), content: <p>{detail.photoSpotNotes}</p> })
+    if (detail.highlights.length > 0) {
+      infoItems.push({
+        id: "highlights",
+        icon: Sparkles,
+        title: t("detail.highlights"),
+        content: <ul className="info-sheet-list">{detail.highlights.map((item) => <li key={item}>{item}</li>)}</ul>,
+      })
+    }
+    if (visitInformation) {
+      if (visitInformation.address) infoItems.push({ id: "address", icon: MapPin, title: t("detail.address"), content: <p>{visitInformation.address}</p> })
+      if (visitInformation.openingHoursText) {
+        infoItems.push({
+          id: "hours",
+          icon: Clock3,
+          title: t("detail.hours"),
+          content: (
+            <>
+              <p>{visitInformation.openingHoursText}</p>
+              {visitInformation.needsRecheck && <p className="detail-warning">{t("detail.openingRecheck")}</p>}
+            </>
+          ),
+        })
+      }
+      if (visitInformation.ticketNotes) {
+        infoItems.push({
+          id: "tickets",
+          icon: Ticket,
+          title: t("detail.tickets"),
+          content: (
+            <>
+              <p>{visitInformation.ticketNotes}</p>
+              {visitInformation.bookingUrl && (
+                <a className="detail-inline-link" href={visitInformation.bookingUrl} target="_blank" rel="noreferrer">
+                  {t("detail.bookingPage")} <ExternalLink aria-hidden="true" size={14} />
+                </a>
+              )}
+            </>
+          ),
+        })
+      }
+      if (visitInformation.reservationNotes) infoItems.push({ id: "reservation", icon: CalendarCheck, title: t("detail.reservation"), content: <p>{visitInformation.reservationNotes}</p> })
+      if (visitInformation.entranceNotes) infoItems.push({ id: "entrance", icon: DoorOpen, title: t("detail.entrance"), content: <p>{visitInformation.entranceNotes}</p> })
+    }
+  }
+
+  const activeInfo = activeInfoId ? infoItems.find((item) => item.id === activeInfoId) ?? null : null
 
   return (
     <div className="detail-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section
         ref={dialogRef}
-        className="detail-panel"
+        className={showDaySheet || activeInfo ? "detail-panel is-locked" : "detail-panel"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="place-detail-title"
         onKeyDown={trapFocus}
       >
-        <button ref={closeButtonRef} className="detail-back" type="button" onClick={onClose} aria-label={t("common.back")}><ArrowLeft size={20} /></button>
-        <img className="detail-hero" src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
+        <div className="detail-hero-wrap">
+          <button ref={closeButtonRef} className="detail-back" type="button" onClick={onClose} aria-label={t("common.back")}><ArrowLeft size={20} /></button>
+          <img className="detail-hero" src={resolvePlaceImage(place.id)} alt={`${place.name} display artwork`} />
+        </div>
         <div className="detail-content">
           <span className="eyebrow">{t("detail.eyebrow")}</span>
           <h2 id="place-detail-title">{detail?.name ?? place.name}</h2>
@@ -223,64 +310,63 @@ export function PlaceDetailPanel({
             <button type="button" className="bottom-sheet-secondary" onClick={() => setShowDaySheet(false)}>{t("common.cancel")}</button>
           </BottomSheet>
 
-          {detail && (
-            <div className="detail-facts">
-              {detailSections.map((section) => (
-                <div key={section.title}>
-                  <h3>{section.title}</h3>
-                  <p>{section.content}</p>
-                </div>
+          {activeInfo && (
+            <BottomSheet open title={activeInfo.title} onClose={() => setActiveInfoId(null)}>
+              <div className="info-sheet-content">{activeInfo.content}</div>
+            </BottomSheet>
+          )}
+
+          {detail && infoItems.length > 0 && (
+            <div className="detail-info-grid">
+              {infoItems.map((item) => (
+                <button key={item.id} className="detail-info-item" type="button" onClick={() => setActiveInfoId(item.id)}>
+                  <item.icon aria-hidden="true" size={18} />
+                  <span>{item.title}</span>
+                </button>
               ))}
-              {detail.highlights.length > 0 && <div><h3>{t("detail.highlights")}</h3><ul>{detail.highlights.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-              {visitInformation && (
-                <>
-                  <div>
-                    <h3>{t("detail.address")}</h3>
-                    <p>{visitInformation.address}</p>
-                  </div>
-                  <div>
-                    <h3>{t("detail.hours")}</h3>
-                    <p>{visitInformation.openingHoursText}</p>
-                    {visitInformation.needsRecheck && (
-                      <p className="detail-warning">{t("detail.openingRecheck")}</p>
-                    )}
-                  </div>
-                  <div>
-                    <h3>{t("detail.tickets")}</h3>
-                    <p>{visitInformation.ticketNotes}</p>
-                    {visitInformation.bookingUrl && (
-                      <a className="detail-inline-link" href={visitInformation.bookingUrl} target="_blank" rel="noreferrer">
-                        {t("detail.bookingPage")} <ExternalLink aria-hidden="true" size={14} />
-                      </a>
-                    )}
-                  </div>
-                  <div>
-                    <h3>{t("detail.reservation")}</h3>
-                    <p>{visitInformation.reservationNotes}</p>
-                  </div>
-                  <div>
-                    <h3>{t("detail.entrance")}</h3>
-                    <p>{visitInformation.entranceNotes}</p>
-                  </div>
-                </>
-              )}
             </div>
           )}
 
           <div className="guide-heading">
             <h3>{t("detail.guide")}</h3>
             <div className="guide-mode-toggle" role="group" aria-label={t("detail.guideMode")}>
-              <button type="button" className={audience === "general" ? "is-active" : undefined} aria-pressed={audience === "general"} onClick={() => setAudience("general")}>{t("detail.standard")}</button>
-              <button type="button" className={audience === "child" ? "is-active" : undefined} aria-pressed={audience === "child"} onClick={() => setAudience("child")}>{t("detail.kids")}</button>
+              <button type="button" className={audience === "general" ? "is-active" : undefined} aria-pressed={audience === "general"} onClick={() => { setAudience("general"); setOpenGuideId(null) }}>{t("detail.standard")}</button>
+              <button type="button" className={audience === "child" ? "is-active" : undefined} aria-pressed={audience === "child"} onClick={() => { setAudience("child"); setOpenGuideId(null) }}>{t("detail.kids")}</button>
             </div>
           </div>
           {status === "loading" && <p className="detail-state"><LoaderCircle className="spin" size={18} />{t("detail.loadingGuide")}</p>}
           {status === "failed" && <p className="detail-state">{t("detail.guideUnavailable")}</p>}
-          {guide?.segments.map((segment) => <article className="guide-segment" key={segment.id}><h4>{segment.title ?? segment.type}</h4><p>{segment.content}</p></article>)}
+          {guide?.segments.map((segment) => {
+            const expanded = openGuideId === segment.id
+            return (
+              <div className="guide-accordion-item" key={segment.id}>
+                <button className="guide-accordion-header" type="button" aria-expanded={expanded} onClick={() => setOpenGuideId(expanded ? null : segment.id)}>
+                  <span>{segment.title ?? segment.type}</span>
+                  {expanded ? <ChevronUp aria-hidden="true" size={18} /> : <ChevronDown aria-hidden="true" size={18} />}
+                </button>
+                {expanded && <p className="guide-accordion-body">{segment.content}</p>}
+              </div>
+            )
+          })}
+
           {guideSources.length > 0 && (
             <div className="guide-sources-block">
-              <p className="guide-source">{t("detail.reviewedSources")}</p>
-              <PlaceSources sources={guideSources} />
+              <button className="sources-toggle" type="button" aria-expanded={showSources} onClick={() => setShowSources((current) => !current)}>
+                <span>{t("detail.sourcesLastUpdated")}</span>
+                {showSources ? <ChevronUp aria-hidden="true" size={18} /> : <ChevronDown aria-hidden="true" size={18} />}
+              </button>
+              {showSources && (
+                <div className="sources-body">
+                  <ul className="sources-list">
+                    {guideSources.map((source) => (
+                      <li key={source.id}>
+                        <a href={source.url} target="_blank" rel="noreferrer">{source.name} <ExternalLink aria-hidden="true" size={13} /></a>
+                      </li>
+                    ))}
+                  </ul>
+                  {place.reviewedAt && <small className="sources-updated">{t("detail.updatedAt", { date: formatUpdated(place.reviewedAt) })}</small>}
+                </div>
+              )}
             </div>
           )}
 
