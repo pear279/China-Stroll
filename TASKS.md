@@ -166,6 +166,10 @@ This file is the authoritative implementation plan. A task is complete only when
   - Files: `apps/web/src/components/BrandMark.tsx` (new inline SVG replicating the favicon's cream-mountain + gold-sun glyph), `apps/web/src/App.tsx` (welcome + loading seals), `apps/web/src/app-shell/AppShell.tsx` (header seal), `apps/web/src/features/members/JoinTripView.tsx` (join-card seals), `apps/web/src/styles.css` (`.brand-seal-mark` sizing).
   - Verified: the red `.brand-seal` tile now contains the same mountain/sun glyph (cream `#f8f1df`, gold `#e5ad45` on red `#b33a2e`) as `public/icon.svg`; the favicon and maskable app icon were already on that mark and are unchanged. `npm run typecheck`, `npm run lint` (0 warnings), `npm test` (32 files / 236 tests), and `npm run build` (web + Pages Functions + Worker dry-run) passed on 2026-09-03.
 
+- [x] Release ops — GitHub sync, README, Cloudflare Pages live link (2026-09-03)
+  - Goal: push the accumulated local work to GitHub, rewrite the README as a complete project introduction, and confirm the production deployment serves a stable mobile link.
+  - Verified: `git push` synced `main` (68 unpushed commits + the Mine/brand commit `47ee084`) to `github.com/pear279/China-Stroll`; the Git-integrated Cloudflare Pages project `china-stroll` auto-deployed commit `47ee084` as "Active". Live checks passed: `https://china-stroll.pages.dev/` → HTTP 200, `/health` → `{"status":"ok"}`, `/v1/places?locale=en` → real Supabase-backed place data, and the deployed bundle contains the Supabase URL + publishable key (account mode wired). README rewritten as a full project introduction with live link, features, stack, local dev, data pipeline, security, checks and deployment.
+
 ## Later Milestone
 
 - [ ] Private photo and travel records.
