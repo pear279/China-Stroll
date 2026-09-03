@@ -1,5 +1,6 @@
 import type { AgentSuggestion, CreateTripInvitationInput, LocationSharingSnapshot, LocationSharingStatus, PlaceSummary, PrivatePlace, PrivatePlaceInput, ReservationDraft, ReservationInput, TransportMode, TripInvitationSummary, TripMemberSummary, TripSnapshot, UserProfile, UserProfileInput } from "../../../../packages/shared/src"
 import type { PlaceRepository } from "../data/placeRepository"
+import type { TravelerTitle } from "../features/me/profileMeta"
 
 export type AppMode = "preview" | "account"
 export type PlacesState = "idle" | "loading" | "ready" | "failed"
@@ -59,6 +60,16 @@ export type PrivatePlacesControls = {
   onAddToDay: (privatePlaceId: string, dayNumber: number) => Promise<void>
 }
 
+// Client-side profile fields that have no persisted column yet (avatar, traveler
+// title, contact info). They ride localStorage until the user data structure
+// gains dedicated fields; no server API is changed.
+export type ProfileExtras = {
+  avatar: string | null
+  title: TravelerTitle | null
+  phone: string
+  email: string
+}
+
 export type AppShellProps = {
   accessToken: string | null
   busy: string | null
@@ -75,8 +86,15 @@ export type AppShellProps = {
   savedPlaceIds: Set<string>
   trip: TripSnapshot
   testIdentity: string | null
+  completedStopIds: Set<string>
+  completedReservationIds: Set<string>
+  profileExtras: ProfileExtras
   onAddPlace: (placeId: string, dayNumber?: number) => Promise<void>
-  onAddDay: () => Promise<number | null>
+  onAddDay: (date?: string | null) => Promise<number | null>
+  onToggleStopCompleted: (stopId: string) => void
+  onToggleReservationCompleted: (reservationId: string) => void
+  onSaveProfileExtras: (extras: ProfileExtras) => void
+  onEditTripDates: (input: { startDate: string | null; endDate: string | null }) => Promise<void>
   onRemoveStop: (stopId: string) => Promise<void>
   onReorderStop: (stopId: string, targetIndex: number) => Promise<void>
   onCreateReservation: (input: ReservationInput) => Promise<void>

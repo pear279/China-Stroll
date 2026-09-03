@@ -32,8 +32,8 @@ The four modules are presentation boundaries, not separate data silos. `Trip`, `
 
 - `/attractions`: current/nearby place, discovery, filters, recommendations and place detail.
 - `/map`: map-first view of nearby and trip places, selected-place action sheet and navigation.
-- `/tools`: navigation/taxi, payment/exchange, translation and service numbers.
-- `/me`: profile, trip table, reservation table, members and privacy controls.
+- `/tools`: navigation/taxi, payment/exchange and service numbers; a compact `Translation & AI` entry card routes to the secondary `/tools/translation` page, which switches between an AI Translation tab (custom text translation, add-to-common-phrases, expandable common phrase cards) and an AI Chat tab (inline conversation with a fixed composer) through the shared `api.translateText` / `api.chat` boundaries.
+- `/me`: a personal travel hub rather than a settings page — a compact profile card, a quick-options row (Saved / Visited / Language), a shared-members avatar row with an invite bottom sheet, and the full My itinerary experience embedded inline as its fourth section (a Week/Month calendar over the trip's onboarding date range, a selected-date row with an Edit-day sheet, a Schedule/Reservations toggle, a task-list Schedule with per-stop completion checkboxes and drag reorder, and a task-list Reservations tab with Add/complete/remove-confirm). Deeper screens are `/me/edit-profile` (avatar preview, nickname, country, language, single-select traveler title and optional phone/email), `/me/saved` and `/me/visited` (list-mode place collections reusing the compact place card), and `/me/member/:userId` (member profile with disabled Message/Call until contact data exists); the former `/me/itinerary` route now redirects to `/me`. Plan check and private places are retained in code and endpoints but not surfaced on the page. Location sharing is exposed from the Map module, not Mine.
 
 The application uses React Router with `BrowserRouter`; browser back/forward and direct loads preserve the four formal module paths. Place selection crosses modules through a stable `selectedPlaceId`; module components never copy a supplier-specific place object into their own state.
 
@@ -41,7 +41,7 @@ Cloudflare Pages uses its default SPA fallback because the project has no top-le
 
 ### Sign-in and onboarding
 
-First use opens a login screen with no phone/email verification: "Start" calls `supabase.auth.signInAnonymously()` so the user keeps a real authenticated session (profile, trip, reservations, location sharing, and invite links all work) without supplying contact details. A local preview remains the fallback when Supabase is not configured. A returning session restores its trip from `china-stroll-trip-id`. New signed-in users without a trip complete a three-step onboarding — nickname (profile `display_name`), party size (`trips.traveler_count`), and trip start/end dates — before the four modules render. The email magic-link welcome was removed.
+The single-screen landing page ("Get started") always opens first on load and refresh, guarded by an in-memory `entered` flag that resets on every boot; it is not a route, so direct module paths still render the welcome before entering. Its only entry is the "Get started" CTA, which calls `supabase.auth.signInAnonymously()` when there is no session and then routes by persisted state: a returning user with `china-stroll-trip-id` (or an already-restored trip) skips onboarding and lands on `/attractions`, while a first-time user completes a three-step onboarding — nickname (profile `display_name`), party size (`trips.traveler_count`), and trip start/end dates — whose final "Start my trip" creates the trip and navigates to `/attractions`. Because the session is persisted by Supabase and the trip id is persisted in `localStorage`, a returning user never re-enters onboarding. A local preview remains the fallback when Supabase is not configured and skips the welcome gate. The email magic-link welcome was removed.
 
 ## Data Model
 
@@ -134,9 +134,11 @@ The active trip day is shared by Attractions, Map, and Mine. Attractions exposes
 
 Mine adds only reviewed, not-yet-scheduled places to the selected day. Reordering normalizes the selected day's `sortOrder` values and writes the complete move set as one versioned command; deletion uses the same command boundary. The preview applies equivalent deterministic local transitions.
 
+Stop completion ("visited") is derived from client-side `completedStopIds` (a stable-id set persisted in `localStorage`) and the rule "a place is visited when at least one of its stops is completed", so Visited stays in sync with the schedule without a second independent store. It will move to a persisted `trip_stops` completed column and a Worker command before completion is server-authoritative.
+
 ### Reservation management
 
-Reservations are private trip records returned with the shared trip snapshot. Create, update, and delete each use a versioned command with membership, idempotency, and change-log checks; the client may create or edit a draft, while AI has no direct reservation write path.
+Reservations are private trip records returned with the shared trip snapshot. Create, update, and delete each use a versioned command with membership, idempotency, and change-log checks; the client may create or edit a draft, while AI has no direct reservation write path. Reservation "done" is a client-side task state (`completedReservationIds`) styled identically to stop completion, and deletion asks for confirmation before calling the remove command.
 
 ### Map navigation
 

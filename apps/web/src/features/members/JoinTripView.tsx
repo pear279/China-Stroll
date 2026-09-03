@@ -1,6 +1,7 @@
 import { ArrowLeft, LoaderCircle, LogIn, UserPlus } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { TripInvitationPreview } from "../../../../../packages/shared/src"
+import { BrandMark } from "../../components/BrandMark"
 import { api, ApiRequestError } from "../../lib/api"
 
 type JoinTripViewProps = {
@@ -67,7 +68,7 @@ export function JoinTripView({ token, accessToken, onAccepted, onGoHome }: JoinT
     return (
       <main className="join-layout">
         <section className="join-card">
-          <span className="brand-seal" aria-hidden="true">游</span>
+          <span className="brand-seal" aria-hidden="true"><BrandMark /></span>
           <h1>Sign in to join</h1>
           <p>This invitation is for a shared trip. Sign in first, then open this link again to review and accept it.</p>
           <button className="primary-button" type="button" onClick={onGoHome}><LogIn size={17} />Go to sign in</button>
@@ -79,7 +80,7 @@ export function JoinTripView({ token, accessToken, onAccepted, onGoHome }: JoinT
   return (
     <main className="join-layout">
       <section className="join-card" aria-live="polite">
-        <span className="brand-seal" aria-hidden="true">游</span>
+        <span className="brand-seal" aria-hidden="true"><BrandMark /></span>
         {state === "loading" && <><LoaderCircle className="spin" size={22} /><h1>Opening invitation…</h1></>}
         {state === "ready" && preview && (
           <>

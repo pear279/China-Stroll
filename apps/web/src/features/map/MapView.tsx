@@ -1,7 +1,8 @@
-import { Clock3, Crosshair, ExternalLink, LoaderCircle, MapPinOff, Navigation, ShieldCheck, X } from "lucide-react"
-import { lazy, Suspense, useEffect, useState } from "react"
-import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot } from "../../../../../packages/shared/src"
-import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl } from "../../lib/navigation"
+import { Crosshair, GripVertical, Info, LoaderCircle, MapPinOff, Navigation, ShieldCheck, X } from "lucide-react"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import type { Coordinate, PlaceSummary, SharedMemberLocation, TripSnapshot, TripStop } from "../../../../../packages/shared/src"
+import { formatCategoryLabel, formatDurationHours } from "../../../../../packages/shared/src"
+import { amapSearchUrl, appleMapsUrl, baiduMapsUrl, googleMapsUrl, haversineKilometres } from "../../lib/navigation"
 import type { LocationSharingControls, LocationStatus, NearbyRadius } from "../../app-shell/types"
 import { useLocale } from "../../lib/i18n"
 
@@ -13,6 +14,7 @@ export type MapViewProps = {
   locationStatus: LocationStatus
   nearbyRadius: NearbyRadius
   places: PlaceSummary[]
+  placeCatalog: PlaceSummary[]
   plannedIds: Set<string | null>
   selectedDay: number
   selectedPlaceId: string | null
@@ -22,6 +24,7 @@ export type MapViewProps = {
   onAddPlace: (placeId: string, dayNumber: number) => Promise<void>
   onOpenDetails: (placeId: string) => void
   onRadius: (radius: NearbyRadius) => void
+  onReorderStop: (stopId: string, targetIndex: number) => Promise<void>
   onRequestLocation: () => void
   onSelect: (placeId: string | null) => void
   onSelectDay: (dayNumber: number) => void
@@ -33,6 +36,7 @@ export function MapView({
   locationStatus,
   nearbyRadius,
   places,
+  placeCatalog,
   plannedIds,
   selectedDay,
   selectedPlaceId,
@@ -42,6 +46,7 @@ export function MapView({
   onAddPlace,
   onOpenDetails,
   onRadius,
+  onReorderStop,
   onRequestLocation,
   onSelect,
   onSelectDay,
@@ -63,11 +68,8 @@ export function MapView({
 
   return (
     <section className="module-view map-view" aria-labelledby="map-heading">
-      <header className="module-heading">
-        <div>
-          <span className="eyebrow">{t("map.title")}</span>
-          <h1 id="map-heading">{t("map.title")}</h1>
-        </div>
+      <header className="map-heading">
+        <h1 id="map-heading">{t("map.title")}</h1>
       </header>
 
       <div className="map-stage">
@@ -78,20 +80,10 @@ export function MapView({
             places={places}
             selectedPlaceId={selectedPlaceId}
             userCoordinate={userCoordinate}
+            hintText={t("map.hint")}
             onSelect={(placeId) => onSelect(placeId)}
           />
         </Suspense>
-        {selectedPlace && (
-          <MapActionSheet
-            key={selectedPlace.id}
-            place={selectedPlace}
-            planned={plannedIds.has(selectedPlace.id)}
-            selectedDay={selectedDay}
-            onDetails={() => onOpenDetails(selectedPlace.id)}
-            onAdd={() => onAddPlace(selectedPlace.id, selectedDay)}
-            onCancel={() => onSelect(null)}
-          />
-        )}
       </div>
 
       <div className="map-function-buttons" role="group" aria-label={t("map.functions")}>
@@ -131,7 +123,7 @@ export function MapView({
       <section className="map-trip-area" aria-labelledby="map-trip-heading">
         <div className="map-trip-heading">
           <h2 id="map-trip-heading">{t("map.itinerary")}</h2>
-          <div className="day-tabs" aria-label={t("map.selectDay")}>
+          <div className={`map-day-tabs${trip.days.length <= 3 ? " is-fill" : ""}`} aria-label={t("map.selectDay")}>
             {trip.days.map((day) => <button className={selectedDay === day.dayNumber ? "is-active" : undefined} key={day.id} type="button" onClick={() => onSelectDay(day.dayNumber)}>{t("common.dayN", { n: day.dayNumber })}</button>)}
           </div>
         </div>
@@ -139,25 +131,31 @@ export function MapView({
         {dayStops.length === 0 ? (
           <p className="map-trip-empty">{t("map.noStops")}</p>
         ) : (
-          <ol className="map-itinerary-list">
-            {dayStops.map((stop, index) => (
-              <li key={stop.id}>
-                <button type="button" className={selectedPlaceId === stop.placeId ? "is-selected" : undefined} onClick={() => stop.placeId && onSelect(stop.placeId)}>
-                  <span className="map-itinerary-number">{index + 1}</span>
-                  <span className="map-itinerary-copy">
-                    <strong>{stop.name}{stop.privatePlaceId ? ` · ${t("map.private")}` : ""}</strong>
-                    <small><Clock3 aria-hidden="true" size={13} />{stop.startTime ? stop.startTime.slice(0, 5) : t("map.timeOpen")} · {stop.durationMinutes ?? 90} {t("map.minutes")}</small>
-                  </span>
-                </button>
-                <div className="map-itinerary-actions">
-                  <button type="button" aria-label={t("attr.detailsFor", { name: stop.name })} onClick={() => stop.placeId && onOpenDetails(stop.placeId)}>{t("common.details")}</button>
-                  <button type="button" aria-label={`${stop.name} ${t("common.navigate")}`} disabled={!stop.coordinate} onClick={() => setNavPlaceId(stop.placeId)}>{t("common.navigate")}</button>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <MapItineraryList
+            stops={dayStops}
+            catalog={placeCatalog}
+            userCoordinate={userCoordinate}
+            selectedPlaceId={selectedPlaceId}
+            onSelect={(placeId) => onSelect(placeId)}
+            onOpenDetails={onOpenDetails}
+            onNavigate={(placeId) => setNavPlaceId(placeId)}
+            onReorder={onReorderStop}
+          />
         )}
       </section>
+
+      {selectedPlace && (
+        <MapPlaceSheet
+          key={selectedPlace.id}
+          place={selectedPlace}
+          planned={plannedIds.has(selectedPlace.id)}
+          selectedDay={selectedDay}
+          onDetails={() => onOpenDetails(selectedPlace.id)}
+          onAdd={() => onAddPlace(selectedPlace.id, selectedDay)}
+          onNavigate={() => setNavPlaceId(selectedPlace.id)}
+          onClose={() => onSelect(null)}
+        />
+      )}
 
       {navPlace && navPlace.coordinate && (
         <NavigationSheet place={navPlace} onCancel={() => setNavPlaceId(null)} />
@@ -166,37 +164,207 @@ export function MapView({
   )
 }
 
-function MapActionSheet({ place, planned, selectedDay, onDetails, onAdd, onCancel }: {
+function MapPlaceSheet({ place, planned, selectedDay, onDetails, onAdd, onNavigate, onClose }: {
   place: PlaceSummary
   planned: boolean
   selectedDay: number
   onDetails: () => void
   onAdd: () => Promise<void>
-  onCancel: () => void
+  onNavigate: () => void
+  onClose: () => void
 }) {
   const { t } = useLocale()
-  const [navigationExpanded, setNavigationExpanded] = useState(false)
+  const sheetRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Element | null
+      if (!target) return
+      if (sheetRef.current?.contains(target)) return
+      if (target.closest("[data-map-shell]")) return
+      onClose()
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [onClose])
 
   return (
-    <section className="map-action-sheet" role="dialog" aria-modal="false" aria-label={t("map.actionSheet", { name: place.name })}>
-      <div className="map-action-heading">
-        <div><span className="eyebrow">{t("map.reviewed")}</span><h2>{place.name}</h2></div>
-        <button type="button" aria-label={t("common.cancel")} onClick={onCancel}><X aria-hidden="true" size={19} /></button>
+    <section ref={sheetRef} className="map-place-sheet" role="dialog" aria-modal="false" aria-label={t("map.actionSheet", { name: place.name })}>
+      <div className="map-place-sheet-heading">
+        <div className="map-place-sheet-title">
+          <span className="eyebrow">{t("map.reviewed")}</span>
+          <h2>{place.name}</h2>
+        </div>
+        <button type="button" className="map-place-sheet-close" aria-label={t("common.close")} onClick={onClose}><X aria-hidden="true" size={17} /></button>
       </div>
-      <div className="map-action-buttons">
-        <button type="button" onClick={onDetails}>{t("common.details")}</button>
+      <div className="map-place-sheet-actions">
+        <button type="button" onClick={onDetails}><Info aria-hidden="true" size={16} /><span>{t("common.details")}</span></button>
         <button type="button" disabled={planned} onClick={() => void onAdd()}>{planned ? t("attr.planned") : t("attr.addToDay", { day: selectedDay })}</button>
-        <button type="button" onClick={() => setNavigationExpanded((current) => !current)}><Navigation aria-hidden="true" size={16} />{t("common.navigate")}</button>
+        <button type="button" onClick={onNavigate}><Navigation aria-hidden="true" size={16} /><span>{t("common.navigate")}</span></button>
       </div>
-      {navigationExpanded && (
-        <nav className="navigation-links" aria-label={t("map.chooseProvider")}>
-          <a href={appleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Apple Maps <ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={googleMapsUrl(place.name, place.coordinate)} target="_blank" rel="noreferrer">Google Maps <ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={amapSearchUrl(place.name)} target="_blank" rel="noreferrer">{t("map.amap")} <ExternalLink aria-hidden="true" size={14} /></a>
-          <a href={baiduMapsUrl(place.name)} target="_blank" rel="noreferrer">{t("map.baidu")} <ExternalLink aria-hidden="true" size={14} /></a>
-        </nav>
-      )}
     </section>
+  )
+}
+
+const GAP = 8
+const ITEM_STEP = 72
+
+type DragState = {
+  id: string
+  index: number
+  startY: number
+  dy: number
+  targetIndex: number
+  itemHeight: number
+}
+
+function computeTargetIndex(clientY: number, dragId: string, stops: TripStop[], refs: Record<string, HTMLLIElement | null>) {
+  let target = 0
+  for (const stop of stops) {
+    if (stop.id === dragId) continue
+    const element = refs[stop.id]
+    if (!element) continue
+    const rect = element.getBoundingClientRect()
+    if (rect.top + rect.height / 2 < clientY) target += 1
+  }
+  return Math.max(0, Math.min(stops.length - 1, target))
+}
+
+function shiftFor(index: number, drag: DragState | null) {
+  if (!drag || index === drag.index) return 0
+  if (drag.targetIndex > drag.index && index > drag.index && index <= drag.targetIndex) return -drag.itemHeight
+  if (drag.targetIndex < drag.index && index >= drag.targetIndex && index < drag.index) return drag.itemHeight
+  return 0
+}
+
+function stopMetaParts(stop: TripStop, place: PlaceSummary | undefined, userCoordinate: Coordinate | null): string[] {
+  const parts: string[] = []
+  if (place) parts.push(formatCategoryLabel(place.categoryCode))
+  const duration = stop.durationMinutes ?? place?.durationMinutes ?? null
+  if (duration != null && duration > 0) parts.push(formatDurationHours(duration))
+  if (userCoordinate && stop.coordinate) {
+    parts.push(`${haversineKilometres(userCoordinate, stop.coordinate).toFixed(1)} km`)
+  }
+  return parts
+}
+
+function MapItineraryList({ stops, catalog, userCoordinate, selectedPlaceId, onSelect, onOpenDetails, onNavigate, onReorder }: {
+  stops: TripStop[]
+  catalog: PlaceSummary[]
+  userCoordinate: Coordinate | null
+  selectedPlaceId: string | null
+  onSelect: (placeId: string | null) => void
+  onOpenDetails: (placeId: string) => void
+  onNavigate: (placeId: string) => void
+  onReorder: (stopId: string, targetIndex: number) => Promise<void>
+}) {
+  const { t } = useLocale()
+  const catalogById = useMemo(() => new Map(catalog.map((place) => [place.id, place])), [catalog])
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const dragRef = useRef<DragState | null>(null)
+  dragRef.current = drag
+  const stopsRef = useRef(stops)
+  stopsRef.current = stops
+  const onReorderRef = useRef(onReorder)
+  onReorderRef.current = onReorder
+  const itemRefs = useRef<Record<string, HTMLLIElement | null>>({})
+
+  useEffect(() => {
+    function handleMove(event: PointerEvent) {
+      const current = dragRef.current
+      if (!current) return
+      if (event.cancelable) event.preventDefault()
+      const dy = event.clientY - current.startY
+      const targetIndex = computeTargetIndex(event.clientY, current.id, stopsRef.current, itemRefs.current)
+      setDrag({ ...current, dy, targetIndex })
+    }
+    function handleUp(event: PointerEvent) {
+      const current = dragRef.current
+      if (!current) return
+      if (event.cancelable) event.preventDefault()
+      setDrag(null)
+      if (current.targetIndex !== current.index) {
+        void onReorderRef.current(current.id, current.targetIndex)
+      }
+    }
+    function handleCancel() {
+      setDrag(null)
+    }
+    window.addEventListener("pointermove", handleMove)
+    window.addEventListener("pointerup", handleUp)
+    window.addEventListener("pointercancel", handleCancel)
+    return () => {
+      window.removeEventListener("pointermove", handleMove)
+      window.removeEventListener("pointerup", handleUp)
+      window.removeEventListener("pointercancel", handleCancel)
+    }
+  }, [])
+
+  function startDrag(event: ReactPointerEvent<HTMLButtonElement>, stop: TripStop) {
+    if (event.pointerType === "mouse" && event.button !== 0) return
+    const index = stopsRef.current.findIndex((item) => item.id === stop.id)
+    const element = itemRefs.current[stop.id]
+    const itemHeight = element ? element.getBoundingClientRect().height + GAP : ITEM_STEP
+    event.preventDefault()
+    setDrag({ id: stop.id, index, startY: event.clientY, dy: 0, targetIndex: index, itemHeight })
+  }
+
+  return (
+    <ol className="map-itinerary-list">
+      {stops.map((stop, index) => {
+        const isDragging = drag?.id === stop.id
+        const shift = shiftFor(index, drag)
+        const place = stop.placeId ? catalogById.get(stop.placeId) : undefined
+        const meta = stopMetaParts(stop, place, userCoordinate).join(" · ")
+        return (
+          <li
+            key={stop.id}
+            ref={(element) => { itemRefs.current[stop.id] = element }}
+            className={`map-itinerary-item${selectedPlaceId === stop.placeId ? " is-selected" : ""}${isDragging ? " is-dragging" : ""}`}
+            style={isDragging ? { transform: `translateY(${drag?.dy ?? 0}px) scale(1.02)`, zIndex: 3 } : shift !== 0 ? { transform: `translateY(${shift}px)` } : undefined}
+          >
+            <div className="map-itinerary-rail">
+              <button
+                type="button"
+                className="map-itinerary-handle"
+                aria-label={t("map.reorder", { name: stop.name })}
+                onPointerDown={(event) => startDrag(event, stop)}
+              >
+                <GripVertical aria-hidden="true" size={16} />
+              </button>
+              <span className="map-itinerary-number" aria-hidden="true">{index + 1}</span>
+            </div>
+            <div className="map-itinerary-body">
+              <button
+                type="button"
+                className="map-itinerary-main"
+                onClick={() => stop.placeId && onSelect(stop.placeId)}
+              >
+                <span className="map-itinerary-name">{stop.name}{stop.privatePlaceId ? ` · ${t("map.private")}` : ""}</span>
+                {meta ? <span className="map-itinerary-meta">{meta}</span> : null}
+              </button>
+              <div className="map-itinerary-actions">
+                <button type="button" aria-label={t("attr.detailsFor", { name: stop.name })} onClick={() => stop.placeId && onOpenDetails(stop.placeId)}>
+                  <Info aria-hidden="true" size={15} />
+                  <span>{t("common.details")}</span>
+                </button>
+                <button type="button" aria-label={`${stop.name} ${t("common.navigate")}`} disabled={!stop.coordinate} onClick={() => stop.placeId && onNavigate(stop.placeId)}>
+                  <Navigation aria-hidden="true" size={15} />
+                  <span>{t("common.navigate")}</span>
+                </button>
+              </div>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 

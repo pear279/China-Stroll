@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react"
 import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl"
 import { Map, MapMarker, MapRoute, MarkerContent } from "../../../../components/ui/map"
 import type { PlaceSummary, SharedMemberLocation, TripStop } from "../../../../packages/shared/src"
@@ -9,7 +9,8 @@ type TravelMapProps = {
   places: PlaceSummary[]
   selectedPlaceId: string | null
   userCoordinate: [number, number] | null
-  onSelect: (placeId: string) => void
+  hintText?: string
+  onSelect: (placeId: string | null) => void
 }
 
 const mapStyle: StyleSpecification = {
@@ -25,7 +26,7 @@ const mapStyle: StyleSpecification = {
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 }
 
-export function TravelMap({ memberLocations, stops, places, selectedPlaceId, userCoordinate, onSelect }: TravelMapProps) {
+export function TravelMap({ memberLocations, stops, places, selectedPlaceId, userCoordinate, hintText = "Dashed line = visit order", onSelect }: TravelMapProps) {
   const mapRef = useRef<MapLibreMap | null>(null)
   const stopIds = useMemo(() => new Set(stops.map((stop) => stop.placeId)), [stops])
   const routeCoordinates = useMemo(
@@ -39,8 +40,17 @@ export function TravelMap({ memberLocations, stops, places, selectedPlaceId, use
     if (selected?.coordinate) mapRef.current?.flyTo({ center: selected.coordinate, zoom: 14, duration: 450 })
   }, [places, selectedPlaceId, stops])
 
+  function handleShellClick(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target as Element | null
+    if (!target) return
+    // Markers and interactive controls handle their own taps; only a tap on
+    // empty map canvas should clear the current selection.
+    if (target.closest(".maplibregl-marker") || target.closest("button") || target.closest("a")) return
+    onSelect(null)
+  }
+
   return (
-    <div className="map-shell" aria-label="Map of planned and nearby places">
+    <div className="map-shell" data-map-shell aria-label="Map of planned and nearby places" onClick={handleShellClick}>
       <Map
         ref={mapRef}
         className="map-canvas"
@@ -93,7 +103,7 @@ export function TravelMap({ memberLocations, stops, places, selectedPlaceId, use
           <MapRoute id="trip" coordinates={routeCoordinates} color="#b33a2e" width={3} dashArray={[2, 2]} />
         )}
       </Map>
-      {routeCoordinates.length > 1 && <p className="map-note">The dotted line shows visit order, not a calculated route.</p>}
+      {routeCoordinates.length > 1 && <p className="map-hint">{hintText}</p>}
     </div>
   )
 }

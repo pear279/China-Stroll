@@ -1,11 +1,5 @@
 import type { Phrase } from "../../../../packages/shared/src"
 
-export const paymentGuidance = {
-  title: "支付",
-  summary: "Alipay 与微信支付使用广泛。国际银行卡不一定处处可用，部分小商户仅支持本地支付方式。",
-  note: "各商户接受方式可能变化，下单前请与商家确认。",
-}
-
 export const commonPhrases: Phrase[] = [
   { en: "Hello / excuse me", zh: "你好", pinyin: "nǐ hǎo" },
   { en: "Thank you", zh: "谢谢", pinyin: "xiè xie" },
@@ -20,13 +14,13 @@ export type LinkIcon = { label: string; url: string }
 export const navigationLinks: LinkIcon[] = [
   { label: "Apple Maps", url: "https://maps.apple.com/" },
   { label: "Google Maps", url: "https://www.google.com/maps" },
-  { label: "高德地图", url: "https://www.amap.com/" },
+  { label: "Amap", url: "https://www.amap.com/" },
 ]
 
 export const rideLinks: LinkIcon[] = [
-  { label: "支付宝", url: "https://www.alipay.com/" },
-  { label: "滴滴", url: "https://www.didiglobal.com/" },
-  { label: "高德打车", url: "https://www.amap.com/" },
+  { label: "Alipay", url: "https://www.alipay.com/" },
+  { label: "DiDi", url: "https://www.didiglobal.com/" },
+  { label: "Amap Taxi", url: "https://www.amap.com/" },
 ]
 
 export const paymentLinks: LinkIcon[] = [
@@ -64,5 +58,3 @@ export const hotlineCategories: HotlineCategory[] = [
     ],
   },
 ]
-
-export const serviceNote = "景点、饭店、酒店的具体服务热线以官方公布为准，入住或订餐前请先向官方确认。"

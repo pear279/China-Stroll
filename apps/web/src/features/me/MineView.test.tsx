@@ -2,7 +2,8 @@ import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { LocationSharingSnapshot, PlaceSummary, ReservationDraft, TripSnapshot } from "../../../../../packages/shared/src"
+import type { TripSnapshot, UserProfile } from "../../../../../packages/shared/src"
+import type { MembershipControls, ProfileControls } from "../../app-shell/types"
 import { MineView, type MineViewProps } from "./MineView"
 
 const trip: TripSnapshot = {
@@ -17,97 +18,65 @@ const trip: TripSnapshot = {
     { id: 1, dayNumber: 1, date: "2026-09-01", title: null, notes: "" },
     { id: 2, dayNumber: 2, date: "2026-09-02", title: null, notes: "" },
   ],
-  stops: [{
-    id: "stop-1",
-    tripId: "trip-1",
-    dayNumber: 2,
-    placeId: "jingshan-park",
-    name: "Jingshan Park",
-    coordinate: [116.3903973, 39.9244589],
-    startTime: "09:00:00",
-    durationMinutes: 90,
-    transportMode: null, privatePlaceId: null,
-    notes: "",
-    sortOrder: 0,
-  }],
+  stops: [],
+  reservations: [],
   suggestions: [],
 }
 
-const places: PlaceSummary[] = [
-  {
-    id: "jingshan-park", locale: "en", name: "Jingshan Park", aliases: ["景山公园"], categoryCode: "park", tags: [], shortIntro: "A central-axis viewpoint.",
-    coordinate: [116.3903973, 39.9244589], durationMinutes: 90, coordinatesCheckedAt: null,
-  },
-  {
-    id: "beihai-park", locale: "en", name: "Beihai Park", aliases: ["北海公园"], categoryCode: "park", tags: [], shortIntro: "A historic imperial garden.",
-    coordinate: [116.383, 39.925], durationMinutes: 120, coordinatesCheckedAt: null,
-  },
-]
-
-const offLocationSnapshot: LocationSharingSnapshot = {
-  tripId: "trip-1",
-  enabled: false,
-  status: "off",
-  activeMemberCount: 3,
-  expiresAt: null,
-  visibleLocations: [],
+const profileData: UserProfile = {
+  userId: "user-1",
+  displayName: "Alex Chen",
+  interfaceLocale: "en",
+  contentLocale: "en",
+  countryCode: "US",
+  travelPreferences: { pace: "relaxed" },
 }
 
 function createProps(): MineViewProps {
   return {
-    busy: null,
-    message: null,
     mode: "account",
-    selectedDay: 2,
-    selectedPlaceId: null,
-    testIdentity: null,
     trip,
-    places,
-    locationSharing: {
-      status: "off",
-      snapshot: offLocationSnapshot,
-      onEnable: vi.fn(async () => undefined),
-      onDisable: vi.fn(async () => undefined),
-      onRetryDisable: vi.fn(async () => undefined),
-      onRefresh: vi.fn(async () => undefined),
-    },
+    profileExtras: { avatar: null, title: null, phone: "", email: "" },
+    profile: {
+      profile: profileData,
+      status: "ready",
+      onSave: vi.fn(async () => undefined),
+    } satisfies ProfileControls,
     membership: {
       isOwner: true,
-      members: [],
+      members: [
+        { userId: "user-1", displayName: "Alex Chen", role: "owner", joinedAt: null, isCurrentUser: true },
+        { userId: "user-2", displayName: "Sam", role: "editor", joinedAt: "2026-09-01T00:00:00.000Z", isCurrentUser: false },
+      ],
       invitations: [],
-      status: "idle",
-      onCreateInvitation: vi.fn(async () => null),
+      status: "ready",
+      onCreateInvitation: vi.fn(async () => "http://localhost:5173/join/abc123"),
       onRevokeInvitation: vi.fn(async () => undefined),
       onRemoveMember: vi.fn(async () => undefined),
-    },
-    profile: {
-      profile: null,
-      status: "idle",
-      onSave: vi.fn(async () => undefined),
-    },
+    } satisfies MembershipControls,
+    busy: null,
+    message: null,
     itineraryEditing: {
       onEditStop: vi.fn(async () => undefined),
       onMoveStopToDay: vi.fn(async () => undefined),
       onEditDay: vi.fn(async () => undefined),
       onDraftReservation: vi.fn(async () => null),
     },
-    privatePlaces: {
-      places: [],
-      onCreate: vi.fn(async () => undefined),
-      onAddToDay: vi.fn(async () => undefined),
-    },
-    onAddDay: vi.fn(async () => 3),
-    onAddPlace: vi.fn(async () => undefined),
-    onConfirm: vi.fn(async () => undefined),
+    places: [],
+    selectedDay: 1,
+    userCoordinate: null,
+    completedStopIds: new Set(),
+    completedReservationIds: new Set(),
+    onAddDay: vi.fn(async () => 1),
+    onToggleStopCompleted: vi.fn(),
+    onToggleReservationCompleted: vi.fn(),
+    onEditTripDates: vi.fn(async () => undefined),
     onRemoveStop: vi.fn(async () => undefined),
     onReorderStop: vi.fn(async () => undefined),
     onCreateReservation: vi.fn(async () => undefined),
     onUpdateReservation: vi.fn(async () => undefined),
     onRemoveReservation: vi.fn(async () => undefined),
     onSelectDay: vi.fn(),
-    onSelectPlace: vi.fn(),
-    onSuggest: vi.fn(async () => undefined),
-    onExit: vi.fn(async () => undefined),
   }
 }
 
@@ -118,165 +87,80 @@ function renderMine(props: MineViewProps = createProps()) {
 describe("MineView", () => {
   afterEach(cleanup)
 
-  it("shows the selected day's stops as cards and forwards selection", async () => {
-    const props = createProps()
-    renderMine(props)
-
-    expect(screen.getByRole("button", { name: /Jingshan Park.*min/ })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /Jingshan Park.*min/ }))
-    expect(props.onSelectPlace).toHaveBeenCalledWith("jingshan-park")
-  })
-
-  it("removes an added stop from the selected day", async () => {
-    const props = createProps()
-    renderMine(props)
-
-    await userEvent.click(screen.getByRole("button", { name: "Remove Jingshan Park" }))
-    expect(props.onRemoveStop).toHaveBeenCalledWith("stop-1")
-  })
-
-  it("saves a user-entered reservation draft", async () => {
-    const props = createProps()
-    renderMine(props)
-    const user = userEvent.setup()
-
-    await user.click(screen.getByRole("button", { name: "Reservations" }))
-    await user.click(screen.getByRole("button", { name: "New reservation" }))
-    const dialog = await screen.findByRole("dialog", { name: "New reservation" })
-    await user.type(within(dialog).getByLabelText("Name"), "Museum entry")
-    await user.selectOptions(within(dialog).getByLabelText("Type"), "attraction")
-    await user.click(within(dialog).getByRole("button", { name: "Save reservation" }))
-
-    expect(props.onCreateReservation).toHaveBeenCalledWith(expect.objectContaining({ title: "Museum entry", category: "attraction" }))
-  })
-
-  it("renders location sharing off by default with explicit privacy limits", () => {
+  it("renders the My trip heading and a compact profile card", () => {
     renderMine()
 
-    expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("false")
-    expect(screen.getByText("Location sharing is off")).toBeTruthy()
-    expect(screen.getByText("Only while this app is open")).toBeTruthy()
-    expect(screen.getByText(/active trip members only/i)).toBeTruthy()
-    expect(screen.getByText(/no location history/i)).toBeTruthy()
-    expect(screen.getByText(/not a safety guarantee/i)).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "My trip" })).toBeTruthy()
+    expect(screen.getByText("Alex Chen")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Edit profile" })).toBeTruthy()
   })
 
-  it("shows successful sharing and the number of active recipients", () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "sharing",
-      snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing" },
-    }
-    renderMine(props)
+  it("shows country, language and a light traveler-title badge on one row", () => {
+    renderMine()
 
-    expect(screen.getByRole("switch", { name: "Share my current location" }).getAttribute("aria-checked")).toBe("true")
-    expect(screen.getByText("Sharing with 2 other active trip member(s).")).toBeTruthy()
+    expect(screen.getByText("US")).toBeTruthy()
+    expect(screen.getByText("English")).toBeTruthy()
+    expect(screen.getByText("Culture Explorer")).toBeTruthy()
   })
 
-  it("explains when no active peer can receive a shared point", () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "sharing",
-      snapshot: { ...offLocationSnapshot, enabled: true, status: "sharing", activeMemberCount: 1 },
-    }
-    renderMine(props)
+  it("presents Saved, Visited and Language as one quick-options row", () => {
+    renderMine()
 
-    expect(screen.getByText("No other active trip members can view your location right now.")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Saved" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Visited" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Language" })).toBeTruthy()
   })
 
-  it("keeps permission denial visible without blocking the rest of Mine", () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "permission-denied",
-      snapshot: { ...offLocationSnapshot, status: "permission-denied" },
-    }
-    renderMine(props)
+  it("shows shared members with Add member first", () => {
+    renderMine()
 
-    expect(screen.getByRole("alert").textContent).toContain("Location permission was denied")
-    expect(screen.getByRole("button", { name: /Jingshan Park.*min/ })).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "Shared members" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Add member" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Sam" })).toBeTruthy()
   })
 
-  it("offers a retry when server revocation fails", async () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "revoke-failed",
-      snapshot: { ...offLocationSnapshot, enabled: true, status: "revoke-failed" },
-    }
-    renderMine(props)
+  it("renders the My itinerary section inline with a single Add entry", () => {
+    renderMine()
 
-    expect(screen.getByRole("alert").textContent).toContain("server revocation failed")
-    await userEvent.click(screen.getByRole("button", { name: "Retry revocation" }))
-    expect(props.locationSharing.onRetryDisable).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("heading", { name: "My itinerary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Week" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Add attraction" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Beijing family trip/ })).toBeNull()
   })
 
-  it("still allows a traveler to turn sharing off after a live upload dependency failure", async () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "dependency-unavailable",
-      snapshot: { ...offLocationSnapshot, enabled: true, status: "dependency-unavailable" },
-    }
-    renderMine(props)
+  it("opens the language sheet and selects Chinese", async () => {
+    renderMine()
+    const user = userEvent.setup()
 
-    const sharingSwitch = screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement
-    expect(sharingSwitch.disabled).toBe(false)
-    await userEvent.click(sharingSwitch)
-    expect(props.locationSharing.onDisable).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole("button", { name: "Language" }))
+    const dialog = await screen.findByRole("dialog", { name: "Language" })
+    expect(within(dialog).getByText("English")).toBeTruthy()
+    expect(within(dialog).getByText("中文")).toBeTruthy()
+
+    await user.click(within(dialog).getByRole("button", { name: "中文" }))
+    expect(screen.queryByRole("dialog", { name: "Language" })).toBeNull()
   })
 
-  it("uses a deterministic unavailable state in preview without member or coordinate placeholders", () => {
-    const props = createProps()
-    props.locationSharing = {
-      ...props.locationSharing,
-      status: "dependency-unavailable",
-      snapshot: null,
-    }
-    props.mode = "preview"
-    renderMine(props)
-
-    expect((screen.getByRole("switch", { name: "Share my current location" }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText("Location sharing is unavailable in preview.")).toBeTruthy()
-    expect(screen.queryByText(/demo member/i)).toBeNull()
-  })
-
-  it("saves edited day details", async () => {
+  it("creates an invitation link from the Add member sheet", async () => {
     const props = createProps()
     renderMine(props)
     const user = userEvent.setup()
 
-    await user.type(screen.getByLabelText("Title"), "Museum morning")
-    await user.click(screen.getByRole("button", { name: "Save day details" }))
+    await user.click(screen.getByRole("button", { name: "Add member" }))
+    const dialog = await screen.findByRole("dialog", { name: "Invite a member" })
 
-    expect(props.itineraryEditing.onEditDay).toHaveBeenCalledWith(2, expect.objectContaining({ title: "Museum morning" }))
+    await user.click(within(dialog).getByRole("button", { name: "Create invitation link" }))
+    expect(props.membership.onCreateInvitation).toHaveBeenCalledWith({ role: "viewer", expiresInHours: 72 })
+    expect(within(dialog).getByLabelText("Invitation link")).toBeTruthy()
   })
 
-  it("drafts a reservation from pasted text without saving it", async () => {
+  it("keeps the Add member sheet honest for non-owners", async () => {
     const props = createProps()
-    props.itineraryEditing.onDraftReservation = vi.fn(async (): Promise<ReservationDraft | null> => ({
-      category: "accommodation",
-      title: "Hotel check-in",
-      startsAt: null,
-      endsAt: null,
-      status: "planned",
-      provider: "Example Hotel",
-      confirmationCode: "12345",
-      notes: "",
-    }))
+    props.membership = { ...props.membership, isOwner: false }
     renderMine(props)
-    const user = userEvent.setup()
 
-    await user.click(screen.getByRole("button", { name: "Reservations" }))
-    await user.click(screen.getByRole("button", { name: "New reservation" }))
-    await user.click(screen.getByRole("button", { name: "AI draft" }))
-    await user.type(screen.getByLabelText("AI draft"), "Hotel check-in, confirmation 12345")
-    await user.click(screen.getByRole("button", { name: "Generate draft" }))
-
-    expect(props.itineraryEditing.onDraftReservation).toHaveBeenCalledWith("Hotel check-in, confirmation 12345")
-    expect(await screen.findByText(/Draft generated/i)).toBeTruthy()
-    expect(props.onCreateReservation).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole("button", { name: "Add member" }))
+    expect(await screen.findByText(/only the trip owner/i)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Create invitation link" })).toBeNull()
   })
 })

@@ -1,10 +1,11 @@
 import type { Session } from "@supabase/supabase-js"
-import { ArrowLeft, ArrowRight, CalendarDays, LoaderCircle, Minus, Plus, Sparkles, Users } from "lucide-react"
+import { ArrowLeft, ArrowRight, LoaderCircle, Minus, Plus, Sparkles } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { type AgentSuggestion, type CreateTripInvitationInput, type PlaceSummary, type PrivatePlace, type PrivatePlaceInput, type ReservationDraft, type ReservationInput, type TripInvitationSummary, type TripMemberSummary, type TripSnapshot, type UserProfile, type UserProfileInput } from "../../../packages/shared/src"
 import { AppShell } from "./app-shell/AppShell"
-import type { AccountStateStatus, DayEditFields, StopEditFields } from "./app-shell/types"
+import type { AccountStateStatus, DayEditFields, ProfileExtras, StopEditFields } from "./app-shell/types"
+import { BrandMark } from "./components/BrandMark"
 import { createPlaceRepository } from "./data/placeRepository"
 import { useLocationSharing } from "./features/location/useLocationSharing"
 import { JoinTripView } from "./features/members/JoinTripView"
@@ -19,12 +20,40 @@ export function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>("loading")
+  const [entered, setEntered] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [trip, setTrip] = useState<TripSnapshot | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [places, setPlaces] = useState<PlaceSummary[]>([])
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() => new Set())
+  // TODO(visited): completion is client-side until `trip_stops` gains a persisted
+  // completed column + Worker command. Stop ids are stable across reloads, so a flat
+  // id set is a safe, trip-independent cache; it never changes server-side ordering.
+  const [completedStopIds, setCompletedStopIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("china-stroll-completed-stops")
+      return new Set(raw ? (JSON.parse(raw) as string[]) : [])
+    } catch {
+      return new Set()
+    }
+  })
+  const [completedReservationIds, setCompletedReservationIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("china-stroll-completed-reservations")
+      return new Set(raw ? (JSON.parse(raw) as string[]) : [])
+    } catch {
+      return new Set()
+    }
+  })
+  const [profileExtras, setProfileExtras] = useState<ProfileExtras>(() => {
+    try {
+      const raw = localStorage.getItem("china-stroll-profile-extras")
+      return raw ? (JSON.parse(raw) as ProfileExtras) : { avatar: null, title: null, phone: "", email: "" }
+    } catch {
+      return { avatar: null, title: null, phone: "", email: "" }
+    }
+  })
   const [placesState, setPlacesState] = useState<"idle" | "loading" | "ready" | "failed">("idle")
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileStatus, setProfileStatus] = useState<AccountStateStatus>("idle")
@@ -208,20 +237,41 @@ export function App() {
     })
   }
 
-  async function signInAnonymously() {
+  async function handleStart() {
     if (!supabase) return
     setBusy("sign-in")
     setMessage(null)
     try {
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) {
-        setMessage(error.message)
-        return
-      }
-      if (data.session) {
-        setSession(data.session)
+      let activeSession = session
+      if (!activeSession) {
+        const { data, error } = await supabase.auth.signInAnonymously()
+        if (error) {
+          setMessage(error.message)
+          return
+        }
+        activeSession = data.session
+        setSession(activeSession)
         setMode("account")
       }
+      // A returning user keeps their trip, so "Get started" skips onboarding.
+      if (trip) {
+        setEntered(true)
+        navigate("/attractions")
+        return
+      }
+      const tripId = localStorage.getItem("china-stroll-trip-id")
+      if (tripId && activeSession) {
+        try {
+          await loadTrip(activeSession.access_token, tripId)
+          setEntered(true)
+          navigate("/attractions")
+          return
+        } catch {
+          localStorage.removeItem("china-stroll-trip-id")
+        }
+      }
+      // First use: walk through the three-step onboarding.
+      setEntered(true)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not sign in.")
     } finally {
@@ -244,6 +294,7 @@ export function App() {
       })
     }
     await createTrip({ name: tripName, startDate: input.startDate, endDate: input.endDate, travelerCount: input.travelerCount })
+    navigate("/attractions")
   }
 
   async function addPlace(placeId: string, dayNumber = 1) {
@@ -260,22 +311,55 @@ export function App() {
     })
   }
 
-  async function addDay(): Promise<number | null> {
+  async function addDay(date: string | null = null): Promise<number | null> {
     if (!trip) return null
     if (mode === "preview") {
-      const nextTrip = addDemoDay(trip)
+      const nextTrip = addDemoDay(trip, date)
       setTrip(nextTrip)
       setMessage(`Day ${nextTrip.days.length} added. You can now build its itinerary.`)
       return nextTrip.days.length
     }
     if (!session) return null
     const nextTrip = await run("add-day", async () => {
-      await api.addTripDay(session.access_token, trip)
+      await api.addTripDay(session.access_token, trip, date)
       return loadTrip(session.access_token, trip.id)
     })
     if (!nextTrip) return null
     setMessage(`Day ${nextTrip.days.length} added. You can now build its itinerary.`)
     return nextTrip.days.length
+  }
+
+  async function editTripDates(input: { startDate: string | null; endDate: string | null }) {
+    if (!trip) return
+    // TODO(server): no Worker endpoint persists trip start/end dates yet, so this
+    // updates the client snapshot only; preview mode persists it via localStorage.
+    setTrip({ ...trip, startDate: input.startDate, endDate: input.endDate })
+    setMessage("Trip dates updated.")
+  }
+
+  function toggleStopCompleted(stopId: string) {
+    setCompletedStopIds((current) => {
+      const next = new Set(current)
+      if (next.has(stopId)) next.delete(stopId)
+      else next.add(stopId)
+      localStorage.setItem("china-stroll-completed-stops", JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  function toggleReservationCompleted(reservationId: string) {
+    setCompletedReservationIds((current) => {
+      const next = new Set(current)
+      if (next.has(reservationId)) next.delete(reservationId)
+      else next.add(reservationId)
+      localStorage.setItem("china-stroll-completed-reservations", JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  function saveProfileExtras(extras: ProfileExtras) {
+    setProfileExtras(extras)
+    localStorage.setItem("china-stroll-profile-extras", JSON.stringify(extras))
   }
 
   async function removeStop(stopId: string) {
@@ -551,6 +635,7 @@ export function App() {
         accessToken={session?.access_token ?? null}
         onAccepted={async (tripId) => {
           localStorage.setItem("china-stroll-trip-id", tripId)
+          setEntered(true)
           if (session) await loadTrip(session.access_token, tripId)
           navigate("/me")
         }}
@@ -559,14 +644,13 @@ export function App() {
     )
   }
 
-  if (mode === "signed-out") {
+  if (mode === "signed-out" || (mode !== "preview" && !entered)) {
     return (
       <LoginScreen
         configured={hasSupabaseConfig}
         busy={busy === "sign-in"}
         error={message}
-        onSignIn={() => void signInAnonymously()}
-        onPreview={() => setMode("preview")}
+        onStart={() => void handleStart()}
       />
     )
   }
@@ -619,8 +703,15 @@ export function App() {
       savedPlaceIds={savedPlaceIds}
       testIdentity={null}
       trip={trip}
+      completedStopIds={completedStopIds}
+      completedReservationIds={completedReservationIds}
+      profileExtras={profileExtras}
       onAddPlace={addPlace}
       onAddDay={addDay}
+      onToggleStopCompleted={toggleStopCompleted}
+      onToggleReservationCompleted={toggleReservationCompleted}
+      onSaveProfileExtras={saveProfileExtras}
+      onEditTripDates={editTripDates}
       onRemoveStop={removeStop}
       onReorderStop={reorderStop}
       onCreateReservation={createReservation}
@@ -631,6 +722,7 @@ export function App() {
       onSuggest={suggest}
       onExit={async () => {
         setTrip(null)
+        setEntered(false)
         localStorage.removeItem("china-stroll-trip-id")
         localStorage.removeItem("china-stroll-preview-trip")
         if (mode === "account") await supabase?.auth.signOut()
@@ -644,49 +736,44 @@ function LoginScreen({
   configured,
   busy,
   error,
-  onSignIn,
-  onPreview,
+  onStart,
 }: {
   configured: boolean
   busy: boolean
   error: string | null
-  onSignIn: () => void
-  onPreview: () => void
+  onStart: () => void
 }) {
   const { t } = useLocale()
   return (
     <main className="welcome-layout">
-      <section className="welcome-copy">
+      <header className="welcome-header">
         <a className="brand" href="/" aria-label="China Stroll home">
-          <span className="brand-seal">游</span>
+          <span className="brand-seal" aria-hidden="true"><BrandMark /></span>
           <span>China Stroll</span>
         </a>
-        <div className="eyebrow">{t("login.eyebrow")}</div>
-        <h1>{t("login.title")}</h1>
-        <p className="welcome-lede">{t("login.lede")}</p>
-        <div className="proof-row">
-          <span><CalendarDays size={18} /> {t("login.proofOne")}</span>
-          <span><Users size={18} /> {t("login.proofTwo")}</span>
-          <span><Sparkles size={18} /> {t("login.proofThree")}</span>
+      </header>
+      <div className="welcome-main">
+        <section className="welcome-hero">
+          <h1>{t("login.title")}</h1>
+          <p className="welcome-lede">{t("login.lede")}</p>
+        </section>
+        <div className="welcome-figure" aria-hidden="true">
+          <div className="postcard-stack">
+            <img src="/places/forbidden-city.webp" alt="" />
+            <span>BEIJING · 北京</span>
+          </div>
         </div>
-      </section>
-      <section className="welcome-card" aria-labelledby="start-title">
-        <div className="postcard-stack" aria-hidden="true">
-          <img src="/places/forbidden-city.webp" alt="" />
-          <span>BEIJING · 北京</span>
-        </div>
-        <h2 id="start-title">{t("login.startTitle")}</h2>
-        <button className="primary-button" type="button" disabled={busy || !configured} onClick={onSignIn}>
-          {busy ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}
-          {t("login.start")}
+      </div>
+      <footer className="welcome-actions">
+        <button className="primary-button welcome-cta" type="button" disabled={busy || !configured} onClick={onStart}>
+          {busy && <LoaderCircle className="spin" size={18} />}
+          <span>{t("login.start")}</span>
+          <ArrowRight size={18} aria-hidden="true" />
         </button>
         {!configured && <p className="config-note">{t("login.configNote")}</p>}
         {error && <p className="status-message" role="alert">{error}</p>}
         <p className="privacy-note">{t("login.startNote")}</p>
-        <div className="or-divider"><span>or</span></div>
-        <button className="secondary-button" type="button" onClick={onPreview}>{t("login.preview")}</button>
-        <p className="privacy-note">{t("login.previewNote")}</p>
-      </section>
+      </footer>
     </main>
   )
 }
@@ -778,5 +865,5 @@ function OnboardingScreen({ busy, error, onComplete }: { busy: boolean; error: s
 }
 
 function LoadingScreen() {
-  return <main className="loading-screen"><span className="brand-seal">游</span><LoaderCircle className="spin" size={24} /><span>Opening your stroll…</span></main>
+  return <main className="loading-screen"><span className="brand-seal" aria-hidden="true"><BrandMark /></span><LoaderCircle className="spin" size={24} /><span>Opening your stroll…</span></main>
 }

@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom"
 import { collectPlaceCategories, filterPlaceSummaries } from "../../../../packages/shared/src"
+import { BrandMark } from "../components/BrandMark"
 import { PlaceDetailPanel } from "../components/PlaceDetailPanel"
 import { AttractionsView } from "../features/attractions/AttractionsView"
 import { MapView } from "../features/map/MapView"
+import { EditProfileView } from "../features/me/EditProfileView"
+import { MemberProfileView } from "../features/me/MemberProfileView"
 import { MineView } from "../features/me/MineView"
+import { SavedPlacesView } from "../features/me/SavedPlacesView"
+import { VisitedPlacesView } from "../features/me/VisitedPlacesView"
 import { ToolsView } from "../features/tools/ToolsView"
+import { TranslationAIView } from "../features/tools/TranslationAIView"
 import { BottomNavigation } from "./BottomNavigation"
 import type { AppShellProps, NearbyRadius } from "./types"
 import { useCurrentLocation } from "./useCurrentLocation"
@@ -18,28 +24,31 @@ export function AppShell({
   itineraryEditing,
   locationSharing,
   membership,
-  privatePlaces,
   profile,
   placeRepository,
   places,
   placesState,
   savedPlaceIds,
   trip,
-  testIdentity,
+  completedStopIds,
+  completedReservationIds,
+  profileExtras,
   onAddPlace,
   onAddDay,
+  onToggleStopCompleted,
+  onToggleReservationCompleted,
+  onSaveProfileExtras,
+  onEditTripDates,
   onRemoveStop,
   onReorderStop,
   onCreateReservation,
   onUpdateReservation,
   onRemoveReservation,
   onToggleSaved,
-  onConfirm,
-  onSuggest,
   onExit,
 }: AppShellProps) {
   const navigate = useNavigate()
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(trip.stops[0]?.placeId ?? null)
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
   const [detailPlaceId, setDetailPlaceId] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState(trip.days[0]?.dayNumber ?? 1)
   const [category, setCategory] = useState("all")
@@ -63,10 +72,6 @@ export function AppShell({
       }),
     [category, maxDuration, nearbyRadius, places, query, userCoordinate],
   )
-
-  useEffect(() => {
-    if (!selectedPlaceId && trip.stops[0]?.placeId) setSelectedPlaceId(trip.stops[0].placeId)
-  }, [selectedPlaceId, trip.stops])
 
   useEffect(() => {
     if (!detailPlaceId && restoreFocusRef.current) {
@@ -96,7 +101,7 @@ export function AppShell({
     <div className="app-shell module-app-shell">
       <header className="app-header">
         <Link className="brand" to="/attractions" aria-label="China Stroll attractions">
-          <span className="brand-seal">游</span><span>China Stroll</span>
+          <span className="brand-seal" aria-hidden="true"><BrandMark /></span><span>China Stroll</span>
         </Link>
         <Link className="header-avatar" to="/me" aria-label="Open your profile">
           {profile.profile?.displayName?.trim()?.[0]?.toUpperCase() ?? "游"}
@@ -152,6 +157,7 @@ export function AppShell({
                 locationStatus={locationStatus}
                 nearbyRadius={nearbyRadius}
                 places={visiblePlaces}
+                placeCatalog={places}
                 plannedIds={plannedIds}
                 selectedDay={selectedDay}
                 selectedPlaceId={selectedPlaceId}
@@ -161,44 +167,97 @@ export function AppShell({
                 onAddPlace={onAddPlace}
                 onOpenDetails={openDetails}
                 onRadius={setNearbyRadius}
+                onReorderStop={onReorderStop}
                 onRequestLocation={requestLocation}
                 onSelect={setSelectedPlaceId}
                 onSelectDay={setSelectedDay}
               />
             )}
           />
-          <Route path="/tools" element={<ToolsView mode={mode} accessToken={accessToken} />} />
+          <Route path="/tools" element={<ToolsView />} />
+          <Route path="/tools/translation" element={<TranslationAIView mode={mode} accessToken={accessToken} />} />
           <Route
             path="/me"
             element={(
               <MineView
+                mode={mode}
+                profile={profile}
+                membership={membership}
+                profileExtras={profileExtras}
+                trip={trip}
                 busy={busy}
                 message={message}
-                mode={mode}
                 itineraryEditing={itineraryEditing}
-                locationSharing={locationSharing}
-                membership={membership}
-                privatePlaces={privatePlaces}
-                profile={profile}
                 places={places}
                 selectedDay={selectedDay}
-                selectedPlaceId={selectedPlaceId}
-                testIdentity={testIdentity}
-                trip={trip}
+                userCoordinate={userCoordinate}
+                completedStopIds={completedStopIds}
+                completedReservationIds={completedReservationIds}
                 onAddDay={onAddDay}
-                onAddPlace={onAddPlace}
-                onConfirm={onConfirm}
+                onToggleStopCompleted={onToggleStopCompleted}
+                onToggleReservationCompleted={onToggleReservationCompleted}
+                onEditTripDates={onEditTripDates}
                 onRemoveStop={onRemoveStop}
                 onReorderStop={onReorderStop}
                 onCreateReservation={onCreateReservation}
                 onUpdateReservation={onUpdateReservation}
                 onRemoveReservation={onRemoveReservation}
                 onSelectDay={setSelectedDay}
-                onSelectPlace={setSelectedPlaceId}
-                onSuggest={onSuggest}
+              />
+            )}
+          />
+          <Route
+            path="/me/edit-profile"
+            element={(
+              <EditProfileView
+                message={message}
+                profile={profile}
+                profileExtras={profileExtras}
+                onSaveProfileExtras={onSaveProfileExtras}
                 onExit={onExit}
               />
             )}
+          />
+          <Route path="/me/itinerary" element={<Navigate replace to="/me" />} />
+          <Route
+            path="/me/saved"
+            element={(
+              <SavedPlacesView
+                busy={busy}
+                places={places}
+                plannedIds={plannedIds}
+                savedPlaceIds={savedPlaceIds}
+                selectedDay={selectedDay}
+                userCoordinate={userCoordinate}
+                onAddPlace={onAddPlace}
+                onOpenDetails={openDetails}
+                onShowOnMap={showOnMap}
+                onToggleSaved={onToggleSaved}
+              />
+            )}
+          />
+          <Route
+            path="/me/visited"
+            element={(
+              <VisitedPlacesView
+                busy={busy}
+                places={places}
+                plannedIds={plannedIds}
+                savedPlaceIds={savedPlaceIds}
+                selectedDay={selectedDay}
+                trip={trip}
+                completedStopIds={completedStopIds}
+                userCoordinate={userCoordinate}
+                onAddPlace={onAddPlace}
+                onOpenDetails={openDetails}
+                onShowOnMap={showOnMap}
+                onToggleSaved={onToggleSaved}
+              />
+            )}
+          />
+          <Route
+            path="/me/member/:userId"
+            element={<MemberProfileView membership={membership} />}
           />
           <Route path="*" element={<Navigate replace to="/attractions" />} />
         </Routes>

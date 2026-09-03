@@ -61,6 +61,7 @@ function createProps(): MapViewProps {
     locationStatus: "idle",
     nearbyRadius: 3,
     places: [palace],
+    placeCatalog: [palace],
     plannedIds: new Set(),
     selectedDay: 1,
     selectedPlaceId: null,
@@ -77,6 +78,7 @@ function createProps(): MapViewProps {
     onAddPlace: vi.fn(async () => undefined),
     onOpenDetails: vi.fn(),
     onRadius: vi.fn(),
+    onReorderStop: vi.fn(async () => undefined),
     onRequestLocation: vi.fn(),
     onSelect: vi.fn(),
     onSelectDay: vi.fn(),
@@ -93,7 +95,7 @@ describe("MapView", () => {
     const props = createProps()
     render(<MapView {...props} />)
     expect(screen.getByRole("heading", { name: "Itinerary" })).toBeTruthy()
-    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum.*min/ }))
+    await userEvent.click(screen.getByRole("button", { name: /The Palace Museum Historic/ }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
   })
 
@@ -164,5 +166,33 @@ describe("MapView", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Select marker" }))
     expect(props.onSelect).toHaveBeenCalledWith("forbidden-city")
+  })
+
+  it("shows a light reviewed-place sheet for the selected marker and closes it", async () => {
+    const props = createProps()
+    props.selectedPlaceId = "forbidden-city"
+    render(<MapView {...props} />)
+
+    expect(screen.getByRole("dialog", { name: "The Palace Museum map actions" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Details" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeTruthy()
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }))
+    expect(props.onSelect).toHaveBeenCalledWith(null)
+  })
+
+  it("exposes a reorder handle for each itinerary stop", async () => {
+    const props = createProps()
+    props.trip = {
+      ...trip,
+      stops: [
+        trip.stops[0],
+        { id: "stop-2", tripId: "trip-1", dayNumber: 1, placeId: "temple-of-heaven", name: "Temple of Heaven", coordinate: [116.4066, 39.8825], startTime: "11:00:00", durationMinutes: 150, transportMode: null, privatePlaceId: null, notes: "", sortOrder: 1 },
+      ],
+    }
+    render(<MapView {...props} />)
+
+    expect(screen.getByRole("button", { name: "Reorder The Palace Museum" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Reorder Temple of Heaven" })).toBeTruthy()
   })
 })

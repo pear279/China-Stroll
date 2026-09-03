@@ -17,6 +17,7 @@ type PlaceCardProps = {
   busy: string | null
   userCoordinate: Coordinate | null
   mode: "grid" | "list"
+  note?: string | null
   onDetails: (placeId: string) => void
   onSave: (placeId: string) => Promise<void>
   onAdd: (placeId: string, dayNumber: number) => Promise<void>
@@ -31,6 +32,7 @@ export function PlaceCard({
   busy,
   userCoordinate,
   mode,
+  note,
   onDetails,
   onSave,
   onAdd,
@@ -55,6 +57,7 @@ export function PlaceCard({
       <div className="place-card-body">
         <div className="place-card-meta">
           <span className="place-card-category">{formatCategoryLabel(place.categoryCode)}</span>
+          {note && <span className="place-card-note">{note}</span>}
           <div className="place-card-facts">
             <span><Clock3 aria-hidden="true" size={13} />{formatDurationHours(place.durationMinutes)}</span>
             {distanceKm !== null && <span><Milestone aria-hidden="true" size={13} />{distanceKm.toFixed(1)} km</span>}
